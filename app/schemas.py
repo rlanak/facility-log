@@ -68,6 +68,8 @@ class BuildingOut(BuildingBase):
 class StockEntryIn(BaseModel):
     resource_name: str
     quantity_raw: str
+    source: str = "manual"
+    source_image_id: int | None = None
 
 
 class StockEntryOut(BaseModel):
@@ -79,6 +81,27 @@ class StockEntryOut(BaseModel):
     quantity: float
     source: str
     recorded_at: datetime
+
+
+class UploadImageOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    building_id: int
+    url: str
+    uploaded_at: datetime
+
+
+class OcrCropRequest(BaseModel):
+    x: int
+    y: int
+    width: int
+    height: int
+
+
+class OcrResult(BaseModel):
+    available: bool
+    raw_text: str
+    guess: str
 
 
 class BuildingStockOut(BaseModel):

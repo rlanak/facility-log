@@ -128,8 +128,12 @@ views.facilityDetail = (() => {
                 .join("")
         }
       </div>
-      <button class="toggle-stock-form text-xs text-emerald-400 hover:text-emerald-300 mt-3">+ Lançar estoque</button>
+      <div class="flex gap-4 mt-3">
+        <button class="toggle-stock-form text-xs text-emerald-400 hover:text-emerald-300">+ Lançar estoque</button>
+        <button class="toggle-print-form text-xs text-emerald-400 hover:text-emerald-300">+ Print (OCR)</button>
+      </div>
       <div class="stock-form-container hidden mt-3"></div>
+      <div class="print-form-container hidden mt-3"></div>
     `;
 
     card.querySelector(".delete-building").addEventListener("click", async () => {
@@ -153,6 +157,15 @@ views.facilityDetail = (() => {
       formContainer.classList.toggle("hidden");
       if (!formContainer.classList.contains("hidden") && formContainer.children.length === 0) {
         buildStockForm(formContainer, building, onChange);
+      }
+    });
+
+    const togglePrintBtn = card.querySelector(".toggle-print-form");
+    const printContainer = card.querySelector(".print-form-container");
+    togglePrintBtn.addEventListener("click", () => {
+      printContainer.classList.toggle("hidden");
+      if (!printContainer.classList.contains("hidden")) {
+        views.print.renderCaptureUI(printContainer, building, onChange);
       }
     });
 
