@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Facility Log</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen">
+  <header class="border-b border-zinc-800 bg-zinc-900/60 sticky top-0 z-10 backdrop-blur">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+      <a href="#/" class="text-lg font-bold tracking-wide">🪖 Facility Log</a>
+      <nav class="flex gap-4 text-sm">
+        <a href="#/" class="hover:text-emerald-400">Facilities</a>
+        <a href="#/resources" class="hover:text-emerald-400">Catálogo de Recursos</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="app" class="max-w-5xl mx-auto px-4 py-6"></main>
+
+  <div id="toast" class="fixed bottom-4 right-4 space-y-2 z-50"></div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/views/facilities.js"></script>
+  <script src="/js/views/resources.js"></script>
+  <script src="/js/views/facilityDetail.js"></script>
+  <script src="/js/views/report.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,93 @@
+from datetime import datetime, timezone
+
+from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.database import Base
+
+
+def utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+class Resource(Base):
+    __tablename__ = "resources"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    icon: Mapped[str] = mapped_column(String(20), default="")
+    target_max: Mapped[float | None] = mapped_column(default=None)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+
+class Facility(Base):
+    __tablename__ = "facilities"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
+
+    buildings: Mapped[list["Building"]] = relationship(
+        back_populates="facility", cascade="all, delete-orphan", order_by="Building.position"
+    )
+    reports: Mapped[list["Report"]] = relationship(
+        back_populates="facility", cascade="all, delete-orphan", order_by="Report.generated_at.desc()"
+    )
+
+
+class Building(Base):
+    __tablename__ = "buildings"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    facility_id: Mapped[int] = mapped_column(ForeignKey("facilities.id"))
+    name: Mapped[str] = mapped_column(String(200))
+    role: Mapped[str] = mapped_column(String(100), default="")
+    position: Mapped[int] = mapped_column(default=0)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+    facility: Mapped["Facility"] = relationship(back_populates="buildings")
+    stock_entries: Mapped[list["StockEntry"]] = relationship(
+        back_populates="building", cascade="all, delete-orphan"
+    )
+    images: Mapped[list["UploadImage"]] = relationship(
+        back_populates="building", cascade="all, delete-orphan"
+    )
+
+
+class StockEntry(Base):
+    __tablename__ = "stock_entries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    building_id: Mapped[int] = mapped_column(ForeignKey("buildings.id"))
+    resource_id: Mapped[int] = mapped_column(ForeignKey("resources.id"))
+    quantity: Mapped[float] = mapped_column()
+    source: Mapped[str] = mapped_column(String(20), default="manual")
+    source_image_id: Mapped[int | None] = mapped_column(ForeignKey("upload_images.id"), default=None)
+    recorded_at: Mapped[datetime] = mapped_column(default=utcnow, index=True)
+
+    building: Mapped["Building"] = relationship(back_populates="stock_entries")
+    resource: Mapped["Resource"] = relationship()
+
+
+class UploadImage(Base):
+    __tablename__ = "upload_images"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    building_id: Mapped[int] = mapped_column(ForeignKey("buildings.id"))
+    file_path: Mapped[str] = mapped_column(String(500))
+    uploaded_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+    building: Mapped["Building"] = relationship(back_populates="images")
+
+
+class Report(Base):
+    __tablename__ = "reports"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    facility_id: Mapped[int] = mapped_column(ForeignKey("facilities.id"))
+    generated_at: Mapped[datetime] = mapped_column(default=utcnow, index=True)
+    markdown_content: Mapped[str] = mapped_column(Text)
+    stock_snapshot: Mapped[str] = mapped_column(Text)
+
+    facility: Mapped["Facility"] = relationship(back_populates="reports")
