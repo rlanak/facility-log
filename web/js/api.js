@@ -17,6 +17,21 @@ const api = (() => {
     return res.json();
   }
 
+  async function upload(path, file) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch(path, { method: "POST", body: formData });
+    if (!res.ok) {
+      let detail = res.statusText;
+      try {
+        const data = await res.json();
+        detail = data.detail || JSON.stringify(data);
+      } catch (_) {}
+      throw new Error(detail);
+    }
+    return res.json();
+  }
+
   return {
     listFacilities: () => request("GET", "/api/facilities"),
     createFacility: (data) => request("POST", "/api/facilities", data),
@@ -41,5 +56,15 @@ const api = (() => {
     createReport: (facilityId) => request("POST", `/api/facilities/${facilityId}/reports`),
     listReports: (facilityId) => request("GET", `/api/facilities/${facilityId}/reports`),
     getReport: (id) => request("GET", `/api/reports/${id}`),
+
+    ocrStatus: () => request("GET", "/api/ocr/status"),
+    listBuildingImages: (buildingId) => request("GET", `/api/buildings/${buildingId}/images`),
+    uploadBuildingImage: (buildingId, file) => upload(`/api/buildings/${buildingId}/images`, file),
+    readImageCrop: (imageId, box) => request("POST", `/api/images/${imageId}/ocr`, box),
+
+    listFoxholeResources: () => request("GET", "/api/foxhole/resources"),
+    listFoxholeBuildingTypes: () => request("GET", "/api/foxhole/building-types"),
+    setBuildingProduction: (buildingId, data) => request("PUT", `/api/buildings/${buildingId}/production`, data),
+    getProductionEstimate: (buildingId) => request("GET", `/api/buildings/${buildingId}/production-estimate`),
   };
 })();

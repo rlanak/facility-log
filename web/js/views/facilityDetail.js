@@ -3,6 +3,28 @@ window.views = window.views || {};
 views.facilityDetail = (() => {
   let facilityId;
   let allResources = [];
+  let foxholeBuildingTypes = [];
+  let foxholeResourceDefs = {};
+
+  function getFoxholeType(key) {
+    return foxholeBuildingTypes.find((t) => t.key === key);
+  }
+
+  function resourceThumb(resourceId) {
+    const resource = allResources.find((r) => r.id === resourceId);
+    const def = resource && foxholeResourceDefs[resource.resource_def_key];
+    return def && def.icon ? `<img src="${ui.escapeHtml(def.icon)}" class="h-5 w-5 inline-block object-contain align-text-bottom" />` : "";
+  }
+
+  function formatDuration(seconds) {
+    seconds = Math.round(seconds);
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    if (hours) return `${hours}h${String(minutes).padStart(2, "0")}`;
+    if (minutes) return `${minutes}min`;
+    return `${secs}s`;
+  }
 
   function tabLink(tab, label, activeTab) {
     const isActive = tab === activeTab;
@@ -52,6 +74,11 @@ views.facilityDetail = (() => {
     });
 
     allResources = await api.listResources();
+    foxholeBuildingTypes = await api.listFoxholeBuildingTypes();
+    if (Object.keys(foxholeResourceDefs).length === 0) {
+      const foxholeResources = await api.listFoxholeResources();
+      foxholeResourceDefs = Object.fromEntries(foxholeResources.map((r) => [r.key, r]));
+    }
 
     const tabContent = document.getElementById("tab-content");
     if (activeTab === "buildings") await renderBuildingsTab(tabContent);
@@ -64,8 +91,12 @@ views.facilityDetail = (() => {
       <datalist id="resources-datalist">
         ${allResources.map((r) => `<option value="${ui.escapeHtml(r.name)}"></option>`).join("")}
       </datalist>
-      <form id="new-building-form" class="grid grid-cols-[1fr_160px_auto] gap-2 mb-6">
-        <input id="b-name" required placeholder="Nome do prédio (ex: Coke Furnace 1)"
+      <form id="new-building-form" class="grid grid-cols-[180px_1fr_160px_auto] gap-2 mb-6">
+        <select id="b-type" class="bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
+          <option value="">Prédio livre (sem tipo)</option>
+          ${foxholeBuildingTypes.map((t) => `<option value="${t.key}">📖 ${ui.escapeHtml(t.name_en)}</option>`).join("")}
+        </select>
+        <input id="b-name" required placeholder="Nome/apelido (ex: Coal Refinery 1)"
           class="bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
         <input id="b-role" placeholder="Papel (opcional)"
           class="bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
@@ -74,13 +105,21 @@ views.facilityDetail = (() => {
       <div id="buildings-list" class="space-y-3"></div>
     `;
 
+    const typeSelect = document.getElementById("b-type");
+    const nameInput = document.getElementById("b-name");
+    typeSelect.addEventListener("change", () => {
+      const type = getFoxholeType(typeSelect.value);
+      if (type && !nameInput.value.trim()) nameInput.value = type.name_en;
+    });
+
     document.getElementById("new-building-form").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const name = document.getElementById("b-name").value.trim();
+      const name = nameInput.value.trim();
       const role = document.getElementById("b-role").value.trim();
+      const building_type_key = typeSelect.value || null;
       if (!name) return;
       try {
-        await api.createBuilding(facilityId, { name, role });
+        await api.createBuilding(facilityId, { name, role, building_type_key });
         e.target.reset();
         renderBuildingsList();
       } catch (err) {
@@ -107,12 +146,20 @@ views.facilityDetail = (() => {
   async function buildingCard(building, onChange) {
     const card = ui.el("div", { class: "bg-zinc-900 border border-zinc-800 rounded-lg p-4" });
     const stock = await api.getBuildingStock(building.id);
+    const foxholeType = building.building_type_key ? getFoxholeType(building.building_type_key) : null;
+
+    const buildingThumb =
+      foxholeType && foxholeType.icon
+        ? `<img src="${ui.escapeHtml(foxholeType.icon)}" class="h-8 w-8 inline-block object-contain align-middle mr-2" />`
+        : "";
 
     card.innerHTML = `
       <div class="flex items-center justify-between">
-        <div>
+        <div class="flex items-center">
+          ${buildingThumb}
           <span class="font-semibold">${ui.escapeHtml(building.name)}</span>
           ${building.role ? `<span class="text-xs text-zinc-500 ml-2">${ui.escapeHtml(building.role)}</span>` : ""}
+          ${foxholeType ? `<span class="text-xs text-zinc-600 ml-2" title="tipo Foxhole">📖 ${ui.escapeHtml(foxholeType.name_en)}</span>` : ""}
         </div>
         <div class="flex gap-2">
           <button class="edit-building text-xs text-zinc-400 hover:text-zinc-200">editar</button>
@@ -124,13 +171,31 @@ views.facilityDetail = (() => {
           stock.length === 0
             ? '<span class="text-zinc-600">sem lançamentos</span>'
             : stock
-                .map((s) => `<span class="mr-3">${ui.escapeHtml(s.resource_icon)} ${ui.escapeHtml(s.resource_name)}: <strong>${s.quantity}</strong></span>`)
+                .map(
+                  (s) =>
+                    `<span class="mr-3 inline-flex items-center gap-1">${resourceThumb(s.resource_id) || ui.escapeHtml(s.resource_icon)} ${ui.escapeHtml(s.resource_name)}: <strong>${s.quantity}</strong></span>`
+                )
                 .join("")
         }
       </div>
-      <button class="toggle-stock-form text-xs text-emerald-400 hover:text-emerald-300 mt-3">+ Lançar estoque</button>
+      <div class="production-status text-sm text-zinc-400 mt-2"></div>
+      <div class="flex gap-2 mt-3 flex-wrap">
+        <button class="toggle-stock-form text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">+ Lançar estoque</button>
+        <button class="toggle-print-form text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">📷 Enviar print (OCR)</button>
+        ${
+          foxholeType
+            ? '<button class="toggle-production-form text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">⚙️ Produção</button>'
+            : ""
+        }
+      </div>
       <div class="stock-form-container hidden mt-3"></div>
+      <div class="print-form-container hidden mt-3"></div>
+      <div class="production-form-container hidden mt-3"></div>
     `;
+
+    if (foxholeType && building.active_recipe_key) {
+      renderProductionStatus(card.querySelector(".production-status"), building);
+    }
 
     card.querySelector(".delete-building").addEventListener("click", async () => {
       if (!confirm(`Excluir o prédio "${building.name}"? Estoques e imagens associados também serão apagados.`)) return;
@@ -156,7 +221,96 @@ views.facilityDetail = (() => {
       }
     });
 
+    const togglePrintBtn = card.querySelector(".toggle-print-form");
+    const printContainer = card.querySelector(".print-form-container");
+    togglePrintBtn.addEventListener("click", () => {
+      printContainer.classList.toggle("hidden");
+      if (!printContainer.classList.contains("hidden")) {
+        views.print.renderCaptureUI(printContainer, building, onChange);
+      }
+    });
+
+    const toggleProductionBtn = card.querySelector(".toggle-production-form");
+    if (toggleProductionBtn) {
+      const productionContainer = card.querySelector(".production-form-container");
+      toggleProductionBtn.addEventListener("click", () => {
+        productionContainer.classList.toggle("hidden");
+        if (!productionContainer.classList.contains("hidden")) {
+          buildProductionForm(productionContainer, building, foxholeType, onChange);
+        }
+      });
+    }
+
     return card;
+  }
+
+  async function renderProductionStatus(container, building) {
+    let estimate;
+    try {
+      estimate = await api.getProductionEstimate(building.id);
+    } catch (err) {
+      return;
+    }
+    if (!estimate) return;
+    const eta = new Date(estimate.eta).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    const outputs = estimate.outputs.map((o) => `${o.qty} ${o.name}`).join(", ");
+    container.innerHTML = `⚙️ ${estimate.queue_count}x em produção — pronto ~${eta}: ${ui.escapeHtml(outputs)}`;
+  }
+
+  function buildProductionForm(container, building, foxholeType, onChange) {
+    const recipesByModule = {};
+    for (const recipe of foxholeType.recipes) {
+      const mod = recipe.module || "Base";
+      (recipesByModule[mod] = recipesByModule[mod] || []).push(recipe);
+    }
+
+    function recipeLabel(recipe) {
+      const outputs = recipe.outputs
+        .map((o) => `${o.qty ?? 1}x ${(foxholeResourceDefs[o.resource] || {}).name_en || o.resource}`)
+        .join(" + ");
+      return `${outputs} (${formatDuration(recipe.time_seconds)})`;
+    }
+
+    container.innerHTML = `
+      <div class="border border-zinc-800 rounded p-3 bg-zinc-950">
+        <label class="block text-xs text-zinc-400 mb-1">Receita em produção</label>
+        <select class="production-recipe w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm mb-2 focus:outline-none focus:border-emerald-500">
+          <option value="">— nenhuma —</option>
+          ${Object.entries(recipesByModule)
+            .map(
+              ([mod, recipes]) => `
+            <optgroup label="${ui.escapeHtml(mod)}">
+              ${recipes
+                .map(
+                  (r) =>
+                    `<option value="${r.key}" ${r.key === building.active_recipe_key ? "selected" : ""}>${ui.escapeHtml(recipeLabel(r))}${r.note ? " ⚠" : ""}</option>`
+                )
+                .join("")}
+            </optgroup>`
+            )
+            .join("")}
+        </select>
+        <label class="block text-xs text-zinc-400 mb-1">Filas simultâneas (até ${foxholeType.queue_slots})</label>
+        <input type="number" min="0" max="${foxholeType.queue_slots}" value="${building.queue_count || 1}"
+          class="production-queue w-24 bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm mb-3 focus:outline-none focus:border-emerald-500" />
+        <div>
+          <button type="button" class="save-production bg-emerald-700 hover:bg-emerald-600 px-3 py-1.5 rounded text-xs font-semibold">Salvar Produção</button>
+        </div>
+        <p class="text-xs text-zinc-500 mt-2">Estimativa informativa (não sincroniza com o jogo) — ⚠ = receita não verificada quanto à facção, confira antes de confiar.</p>
+      </div>
+    `;
+
+    container.querySelector(".save-production").addEventListener("click", async () => {
+      const recipeKey = container.querySelector(".production-recipe").value || null;
+      const queueCount = parseInt(container.querySelector(".production-queue").value, 10) || 0;
+      try {
+        await api.setBuildingProduction(building.id, { recipe_key: recipeKey, queue_count: queueCount });
+        ui.toast("Produção atualizada!");
+        onChange();
+      } catch (err) {
+        ui.toast(err.message, true);
+      }
+    });
   }
 
   function buildStockForm(container, building, onChange) {

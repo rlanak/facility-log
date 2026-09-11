@@ -3,3 +3,5 @@ uvicorn[standard]>=0.34
 sqlalchemy>=2.0
 pydantic>=2.10
 python-multipart>=0.0.20
+pytesseract>=0.3.10
+Pillow>=10.0

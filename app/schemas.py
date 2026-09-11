@@ -7,6 +7,9 @@ class ResourceBase(BaseModel):
     name: str
     icon: str = ""
     target_max: float | None = None
+    farmable: bool = True
+    resource_def_key: str | None = None
+    nickname: str | None = None
 
 
 class ResourceCreate(ResourceBase):
@@ -17,6 +20,8 @@ class ResourceUpdate(BaseModel):
     name: str | None = None
     icon: str | None = None
     target_max: float | None = None
+    farmable: bool | None = None
+    nickname: str | None = None
 
 
 class ResourceOut(ResourceBase):
@@ -47,6 +52,7 @@ class BuildingBase(BaseModel):
     name: str
     role: str = ""
     position: int = 0
+    building_type_key: str | None = None
 
 
 class BuildingCreate(BuildingBase):
@@ -63,11 +69,38 @@ class BuildingOut(BuildingBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
     facility_id: int
+    active_recipe_key: str | None = None
+    queue_count: int = 0
+
+
+class BuildingProductionUpdate(BaseModel):
+    recipe_key: str | None = None
+    queue_count: int = 0
+
+
+class ProductionEstimateItem(BaseModel):
+    resource: str
+    name: str
+    qty: float
+
+
+class ProductionEstimateOut(BaseModel):
+    recipe_key: str
+    module: str | None = None
+    queue_count: int
+    time_seconds: int
+    eta: datetime
+    outputs: list[ProductionEstimateItem]
+    inputs: list[ProductionEstimateItem]
+
+
 
 
 class StockEntryIn(BaseModel):
     resource_name: str
     quantity_raw: str
+    source: str = "manual"
+    source_image_id: int | None = None
 
 
 class StockEntryOut(BaseModel):
@@ -79,6 +112,27 @@ class StockEntryOut(BaseModel):
     quantity: float
     source: str
     recorded_at: datetime
+
+
+class UploadImageOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    building_id: int
+    url: str
+    uploaded_at: datetime
+
+
+class OcrCropRequest(BaseModel):
+    x: int
+    y: int
+    width: int
+    height: int
+
+
+class OcrResult(BaseModel):
+    available: bool
+    raw_text: str
+    guess: str
 
 
 class BuildingStockOut(BaseModel):

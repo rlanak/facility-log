@@ -1,0 +1,2666 @@
+{
+  "coal_refinery": {
+    "name_en": "Coal Refinery",
+    "wiki_url": "https://foxhole.wiki.gg/wiki/Coal_Refinery",
+    "queue_slots": 5,
+    "recipes": [
+      {
+        "key": "base",
+        "module": "Base",
+        "inputs": [
+          {
+            "resource": "coal",
+            "qty": 200
+          },
+          {
+            "power_mw": 3
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "coke",
+            "qty": 180
+          }
+        ],
+        "time_seconds": 270
+      },
+      {
+        "key": "coke_furnace",
+        "module": "Coke Furnace Upgrade",
+        "inputs": [
+          {
+            "resource": "coal",
+            "qty": 200
+          },
+          {
+            "power_mw": 3
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "coke",
+            "qty": 165
+          },
+          {
+            "resource": "sulfur",
+            "qty": 15
+          }
+        ],
+        "time_seconds": 270
+      },
+      {
+        "key": "coal_liquefier",
+        "module": "Coal Liquefier Upgrade",
+        "inputs": [
+          {
+            "resource": "coal",
+            "qty": 300
+          },
+          {
+            "resource": "water",
+            "qty": 50
+          },
+          {
+            "power_mw": 6
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "concrete_materials",
+            "qty": 1
+          },
+          {
+            "resource": "sulfur",
+            "qty": 10
+          },
+          {
+            "resource": "oil",
+            "qty": 50
+          }
+        ],
+        "time_seconds": 270
+      },
+      {
+        "key": "advanced_liquefier_coke",
+        "module": "Advanced Coal Liquefier Upgrade",
+        "inputs": [
+          {
+            "resource": "coal",
+            "qty": 300
+          },
+          {
+            "resource": "water",
+            "qty": 100
+          },
+          {
+            "power_mw": 6
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "coke",
+            "qty": 260
+          },
+          {
+            "resource": "heavy_oil",
+            "qty": 60
+          }
+        ],
+        "time_seconds": 405
+      },
+      {
+        "key": "advanced_liquefier_concrete",
+        "module": "Advanced Coal Liquefier Upgrade",
+        "inputs": [
+          {
+            "resource": "coal",
+            "qty": 300
+          },
+          {
+            "resource": "water",
+            "qty": 100
+          },
+          {
+            "power_mw": 6
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "concrete_materials",
+            "qty": 1
+          },
+          {
+            "resource": "sulfur",
+            "qty": 15
+          },
+          {
+            "resource": "oil",
+            "qty": 100
+          }
+        ],
+        "time_seconds": 270
+      }
+    ],
+    "icon": "/assets/foxhole/structures/FacilityRefinery2Icon.png"
+  },
+  "materials_factory": {
+    "name_en": "Materials Factory",
+    "wiki_url": "https://foxhole.wiki.gg/wiki/Materials_Factory",
+    "queue_slots": 5,
+    "recipes": [
+      {
+        "key": "cmat",
+        "module": "Base",
+        "inputs": [
+          {
+            "resource": "salvage",
+            "qty": 10
+          },
+          {
+            "power_mw": 2
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 25
+      },
+      {
+        "key": "maintenance_supplies",
+        "module": "Base",
+        "inputs": [
+          {
+            "resource": "salvage",
+            "qty": 150
+          },
+          {
+            "power_mw": 3
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "maintenance_supplies",
+            "qty": 20
+          }
+        ],
+        "time_seconds": 40
+      },
+      {
+        "key": "barbed_wire",
+        "module": "Assembly Bay Upgrade",
+        "inputs": [
+          {
+            "resource": "salvage",
+            "qty": 25
+          },
+          {
+            "power_mw": 2
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "barbed_wire",
+            "qty": 5
+          },
+          {
+            "resource": "construction_materials",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 25
+      },
+      {
+        "key": "metal_beam",
+        "module": "Assembly Bay Upgrade",
+        "inputs": [
+          {
+            "resource": "salvage",
+            "qty": 25
+          },
+          {
+            "power_mw": 2
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "metal_beam",
+            "qty": 1
+          },
+          {
+            "resource": "construction_materials",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 25
+      },
+      {
+        "key": "sandbag",
+        "module": "Assembly Bay Upgrade",
+        "inputs": [
+          {
+            "resource": "salvage",
+            "qty": 25
+          },
+          {
+            "power_mw": 2
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "sandbag",
+            "qty": 5
+          },
+          {
+            "resource": "construction_materials",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 25
+      },
+      {
+        "key": "assembly_materials_1",
+        "module": "Forge Upgrade",
+        "inputs": [
+          {
+            "resource": "salvage",
+            "qty": 15
+          },
+          {
+            "resource": "coke",
+            "qty": 75
+          },
+          {
+            "power_mw": 2
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "assembly_materials_1",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 60
+      },
+      {
+        "key": "assembly_materials_2",
+        "module": "Forge Upgrade",
+        "inputs": [
+          {
+            "resource": "salvage",
+            "qty": 15
+          },
+          {
+            "resource": "petrol",
+            "qty": 50
+          },
+          {
+            "power_mw": 2
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "assembly_materials_2",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 60
+      },
+      {
+        "key": "metal_press",
+        "module": "Metal Press Upgrade",
+        "inputs": [
+          {
+            "resource": "salvage",
+            "qty": 15
+          },
+          {
+            "resource": "petrol",
+            "qty": 25
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 3
+          }
+        ],
+        "time_seconds": 25
+      },
+      {
+        "key": "smelter",
+        "module": "Smelter Upgrade",
+        "inputs": [
+          {
+            "resource": "salvage",
+            "qty": 15
+          },
+          {
+            "resource": "coke",
+            "qty": 25
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 3
+          }
+        ],
+        "time_seconds": 25
+      }
+    ]
+  },
+  "metalworks_factory": {
+    "name_en": "Metalworks Factory",
+    "wiki_url": "https://foxhole.wiki.gg/wiki/Metalworks_Factory",
+    "queue_slots": 5,
+    "recipes": [
+      {
+        "key": "pipe",
+        "module": "Base",
+        "inputs": [
+          {
+            "resource": "processed_construction_materials",
+            "qty": 3
+          },
+          {
+            "power_mw": 5
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "pipe",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 120
+      },
+      {
+        "key": "pcmat",
+        "module": "Base",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 3
+          },
+          {
+            "resource": "components",
+            "qty": 20
+          },
+          {
+            "power_mw": 5
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "processed_construction_materials",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 60
+      },
+      {
+        "key": "component_recovery",
+        "module": "Recycler Upgrade",
+        "inputs": [
+          {
+            "resource": "damaged_components",
+            "qty": 75
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "components",
+            "qty": 5
+          }
+        ],
+        "time_seconds": 25
+      },
+      {
+        "key": "pcmat_from_scrap",
+        "module": "Recycler Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 15
+          },
+          {
+            "resource": "metal_beam",
+            "qty": 1
+          },
+          {
+            "resource": "heavy_oil",
+            "qty": 10
+          },
+          {
+            "power_mw": 8
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "processed_construction_materials",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 90
+      },
+      {
+        "key": "assembly_materials_3",
+        "module": "Blast Furnace Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 3
+          },
+          {
+            "resource": "sulfur",
+            "qty": 20
+          },
+          {
+            "power_mw": 5
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "assembly_materials_3",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 120
+      },
+      {
+        "key": "assembly_materials_4",
+        "module": "Blast Furnace Upgrade",
+        "inputs": [
+          {
+            "resource": "processed_construction_materials",
+            "qty": 1
+          },
+          {
+            "resource": "heavy_oil",
+            "qty": 66
+          },
+          {
+            "power_mw": 5
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "assembly_materials_4",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 120
+      },
+      {
+        "key": "refined_materials",
+        "module": "Blast Furnace Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 3
+          },
+          {
+            "resource": "components",
+            "qty": 55
+          },
+          {
+            "resource": "heavy_oil",
+            "qty": 6
+          },
+          {
+            "power_mw": 8
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "processed_construction_materials",
+            "qty": 3
+          }
+        ],
+        "time_seconds": 60
+      },
+      {
+        "key": "rare_alloys",
+        "module": "Blast Furnace Upgrade",
+        "inputs": [
+          {
+            "resource": "rare_metal",
+            "qty": 20
+          },
+          {
+            "resource": "processed_construction_materials",
+            "qty": 5
+          },
+          {
+            "resource": "coke",
+            "qty": 60
+          },
+          {
+            "power_mw": 10
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "rare_alloys",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 180
+      },
+      {
+        "key": "rare_materials",
+        "module": "Blast Furnace Upgrade",
+        "inputs": [
+          {
+            "resource": "rare_metal",
+            "qty": 1
+          },
+          {
+            "resource": "construction_materials",
+            "qty": 5
+          },
+          {
+            "power_mw": 10
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "rare_materials",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 180
+      },
+      {
+        "key": "assembly_materials_5",
+        "module": "Engineering Station Upgrade",
+        "inputs": [
+          {
+            "resource": "steel_construction_materials",
+            "qty": 3
+          },
+          {
+            "resource": "coke",
+            "qty": 245
+          },
+          {
+            "resource": "assembly_materials_1",
+            "qty": 10
+          },
+          {
+            "resource": "assembly_materials_2",
+            "qty": 10
+          },
+          {
+            "power_mw": 8
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "assembly_materials_5",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 120
+      },
+      {
+        "key": "steel_cmat_advanced",
+        "module": "Engineering Station Upgrade",
+        "inputs": [
+          {
+            "resource": "processed_construction_materials",
+            "qty": 3
+          },
+          {
+            "resource": "coke",
+            "qty": 200
+          },
+          {
+            "resource": "sulfur",
+            "qty": 65
+          },
+          {
+            "resource": "heavy_oil",
+            "qty": 35
+          },
+          {
+            "power_mw": 9
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "steel_construction_materials",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 90
+      },
+      {
+        "key": "steel_cmat_complex",
+        "module": "Engineering Station Upgrade",
+        "inputs": [
+          {
+            "resource": "processed_construction_materials",
+            "qty": 9
+          },
+          {
+            "resource": "coke",
+            "qty": 375
+          },
+          {
+            "resource": "enriched_oil",
+            "qty": 90
+          },
+          {
+            "resource": "water",
+            "qty": 100
+          },
+          {
+            "power_mw": 12
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "steel_construction_materials",
+            "qty": 3
+          }
+        ],
+        "time_seconds": 90
+      }
+    ],
+    "icon": "/assets/foxhole/structures/MetalworksFactoryBase.png"
+  },
+  "oil_refinery": {
+    "name_en": "Oil Refinery",
+    "wiki_url": "https://foxhole.wiki.gg/wiki/Oil_Refinery",
+    "queue_slots": 5,
+    "recipes": [
+      {
+        "key": "petrol",
+        "module": "Base",
+        "inputs": [
+          {
+            "resource": "oil",
+            "qty": 50
+          },
+          {
+            "power_mw": 1
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "petrol",
+            "qty": 50
+          }
+        ],
+        "time_seconds": 50
+      },
+      {
+        "key": "reformer",
+        "module": "Reformer Upgrade",
+        "inputs": [
+          {
+            "resource": "oil",
+            "qty": 40
+          },
+          {
+            "resource": "water",
+            "qty": 10
+          },
+          {
+            "power_mw": 1
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "petrol",
+            "qty": 50
+          }
+        ],
+        "time_seconds": 50
+      },
+      {
+        "key": "cracking_unit",
+        "module": "Cracking Unit Upgrade",
+        "inputs": [
+          {
+            "resource": "oil",
+            "qty": 50
+          },
+          {
+            "power_mw": 1.5
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "heavy_oil",
+            "qty": 30
+          }
+        ],
+        "time_seconds": 55
+      },
+      {
+        "key": "petrochemical",
+        "module": "Petrochemical Plant Upgrade",
+        "inputs": [
+          {
+            "resource": "sulfur",
+            "qty": 60
+          },
+          {
+            "resource": "heavy_oil",
+            "qty": 30
+          },
+          {
+            "power_mw": 6
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "enriched_oil",
+            "qty": 30
+          }
+        ],
+        "time_seconds": 200,
+        "note": "only one upgrade module can be installed at a time"
+      }
+    ],
+    "icon": "/assets/foxhole/structures/OilRefineryMod2Icon.png"
+  },
+  "ammunition_factory": {
+    "name_en": "Ammunition Factory",
+    "wiki_url": "https://foxhole.wiki.gg/wiki/Ammunition_Factory",
+    "queue_slots": 5,
+    "recipes": [
+      {
+        "key": "20mm",
+        "module": "Base",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 4
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "20mm",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 10
+      },
+      {
+        "key": "250mm_fury",
+        "module": "Base",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 15
+          },
+          {
+            "resource": "heavy_explosive_powder",
+            "qty": 24
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "250mm_fury_shell",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 30
+      },
+      {
+        "key": "abisme_at99",
+        "module": "Base",
+        "inputs": [
+          {
+            "resource": "heavy_explosive_powder",
+            "qty": 2
+          },
+          {
+            "resource": "construction_materials",
+            "qty": 2
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "abisme_at99",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 25
+      },
+      {
+        "key": "crows_foot_mine",
+        "module": "Base",
+        "inputs": [
+          {
+            "resource": "explosive_powder",
+            "qty": 2
+          },
+          {
+            "resource": "construction_materials",
+            "qty": 2
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "crows_foot_mine",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 25
+      },
+      {
+        "key": "e680_rudder_lock",
+        "module": "Base",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 1
+          },
+          {
+            "resource": "heavy_explosive_powder",
+            "qty": 8
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "e680_rudder_lock",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 90
+      },
+      {
+        "key": "e681_hullbreaker",
+        "module": "Base",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 8
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "e681_hullbreaker_mine",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 25
+      },
+      {
+        "key": "flame_ammo",
+        "module": "Base",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 1
+          },
+          {
+            "resource": "heavy_explosive_powder",
+            "qty": 4
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "flame_ammo",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 25
+      },
+      {
+        "key": "naval_buoy",
+        "module": "Base",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 2
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "naval_buoy",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 25
+      },
+      {
+        "key": "quillback_torpedo",
+        "module": "Base",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 12
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "quillback_torpedo",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 25
+      },
+      {
+        "key": "thermal_shielding",
+        "module": "Base",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 2
+          },
+          {
+            "resource": "assembly_materials_4",
+            "qty": 5
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "thermal_shielding",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 1500,
+        "note": "wiki summary said 25 min for a single item — double-check, looks unusually long"
+      },
+      {
+        "key": "3c_rocket",
+        "module": "Rocket Battery Workshop Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 2
+          },
+          {
+            "resource": "heavy_explosive_powder",
+            "qty": 4
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "3c_he_rocket",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 25,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "4c_rocket",
+        "module": "Rocket Battery Workshop Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 2
+          },
+          {
+            "resource": "heavy_explosive_powder",
+            "qty": 4
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "4c_fire_rocket",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 25,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "shatter_missile",
+        "module": "Rocket Battery Workshop Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 15
+          },
+          {
+            "resource": "heavy_explosive_powder",
+            "qty": 28
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "shatter_missile",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 25,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "unstable_substances",
+        "module": "Rocket Battery Workshop Upgrade",
+        "inputs": [
+          {
+            "resource": "flame_ammo",
+            "qty": 3
+          },
+          {
+            "resource": "heavy_explosive_powder",
+            "qty": 8
+          },
+          {
+            "power_mw": 5
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "unstable_substances",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 1800,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "tenta_torpedo",
+        "module": "Rocket Battery Workshop Upgrade",
+        "inputs": [
+          {
+            "resource": "heavy_explosive_powder",
+            "qty": 14
+          },
+          {
+            "resource": "processed_construction_materials",
+            "qty": 2
+          },
+          {
+            "power_mw": 6
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "tenta_torpedo",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 240,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "912_shrike_rounds",
+        "module": "Rocket Battery Workshop Upgrade",
+        "inputs": [
+          {
+            "resource": "heavy_explosive_powder",
+            "qty": 12
+          },
+          {
+            "resource": "processed_construction_materials",
+            "qty": 1
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "912_shrike_rounds",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 90,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "75mm",
+        "module": "Large Shell Factory Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 2
+          },
+          {
+            "resource": "heavy_explosive_powder",
+            "qty": 8
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "75mm",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 60,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "94_5mm",
+        "module": "Large Shell Factory Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 2
+          },
+          {
+            "resource": "heavy_explosive_powder",
+            "qty": 2
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "94_5mm",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 60,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "950_70b_aa_shell",
+        "module": "Large Shell Factory Upgrade",
+        "inputs": [
+          {
+            "resource": "heavy_explosive_powder",
+            "qty": 3
+          },
+          {
+            "resource": "construction_materials",
+            "qty": 2
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "950_70b_aa_shell",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 25,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "120mm",
+        "module": "Large Shell Factory Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 2
+          },
+          {
+            "resource": "heavy_explosive_powder",
+            "qty": 8
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "120mm",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 25,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "150mm",
+        "module": "Large Shell Factory Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 3
+          },
+          {
+            "resource": "heavy_explosive_powder",
+            "qty": 12
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "150mm",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 40,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "300mm",
+        "module": "Large Shell Factory Upgrade",
+        "inputs": [
+          {
+            "resource": "unstable_substances",
+            "qty": 2
+          },
+          {
+            "resource": "assembly_materials_4",
+            "qty": 10
+          },
+          {
+            "power_mw": 6
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "300mm",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 120,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "mark_ii_raidbreaker",
+        "module": "Large Shell Factory Upgrade",
+        "inputs": [
+          {
+            "resource": "heavy_explosive_powder",
+            "qty": 16
+          },
+          {
+            "resource": "processed_construction_materials",
+            "qty": 1
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "mark_ii_raidbreaker",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 120,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "model_7_evie",
+        "module": "Large Shell Factory Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 2
+          },
+          {
+            "resource": "heavy_explosive_powder",
+            "qty": 8
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "model_7_evie",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 25,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "moray_torpedo",
+        "module": "Large Shell Factory Upgrade",
+        "inputs": [
+          {
+            "resource": "processed_construction_materials",
+            "qty": 2
+          },
+          {
+            "resource": "heavy_explosive_powder",
+            "qty": 16
+          },
+          {
+            "power_mw": 6
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "moray_torpedo",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 240,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "typhon",
+        "module": "Tripod Factory Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 3
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "typhon_ra_xii",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 25
+      },
+      {
+        "key": "daucus",
+        "module": "Tripod Factory Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 3
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "daucus_isg_iii",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 25
+      },
+      {
+        "key": "lamentum",
+        "module": "Tripod Factory Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 3
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "lamentum_mm_iv",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 25
+      },
+      {
+        "key": "legion_vexillum",
+        "module": "Tripod Factory Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 1
+          },
+          {
+            "resource": "assembly_materials_1",
+            "qty": 1
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "legion_vexillum",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 25
+      },
+      {
+        "key": "mounted_fissura",
+        "module": "Tripod Factory Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 3
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "mounted_fissura_gd_i",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 25
+      },
+      {
+        "key": "mounted_bonesaw",
+        "module": "Tripod Factory Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 3
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "mounted_bonesaw_mk3",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 25,
+        "note": "listed as available to both factions"
+      },
+      {
+        "key": "tripod",
+        "module": "Tripod Factory Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 2
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "tripod_generic",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 25
+      }
+    ],
+    "icon": "/assets/foxhole/structures/FacilitySmallArmsFactoryIcon.png"
+  },
+  "infantry_kit_factory": {
+    "name_en": "Infantry Kit Factory",
+    "wiki_url": "https://foxhole.wiki.gg/wiki/Infantry_Kit_Factory",
+    "queue_slots": 5,
+    "recipes": [
+      {
+        "key": "heavy_topcoat",
+        "module": "Base (Uniforms)",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 110
+          },
+          {
+            "power_mw": 12
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "heavy_topcoat",
+            "qty": 150
+          }
+        ],
+        "time_seconds": 8100
+      },
+      {
+        "key": "grenadiers_baldric",
+        "module": "Base (Uniforms)",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 110
+          },
+          {
+            "power_mw": 12
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "grenadiers_baldric",
+            "qty": 150
+          }
+        ],
+        "time_seconds": 8100
+      },
+      {
+        "key": "fabri_rucksack",
+        "module": "Base (Uniforms)",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 110
+          },
+          {
+            "power_mw": 12
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "fabri_rucksack",
+            "qty": 150
+          }
+        ],
+        "time_seconds": 8100
+      },
+      {
+        "key": "legionarys_oilcoat",
+        "module": "Base (Uniforms)",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 110
+          },
+          {
+            "power_mw": 12
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "legionarys_oilcoat",
+            "qty": 150
+          }
+        ],
+        "time_seconds": 8100
+      },
+      {
+        "key": "medic_fatigues",
+        "module": "Base (Uniforms)",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 110
+          },
+          {
+            "power_mw": 12
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "medic_fatigues",
+            "qty": 150
+          }
+        ],
+        "time_seconds": 8100
+      },
+      {
+        "key": "officialis_attire",
+        "module": "Base (Uniforms)",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 110
+          },
+          {
+            "power_mw": 12
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "officialis_attire",
+            "qty": 30
+          }
+        ],
+        "time_seconds": 8100
+      },
+      {
+        "key": "recon_camo",
+        "module": "Base (Uniforms)",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 110
+          },
+          {
+            "power_mw": 12
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "recon_camo",
+            "qty": 150
+          }
+        ],
+        "time_seconds": 8100
+      },
+      {
+        "key": "remex_garb",
+        "module": "Base (Uniforms)",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 110
+          },
+          {
+            "power_mw": 12
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "remex_garb",
+            "qty": 150
+          }
+        ],
+        "time_seconds": 8100
+      },
+      {
+        "key": "tankmans_coveralls",
+        "module": "Base (Uniforms)",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 110
+          },
+          {
+            "power_mw": 12
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "tankmans_coveralls",
+            "qty": 150
+          }
+        ],
+        "time_seconds": 8100
+      },
+      {
+        "key": "velian_flak_vest",
+        "module": "Base (Uniforms)",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 220
+          },
+          {
+            "power_mw": 12
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "velian_flak_vest",
+            "qty": 100
+          }
+        ],
+        "time_seconds": 8100
+      },
+      {
+        "key": "austers_harness",
+        "module": "Special-Issue Firearms Assembly Upgrade",
+        "inputs": [
+          {
+            "resource": "processed_construction_materials",
+            "qty": 10
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "austers_harness",
+            "qty": 15
+          }
+        ],
+        "time_seconds": 120
+      },
+      {
+        "key": "lodesmans_lorica",
+        "module": "Special-Issue Firearms Assembly Upgrade",
+        "inputs": [
+          {
+            "resource": "rare_materials",
+            "qty": 2
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "lodesmans_lorica",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 120
+      },
+      {
+        "key": "clancy_raca_m4",
+        "module": "Special-Issue Firearms Assembly Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 50
+          },
+          {
+            "resource": "processed_construction_materials",
+            "qty": 40
+          },
+          {
+            "power_mw": 2
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "clancy_raca_m4",
+            "qty": 3
+          }
+        ],
+        "time_seconds": 100
+      },
+      {
+        "key": "dusk_ce_iii",
+        "module": "Special-Issue Firearms Assembly Upgrade",
+        "inputs": [
+          {
+            "resource": "processed_construction_materials",
+            "qty": 3
+          },
+          {
+            "resource": "assembly_materials_2",
+            "qty": 5
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "dusk_ce_iii",
+            "qty": 20
+          }
+        ],
+        "time_seconds": 75
+      },
+      {
+        "key": "dawn_ve_ii",
+        "module": "Special-Issue Firearms Assembly Upgrade",
+        "inputs": [
+          {
+            "resource": "processed_construction_materials",
+            "qty": 3
+          },
+          {
+            "resource": "assembly_materials_2",
+            "qty": 5
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "dawn_ve_ii",
+            "qty": 3
+          }
+        ],
+        "time_seconds": 75
+      },
+      {
+        "key": "catara_mo_ii",
+        "module": "Special-Issue Firearms Assembly Upgrade",
+        "inputs": [
+          {
+            "resource": "processed_construction_materials",
+            "qty": 25
+          },
+          {
+            "resource": "assembly_materials_1",
+            "qty": 5
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "catara_mo_ii",
+            "qty": 20
+          }
+        ],
+        "time_seconds": 120
+      },
+      {
+        "key": "quickhatch_rt_i",
+        "module": "Special-Issue Firearms Assembly Upgrade",
+        "inputs": [
+          {
+            "resource": "processed_construction_materials",
+            "qty": 25
+          },
+          {
+            "resource": "assembly_materials_1",
+            "qty": 5
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "quickhatch_rt_i",
+            "qty": 3
+          }
+        ],
+        "time_seconds": 120
+      },
+      {
+        "key": "argenti_r_ii",
+        "module": "Special-Issue Firearms Assembly Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 50
+          },
+          {
+            "resource": "processed_construction_materials",
+            "qty": 40
+          },
+          {
+            "power_mw": 2
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "argenti_r_ii_rifle",
+            "qty": 20
+          }
+        ],
+        "time_seconds": 100
+      },
+      {
+        "key": "krr3_792_auger",
+        "module": "Special-Issue Firearms Assembly Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 50
+          },
+          {
+            "resource": "processed_construction_materials",
+            "qty": 40
+          },
+          {
+            "power_mw": 2
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "krr3_792_auger",
+            "qty": 5
+          }
+        ],
+        "time_seconds": 100,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "shrapnel_mortar_shell_special",
+        "module": "Special-Issue Firearms Assembly Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 5
+          },
+          {
+            "resource": "flame_ammo",
+            "qty": 1
+          },
+          {
+            "power_mw": 2
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "shrapnel_mortar_shell",
+            "qty": 15
+          }
+        ],
+        "time_seconds": 75
+      },
+      {
+        "key": "incendiary_mortar_shell",
+        "module": "Special-Issue Firearms Assembly Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 5
+          },
+          {
+            "resource": "flame_ammo",
+            "qty": 1
+          },
+          {
+            "power_mw": 2
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "incendiary_mortar_shell",
+            "qty": 15
+          }
+        ],
+        "time_seconds": 75
+      },
+      {
+        "key": "paratroopers_ruck",
+        "module": "Special-Issue Firearms Assembly Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 20
+          },
+          {
+            "power_mw": 2
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "paratroopers_ruck",
+            "qty": 10
+          }
+        ],
+        "time_seconds": 60
+      },
+      {
+        "key": "bf5_flask_grenade",
+        "module": "Small Arms Workshop Upgrade",
+        "inputs": [
+          {
+            "resource": "explosive_powder",
+            "qty": 440
+          },
+          {
+            "resource": "construction_materials",
+            "qty": 110
+          },
+          {
+            "power_mw": 12
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "bf5_white_ash_flask_grenade",
+            "qty": 100
+          }
+        ],
+        "time_seconds": 6900,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "ignifist_30",
+        "module": "Small Arms Workshop Upgrade",
+        "inputs": [
+          {
+            "resource": "explosive_powder",
+            "qty": 385
+          },
+          {
+            "resource": "construction_materials",
+            "qty": 95
+          },
+          {
+            "power_mw": 12
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "ignifist_30",
+            "qty": 100
+          }
+        ],
+        "time_seconds": 6900,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "14_5mm",
+        "module": "Small Arms Workshop Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 110
+          },
+          {
+            "power_mw": 12
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "14_5mm",
+            "qty": 100
+          }
+        ],
+        "time_seconds": 9000,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "at_sticky_bomb",
+        "module": "Small Arms Workshop Upgrade",
+        "inputs": [
+          {
+            "resource": "explosive_powder",
+            "qty": 550
+          },
+          {
+            "resource": "construction_materials",
+            "qty": 55
+          },
+          {
+            "power_mw": 12
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "anti_tank_sticky_bomb",
+            "qty": 100
+          }
+        ],
+        "time_seconds": 6900,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "flare_mortar_shell",
+        "module": "Small Arms Workshop Upgrade",
+        "inputs": [
+          {
+            "resource": "explosive_powder",
+            "qty": 80
+          },
+          {
+            "resource": "construction_materials",
+            "qty": 65
+          },
+          {
+            "power_mw": 12
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "flare_mortar_shell",
+            "qty": 150
+          }
+        ],
+        "time_seconds": 9000,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "mortar_shell",
+        "module": "Small Arms Workshop Upgrade",
+        "inputs": [
+          {
+            "resource": "explosive_powder",
+            "qty": 385
+          },
+          {
+            "resource": "construction_materials",
+            "qty": 65
+          },
+          {
+            "power_mw": 12
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "mortar_shell",
+            "qty": 150
+          }
+        ],
+        "time_seconds": 9000,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "pt815_smoke_grenade",
+        "module": "Small Arms Workshop Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 135
+          },
+          {
+            "power_mw": 12
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "pt815_smoke_grenade",
+            "qty": 150
+          }
+        ],
+        "time_seconds": 6900,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "shrapnel_mortar_shell_workshop",
+        "module": "Small Arms Workshop Upgrade",
+        "inputs": [
+          {
+            "resource": "explosive_powder",
+            "qty": 110
+          },
+          {
+            "resource": "construction_materials",
+            "qty": 65
+          },
+          {
+            "power_mw": 12
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "shrapnel_mortar_shell",
+            "qty": 150
+          }
+        ],
+        "time_seconds": 9000,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "b2_varsi_grenade",
+        "module": "Heavy Munitions Foundry Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 105
+          },
+          {
+            "resource": "explosive_powder",
+            "qty": 685
+          },
+          {
+            "power_mw": 24
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "b2_varsi_at_grenade",
+            "qty": 200
+          }
+        ],
+        "time_seconds": 7200,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "30mm",
+        "module": "Heavy Munitions Foundry Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 45
+          },
+          {
+            "resource": "explosive_powder",
+            "qty": 220
+          },
+          {
+            "power_mw": 24
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "30mm",
+            "qty": 200
+          }
+        ],
+        "time_seconds": 9000,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "40mm",
+        "module": "Heavy Munitions Foundry Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 175
+          },
+          {
+            "resource": "explosive_powder",
+            "qty": 1320
+          },
+          {
+            "power_mw": 24
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "40mm",
+            "qty": 200
+          }
+        ],
+        "time_seconds": 18000,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "68mm",
+        "module": "Heavy Munitions Foundry Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 130
+          },
+          {
+            "resource": "explosive_powder",
+            "qty": 1320
+          },
+          {
+            "power_mw": 24
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "68mm",
+            "qty": 200
+          }
+        ],
+        "time_seconds": 18000,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "ap_rpg",
+        "module": "Heavy Munitions Foundry Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 65
+          },
+          {
+            "resource": "explosive_powder",
+            "qty": 825
+          },
+          {
+            "power_mw": 24
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "ap_rpg",
+            "qty": 150
+          }
+        ],
+        "time_seconds": 9000,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "arc_rpg",
+        "module": "Heavy Munitions Foundry Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 65
+          },
+          {
+            "resource": "explosive_powder",
+            "qty": 825
+          },
+          {
+            "power_mw": 24
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "arc_rpg",
+            "qty": 150
+          }
+        ],
+        "time_seconds": 9000,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "rpg_ammo",
+        "module": "Heavy Munitions Foundry Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 65
+          },
+          {
+            "resource": "explosive_powder",
+            "qty": 495
+          },
+          {
+            "power_mw": 24
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "rpg_ammo",
+            "qty": 150
+          }
+        ],
+        "time_seconds": 9000,
+        "note": "not faction-verified"
+      },
+      {
+        "key": "tremola_grenade",
+        "module": "Heavy Munitions Foundry Upgrade",
+        "inputs": [
+          {
+            "resource": "construction_materials",
+            "qty": 80
+          },
+          {
+            "resource": "explosive_powder",
+            "qty": 550
+          },
+          {
+            "power_mw": 24
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "tremola_grenade_gpb1",
+            "qty": 200
+          }
+        ],
+        "time_seconds": 7200,
+        "note": "not faction-verified"
+      }
+    ]
+  },
+  "aircraft_maintenance_factory": {
+    "name_en": "Aircraft Maintenance Factory",
+    "wiki_url": "https://foxhole.wiki.gg/wiki/Aircraft_Maintenance_Factory",
+    "queue_slots": 5,
+    "recipes": [
+      {
+        "key": "engine_small",
+        "module": "Aircraft Maintenance Hangar",
+        "inputs": [
+          {
+            "resource": "processed_construction_materials",
+            "qty": 95
+          },
+          {
+            "resource": "assembly_materials_4",
+            "qty": 25
+          },
+          {
+            "power_mw": 10
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "colonial_aircraft_engine_small",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 1200
+      },
+      {
+        "key": "engine_small_repair",
+        "module": "Aircraft Maintenance Hangar",
+        "inputs": [
+          {
+            "resource": "thermal_shielding",
+            "qty": 2
+          },
+          {
+            "resource": "damaged_colonial_aircraft_engine_small",
+            "qty": 1
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "colonial_aircraft_engine_small",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 300
+      },
+      {
+        "key": "mech_parts_small",
+        "module": "Aircraft Maintenance Hangar",
+        "inputs": [
+          {
+            "resource": "processed_construction_materials",
+            "qty": 35
+          },
+          {
+            "resource": "assembly_materials_3",
+            "qty": 25
+          },
+          {
+            "power_mw": 10
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "colonial_aircraft_mech_parts_small",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 1200
+      },
+      {
+        "key": "mech_parts_small_repair",
+        "module": "Aircraft Maintenance Hangar",
+        "inputs": [
+          {
+            "resource": "thermal_shielding",
+            "qty": 1
+          },
+          {
+            "resource": "damaged_colonial_aircraft_mech_parts_small",
+            "qty": 1
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "colonial_aircraft_mech_parts_small",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 300
+      },
+      {
+        "key": "engine_large",
+        "module": "Aircraft Maintenance Hangar",
+        "inputs": [
+          {
+            "resource": "steel_construction_materials",
+            "qty": 15
+          },
+          {
+            "resource": "assembly_materials_4",
+            "qty": 25
+          },
+          {
+            "power_mw": 10
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "colonial_aircraft_engine_large",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 1200
+      },
+      {
+        "key": "engine_large_repair",
+        "module": "Aircraft Maintenance Hangar",
+        "inputs": [
+          {
+            "resource": "thermal_shielding",
+            "qty": 3
+          },
+          {
+            "resource": "damaged_colonial_aircraft_engine_large",
+            "qty": 1
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "colonial_aircraft_engine_large",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 300
+      },
+      {
+        "key": "mech_parts_large",
+        "module": "Aircraft Maintenance Hangar",
+        "inputs": [
+          {
+            "resource": "steel_construction_materials",
+            "qty": 5
+          },
+          {
+            "resource": "assembly_materials_3",
+            "qty": 25
+          },
+          {
+            "power_mw": 10
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "colonial_aircraft_mech_parts_large",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 1200
+      },
+      {
+        "key": "mech_parts_large_repair",
+        "module": "Aircraft Maintenance Hangar",
+        "inputs": [
+          {
+            "resource": "thermal_shielding",
+            "qty": 2
+          },
+          {
+            "resource": "damaged_colonial_aircraft_mech_parts_large",
+            "qty": 1
+          },
+          {
+            "power_mw": 4
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "colonial_aircraft_mech_parts_large",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 300
+      }
+    ]
+  },
+  "concrete_mixer": {
+    "name_en": "Concrete Mixer",
+    "wiki_url": "https://foxhole.wiki.gg/wiki/Concrete_Mixer",
+    "queue_slots": 5,
+    "recipes": [
+      {
+        "key": "concrete_from_components",
+        "module": "Base",
+        "inputs": [
+          {
+            "resource": "components",
+            "qty": 20
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "concrete_materials",
+            "qty": 1
+          }
+        ],
+        "time_seconds": 20
+      },
+      {
+        "key": "gravel_from_coal",
+        "module": "Base",
+        "inputs": [
+          {
+            "resource": "coal",
+            "qty": 100
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "gravel",
+            "qty": 20
+          }
+        ],
+        "time_seconds": 40
+      },
+      {
+        "key": "gravel_from_salvage",
+        "module": "Base",
+        "inputs": [
+          {
+            "resource": "salvage",
+            "qty": 120
+          }
+        ],
+        "outputs": [
+          {
+            "resource": "gravel",
+            "qty": 20
+          }
+        ],
+        "time_seconds": 90
+      }
+    ],
+    "icon": "/assets/foxhole/structures/ConcreteMixerIcon.png"
+  }
+}

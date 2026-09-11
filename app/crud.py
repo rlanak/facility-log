@@ -113,6 +113,16 @@ def delete_building(db: Session, building: models.Building) -> None:
     db.commit()
 
 
+def update_building_production(
+    db: Session, building: models.Building, data: schemas.BuildingProductionUpdate
+) -> models.Building:
+    building.active_recipe_key = data.recipe_key
+    building.queue_count = data.queue_count if data.recipe_key else 0
+    db.commit()
+    db.refresh(building)
+    return building
+
+
 def get_current_stock_for_building(db: Session, building_id: int) -> list[models.StockEntry]:
     latest_ids_subq = (
         select(
@@ -138,7 +148,7 @@ def get_current_stock_for_facility(db: Session, facility_id: int) -> dict[models
 
 
 def add_stock_entries(
-    db: Session, building_id: int, entries: list[schemas.StockEntryIn], source: str = "manual"
+    db: Session, building_id: int, entries: list[schemas.StockEntryIn]
 ) -> list[models.StockEntry]:
     parsed = [(entry, parse_quantity(entry.quantity_raw)) for entry in entries]
 
@@ -149,7 +159,8 @@ def add_stock_entries(
             building_id=building_id,
             resource_id=resource.id,
             quantity=quantity,
-            source=source,
+            source=entry.source,
+            source_image_id=entry.source_image_id,
         )
         db.add(stock_entry)
         created.append(stock_entry)
@@ -157,6 +168,28 @@ def add_stock_entries(
     for entry in created:
         db.refresh(entry)
     return created
+
+
+def create_upload_image(db: Session, building_id: int, file_path: str) -> models.UploadImage:
+    image = models.UploadImage(building_id=building_id, file_path=file_path)
+    db.add(image)
+    db.commit()
+    db.refresh(image)
+    return image
+
+
+def get_upload_image(db: Session, image_id: int) -> models.UploadImage | None:
+    return db.get(models.UploadImage, image_id)
+
+
+def get_building_images(db: Session, building_id: int) -> list[models.UploadImage]:
+    return list(
+        db.scalars(
+            select(models.UploadImage)
+            .where(models.UploadImage.building_id == building_id)
+            .order_by(models.UploadImage.uploaded_at.desc())
+        )
+    )
 
 
 def create_report(db: Session, facility_id: int, markdown_content: str, stock_snapshot: str) -> models.Report:

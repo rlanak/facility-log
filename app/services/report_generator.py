@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from app import models
+from app.services import production as production_service
 
 DISCORD_LIMIT = 2000
 
@@ -18,6 +19,17 @@ def _trim(value: float) -> str:
     if value == int(value):
         return str(int(value))
     return f"{value:.1f}".rstrip("0").rstrip(".")
+
+
+def format_duration(seconds: int) -> str:
+    seconds = int(seconds)
+    hours, remainder = divmod(seconds, 3600)
+    minutes, secs = divmod(remainder, 60)
+    if hours:
+        return f"{hours}h{minutes:02d}"
+    if minutes:
+        return f"{minutes}min"
+    return f"{secs}s"
 
 
 @dataclass
@@ -40,29 +52,42 @@ def build_header_block(facility: models.Facility, now: datetime) -> str:
     return f"**\U0001f4cb Relatório de Estoque — {facility.name}**\n\U0001f552 {now.strftime('%d/%m/%Y %H:%M')}"
 
 
-def build_building_paragraph(building: models.Building, entries: list[models.StockEntry]) -> str:
+def build_building_paragraph(building: models.Building, entries: list[models.StockEntry], now: datetime) -> str:
     title = f"**\U0001f3ed {building.name}**"
     if building.role:
         title += f" _({building.role})_"
-    if not entries:
-        return f"{title}\n_sem lançamentos_"
-    items = " • ".join(
-        f"{entry.resource.icon} {entry.resource.name}: {format_qty(entry.quantity)}".strip()
-        for entry in sorted(entries, key=lambda e: e.resource.name)
+
+    body = f"{title}\n_sem lançamentos_" if not entries else f"{title}\n" + " • ".join(
+        f"{entry.resource.icon} {entry.resource.display_name}: {format_qty(entry.quantity)}".strip()
+        for entry in sorted(entries, key=lambda e: e.resource.display_name)
     )
-    return f"{title}\n{items}"
+
+    if building.building_type_key and building.active_recipe_key and building.queue_count > 0:
+        estimate = production_service.estimate_production(
+            building.building_type_key, building.active_recipe_key, building.queue_count, now
+        )
+        if estimate:
+            outputs_text = ", ".join(f"{format_qty(o['qty'])} {o['name']}" for o in estimate["outputs"])
+            body += (
+                f"\n⚙️ {building.queue_count}x em produção — pronto ~{estimate['eta'].strftime('%H:%M')}"
+                f" (daqui {format_duration(estimate['time_seconds'])}): {outputs_text}"
+            )
+
+    return body
 
 
-def build_stock_block(stock_by_building: dict[models.Building, list[models.StockEntry]]) -> str:
+def build_stock_block(stock_by_building: dict[models.Building, list[models.StockEntry]], now: datetime) -> str:
     paragraphs = [
-        build_building_paragraph(building, entries) for building, entries in stock_by_building.items()
+        build_building_paragraph(building, entries, now) for building, entries in stock_by_building.items()
     ]
     return "\n\n".join(paragraphs)
 
 
 def compute_recommendations(totals: list[ResourceTotal], max_items: int = 3) -> list[dict]:
+    farmable_totals = [t for t in totals if t.resource.farmable]
+
     scored = []
-    for total in totals:
+    for total in farmable_totals:
         resource = total.resource
         if resource.target_max and resource.target_max > 0:
             pct = total.quantity / resource.target_max
@@ -81,6 +106,9 @@ def build_recommendation_block(totals: list[ResourceTotal]) -> str:
         return f"{title}\nSem dados de estoque suficientes pra recomendar."
 
     recommendations = compute_recommendations(totals)
+    if not recommendations:
+        return f"{title}\nNenhum recurso farmável cadastrado — marque os recursos que são matéria-prima no catálogo."
+
     lines = []
     for i, rec in enumerate(recommendations, start=1):
         resource: models.Resource = rec["resource"]
@@ -92,7 +120,7 @@ def build_recommendation_block(totals: list[ResourceTotal]) -> str:
         else:
             justification = f"{qty_text} em estoque, o mais baixo sem meta cadastrada."
         icon_prefix = f"{resource.icon} " if resource.icon else ""
-        lines.append(f"{i}. {icon_prefix}**{resource.name}** — {justification}")
+        lines.append(f"{i}. {icon_prefix}**{resource.display_name}** — {justification}")
     return f"{title}\n" + "\n".join(lines)
 
 
@@ -148,13 +176,13 @@ def generate_report(
     totals = _aggregate_resource_totals(stock_by_building)
 
     header_block = build_header_block(facility, now)
-    stock_block = build_stock_block(stock_by_building)
+    stock_block = build_stock_block(stock_by_building, now)
     recommendation_block = build_recommendation_block(totals)
 
     markdown_content = "\n\n".join([header_block, stock_block, recommendation_block])
 
     building_paragraphs = [
-        build_building_paragraph(building, entries) for building, entries in stock_by_building.items()
+        build_building_paragraph(building, entries, now) for building, entries in stock_by_building.items()
     ]
     paragraphs = [header_block, *building_paragraphs, recommendation_block]
     parts = split_for_discord(paragraphs)
@@ -168,7 +196,7 @@ def generate_report(
                 "role": building.role,
                 "entries": [
                     {
-                        "resource": entry.resource.name,
+                        "resource": entry.resource.display_name,
                         "icon": entry.resource.icon,
                         "quantity": entry.quantity,
                     }
