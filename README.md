@@ -7,6 +7,14 @@ Projeto pessoal — roda 100% local, sem serviços pagos, sem deploy.
 
 ## Como rodar
 
+### Pré-requisito
+
+Python 3.11 ou 3.12 instalado (baixe em [python.org/downloads](https://www.python.org/downloads/) —
+marque "Add python.exe to PATH" na instalação). Confirme com `python --version` antes de seguir;
+se o comando não for reconhecido, o Python não está instalado ou não está no PATH.
+
+### Rodar
+
 Windows (PowerShell ou Git Bash):
 
 ```bash

@@ -1,8 +1,11 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app import crud, schemas
 from app.database import get_db
+from app.services import production
 
 router = APIRouter(tags=["buildings"])
 
@@ -43,3 +46,25 @@ def delete_building(building_id: int, db: Session = Depends(get_db)):
     if not building:
         raise HTTPException(status_code=404, detail="Prédio não encontrado.")
     crud.delete_building(db, building)
+
+
+@router.put("/api/buildings/{building_id}/production", response_model=schemas.BuildingOut)
+def set_building_production(building_id: int, data: schemas.BuildingProductionUpdate, db: Session = Depends(get_db)):
+    building = crud.get_building(db, building_id)
+    if not building:
+        raise HTTPException(status_code=404, detail="Prédio não encontrado.")
+    if data.recipe_key and not building.building_type_key:
+        raise HTTPException(status_code=422, detail="Este prédio não está vinculado a um tipo do Foxhole.")
+    return crud.update_building_production(db, building, data)
+
+
+@router.get("/api/buildings/{building_id}/production-estimate", response_model=schemas.ProductionEstimateOut | None)
+def get_production_estimate(building_id: int, db: Session = Depends(get_db)):
+    building = crud.get_building(db, building_id)
+    if not building:
+        raise HTTPException(status_code=404, detail="Prédio não encontrado.")
+    if not building.building_type_key or not building.active_recipe_key:
+        return None
+    return production.estimate_production(
+        building.building_type_key, building.active_recipe_key, building.queue_count, datetime.now()
+    )

@@ -1,0 +1,866 @@
+{
+  "coal": {
+    "name": {
+      "en": "Coal",
+      "pt": null
+    },
+    "farmable": true,
+    "icon": "/assets/foxhole/items/CoalIcon.png"
+  },
+  "sulfur": {
+    "name": {
+      "en": "Sulfur",
+      "pt": null
+    },
+    "farmable": true,
+    "icon": "/assets/foxhole/items/SulfurIcon.png"
+  },
+  "water": {
+    "name": {
+      "en": "Water",
+      "pt": null
+    },
+    "farmable": true,
+    "icon": "/assets/foxhole/items/WaterIcon.png"
+  },
+  "oil": {
+    "name": {
+      "en": "Oil",
+      "pt": null
+    },
+    "farmable": true,
+    "icon": "items/OilIcon.png"
+  },
+  "salvage": {
+    "name": {
+      "en": "Salvage",
+      "pt": null
+    },
+    "farmable": true,
+    "icon": "/assets/foxhole/items/SalvageIcon.png"
+  },
+  "components": {
+    "name": {
+      "en": "Components",
+      "pt": null
+    },
+    "farmable": true,
+    "icon": "/assets/foxhole/items/ComponentsIcon.png"
+  },
+  "rare_metal": {
+    "name": {
+      "en": "Rare Metal",
+      "pt": null
+    },
+    "farmable": true,
+    "icon": "items/RareMetalIcon.png"
+  },
+  "coke": {
+    "name": {
+      "en": "Coke",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": "/assets/foxhole/items/CokeIcon.png"
+  },
+  "concrete_materials": {
+    "name": {
+      "en": "Concrete Materials",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": "items/ConcreteMaterialsIcon.png"
+  },
+  "heavy_oil": {
+    "name": {
+      "en": "Heavy Oil",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": "items/HeavyOilIcon.png"
+  },
+  "petrol": {
+    "name": {
+      "en": "Petrol",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": "items/PetrolIcon.png"
+  },
+  "enriched_oil": {
+    "name": {
+      "en": "Enriched Oil",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "construction_materials": {
+    "name": {
+      "en": "Construction Materials",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": "/assets/foxhole/items/BasicMaterialsIcon.png"
+  },
+  "maintenance_supplies": {
+    "name": {
+      "en": "Maintenance Supplies",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": "/assets/foxhole/items/MaintenanceSuppliesIcon.png"
+  },
+  "barbed_wire": {
+    "name": {
+      "en": "Barbed Wire",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": "/assets/foxhole/items/BarbedWireMaterialItemIcon.png"
+  },
+  "metal_beam": {
+    "name": {
+      "en": "Metal Beam",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": "/assets/foxhole/items/MetalBeamMaterialItemIcon.png"
+  },
+  "sandbag": {
+    "name": {
+      "en": "Sandbag",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": "/assets/foxhole/items/SandbagMaterialItemIcon.png"
+  },
+  "assembly_materials_1": {
+    "name": {
+      "en": "Assembly Materials I",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "assembly_materials_2": {
+    "name": {
+      "en": "Assembly Materials II",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "assembly_materials_3": {
+    "name": {
+      "en": "Assembly Materials III",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "assembly_materials_4": {
+    "name": {
+      "en": "Assembly Materials IV",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "assembly_materials_5": {
+    "name": {
+      "en": "Assembly Materials V",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "processed_construction_materials": {
+    "name": {
+      "en": "Processed Construction Materials",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "steel_construction_materials": {
+    "name": {
+      "en": "Steel Construction Materials",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "damaged_components": {
+    "name": {
+      "en": "Damaged Components",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "rare_alloys": {
+    "name": {
+      "en": "Rare Alloys",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "rare_materials": {
+    "name": {
+      "en": "Rare Materials",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": "/assets/foxhole/items/RareMaterialsIcon.png"
+  },
+  "gravel": {
+    "name": {
+      "en": "Gravel",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "pipe": {
+    "name": {
+      "en": "Pipe",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "explosive_powder": {
+    "name": {
+      "en": "Explosive Powder",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "heavy_explosive_powder": {
+    "name": {
+      "en": "Heavy Explosive Powder",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "20mm": {
+    "name": {
+      "en": "20mm",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "30mm": {
+    "name": {
+      "en": "30mm",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "40mm": {
+    "name": {
+      "en": "40mm",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "68mm": {
+    "name": {
+      "en": "68mm",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "75mm": {
+    "name": {
+      "en": "75mm",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "94_5mm": {
+    "name": {
+      "en": "94.5mm",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "120mm": {
+    "name": {
+      "en": "120mm",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "150mm": {
+    "name": {
+      "en": "150mm",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "300mm": {
+    "name": {
+      "en": "300mm",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "250mm_fury_shell": {
+    "name": {
+      "en": "250mm “Fury” Shell",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "950_70b_aa_shell": {
+    "name": {
+      "en": "950-70b Anti-Aircraft Shell",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "flame_ammo": {
+    "name": {
+      "en": "Flame Ammo",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": "/assets/foxhole/items/FlameAmmoIcon.png"
+  },
+  "thermal_shielding": {
+    "name": {
+      "en": "Thermal Shielding",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "unstable_substances": {
+    "name": {
+      "en": "Unstable Substances",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "912_shrike_rounds": {
+    "name": {
+      "en": "912 Shrike Rounds",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "14_5mm": {
+    "name": {
+      "en": "14.5mm",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "ap_rpg": {
+    "name": {
+      "en": "AP/RPG",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "arc_rpg": {
+    "name": {
+      "en": "ARC/RPG",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "rpg_ammo": {
+    "name": {
+      "en": "RPG",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": "/assets/foxhole/items/RpgItemIcon.png"
+  },
+  "mark_ii_raidbreaker": {
+    "name": {
+      "en": "Mark II Raidbreaker",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "model_7_evie": {
+    "name": {
+      "en": "Model-7 “Evie”",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "moray_torpedo": {
+    "name": {
+      "en": "Moray Torpedo",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "3c_he_rocket": {
+    "name": {
+      "en": "3C-High Explosive Rocket",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "4c_fire_rocket": {
+    "name": {
+      "en": "4C-Fire Rocket",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "shatter_missile": {
+    "name": {
+      "en": "Shatter Missile",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "tenta_torpedo": {
+    "name": {
+      "en": "Tenta Torpedo",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "bf5_white_ash_flask_grenade": {
+    "name": {
+      "en": "BF5 White Ash Flask Grenade",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "ignifist_30": {
+    "name": {
+      "en": "Ignifist 30",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "anti_tank_sticky_bomb": {
+    "name": {
+      "en": "Anti-Tank Sticky Bomb",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "flare_mortar_shell": {
+    "name": {
+      "en": "Flare Mortar Shell",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "mortar_shell": {
+    "name": {
+      "en": "Mortar Shell",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "shrapnel_mortar_shell": {
+    "name": {
+      "en": "Shrapnel Mortar Shell",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "incendiary_mortar_shell": {
+    "name": {
+      "en": "Incendiary Mortar Shell",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "pt815_smoke_grenade": {
+    "name": {
+      "en": "PT-815 Smoke Grenade",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "b2_varsi_at_grenade": {
+    "name": {
+      "en": "B2 Varsi Anti-Tank Grenade",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "tremola_grenade_gpb1": {
+    "name": {
+      "en": "Tremola Grenade GPb-1",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "paratroopers_ruck": {
+    "name": {
+      "en": "Paratrooper's Ruck",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "abisme_at99": {
+    "name": {
+      "en": "Abisme AT-99",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "crows_foot_mine": {
+    "name": {
+      "en": "Crow's Foot Mine",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "e680_rudder_lock": {
+    "name": {
+      "en": "E680-S Rudder Lock",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "e681_hullbreaker_mine": {
+    "name": {
+      "en": "E681-B Hullbreaker Mine",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "naval_buoy": {
+    "name": {
+      "en": "Naval Buoy",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "quillback_torpedo": {
+    "name": {
+      "en": "Quillback Torpedo",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "typhon_ra_xii": {
+    "name": {
+      "en": "“Typhon” ra.XII",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "daucus_isg_iii": {
+    "name": {
+      "en": "Daucus isg.III",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "lamentum_mm_iv": {
+    "name": {
+      "en": "Lamentum mm.IV",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "mounted_fissura_gd_i": {
+    "name": {
+      "en": "Mounted Fissura gd.I",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "legion_vexillum": {
+    "name": {
+      "en": "Legion Vexillum",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "mounted_bonesaw_mk3": {
+    "name": {
+      "en": "Mounted Bonesaw MK.3",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "tripod_generic": {
+    "name": {
+      "en": "Tripod",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "clancy_raca_m4": {
+    "name": {
+      "en": "Clancy-Raca M4",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "dusk_ce_iii": {
+    "name": {
+      "en": "“Dusk” ce.III",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "dawn_ve_ii": {
+    "name": {
+      "en": "“Dawn” Ve.II",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "catara_mo_ii": {
+    "name": {
+      "en": "Catara mo.II",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "quickhatch_rt_i": {
+    "name": {
+      "en": "“Quickhatch” Rt.I",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "argenti_r_ii_rifle": {
+    "name": {
+      "en": "Argenti r.II Rifle",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "krr3_792_auger": {
+    "name": {
+      "en": "KRR3-792 Auger",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "fabri_rucksack": {
+    "name": {
+      "en": "Fabri Rucksack",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "grenadiers_baldric": {
+    "name": {
+      "en": "Grenadier's Baldric",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "heavy_topcoat": {
+    "name": {
+      "en": "Heavy Topcoat",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "legionarys_oilcoat": {
+    "name": {
+      "en": "Legionary's Oilcoat",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "medic_fatigues": {
+    "name": {
+      "en": "Medic Fatigues",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "officialis_attire": {
+    "name": {
+      "en": "Officialis' Attire",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "recon_camo": {
+    "name": {
+      "en": "Recon Camo",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "remex_garb": {
+    "name": {
+      "en": "Remex Garb",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "tankmans_coveralls": {
+    "name": {
+      "en": "Tankman's Coveralls",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "velian_flak_vest": {
+    "name": {
+      "en": "Velian Flak Vest",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "austers_harness": {
+    "name": {
+      "en": "Auster's Harness",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "lodesmans_lorica": {
+    "name": {
+      "en": "Lodesman's Lorica",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "colonial_aircraft_engine_small": {
+    "name": {
+      "en": "Colonial Aircraft Engine (Small)",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "colonial_aircraft_mech_parts_small": {
+    "name": {
+      "en": "Colonial Aircraft Mechanical Parts (Small)",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "colonial_aircraft_engine_large": {
+    "name": {
+      "en": "Colonial Aircraft Engine (Large)",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "colonial_aircraft_mech_parts_large": {
+    "name": {
+      "en": "Colonial Aircraft Mechanical Parts (Large)",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "damaged_colonial_aircraft_engine_small": {
+    "name": {
+      "en": "Damaged Colonial Aircraft Engine (Small)",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "damaged_colonial_aircraft_mech_parts_small": {
+    "name": {
+      "en": "Damaged Colonial Aircraft Mechanical Parts (Small)",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "damaged_colonial_aircraft_engine_large": {
+    "name": {
+      "en": "Damaged Colonial Aircraft Engine (Large)",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  },
+  "damaged_colonial_aircraft_mech_parts_large": {
+    "name": {
+      "en": "Damaged Colonial Aircraft Mechanical Parts (Large)",
+      "pt": null
+    },
+    "farmable": false,
+    "icon": null
+  }
+}

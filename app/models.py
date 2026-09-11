@@ -17,7 +17,14 @@ class Resource(Base):
     name: Mapped[str] = mapped_column(String(120), unique=True, index=True)
     icon: Mapped[str] = mapped_column(String(20), default="")
     target_max: Mapped[float | None] = mapped_column(default=None)
+    farmable: Mapped[bool] = mapped_column(default=True)
+    resource_def_key: Mapped[str | None] = mapped_column(String(80), default=None)
+    nickname: Mapped[str | None] = mapped_column(String(120), default=None)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+    @property
+    def display_name(self) -> str:
+        return self.nickname or self.name
 
 
 class Facility(Base):
@@ -44,6 +51,9 @@ class Building(Base):
     name: Mapped[str] = mapped_column(String(200))
     role: Mapped[str] = mapped_column(String(100), default="")
     position: Mapped[int] = mapped_column(default=0)
+    building_type_key: Mapped[str | None] = mapped_column(String(80), default=None)
+    active_recipe_key: Mapped[str | None] = mapped_column(String(80), default=None)
+    queue_count: Mapped[int] = mapped_column(default=0)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
     facility: Mapped["Facility"] = relationship(back_populates="buildings")

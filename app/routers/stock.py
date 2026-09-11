@@ -16,7 +16,7 @@ def get_building_stock(building_id: int, db: Session = Depends(get_db)):
         schemas.StockEntryOut(
             id=e.id,
             resource_id=e.resource_id,
-            resource_name=e.resource.name,
+            resource_name=e.resource.display_name,
             resource_icon=e.resource.icon,
             quantity=e.quantity,
             source=e.source,
@@ -38,7 +38,7 @@ def add_building_stock(building_id: int, entries: list[schemas.StockEntryIn], db
         schemas.StockEntryOut(
             id=e.id,
             resource_id=e.resource_id,
-            resource_name=e.resource.name,
+            resource_name=e.resource.display_name,
             resource_icon=e.resource.icon,
             quantity=e.quantity,
             source=e.source,

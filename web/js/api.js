@@ -61,5 +61,10 @@ const api = (() => {
     listBuildingImages: (buildingId) => request("GET", `/api/buildings/${buildingId}/images`),
     uploadBuildingImage: (buildingId, file) => upload(`/api/buildings/${buildingId}/images`, file),
     readImageCrop: (imageId, box) => request("POST", `/api/images/${imageId}/ocr`, box),
+
+    listFoxholeResources: () => request("GET", "/api/foxhole/resources"),
+    listFoxholeBuildingTypes: () => request("GET", "/api/foxhole/building-types"),
+    setBuildingProduction: (buildingId, data) => request("PUT", `/api/buildings/${buildingId}/production`, data),
+    getProductionEstimate: (buildingId) => request("GET", `/api/buildings/${buildingId}/production-estimate`),
   };
 })();
