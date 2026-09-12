@@ -21,6 +21,8 @@ def list_buildings(facility_id: int, db: Session = Depends(get_db)):
 def create_building(facility_id: int, data: schemas.BuildingCreate, db: Session = Depends(get_db)):
     if not crud.get_facility(db, facility_id):
         raise HTTPException(status_code=404, detail="Facility não encontrada.")
+    if not data.name and not data.building_type_key:
+        raise HTTPException(status_code=422, detail="Informe um nome ou selecione um tipo do Foxhole.")
     return crud.create_building(db, facility_id, data)
 
 

@@ -78,7 +78,7 @@ views.resources = (() => {
         .map((r) => {
           const already = importedKeys.has(r.key);
           const thumb = r.icon
-            ? `<img src="${ui.escapeHtml(r.icon)}" class="h-5 w-5 inline-block object-contain" />`
+            ? `<img src="${ui.escapeHtml(r.icon)}" class="h-8 w-8 inline-block object-contain" />`
             : "";
           return `
           <div class="flex items-center justify-between px-2 py-1.5 hover:bg-zinc-800 rounded text-sm">
@@ -128,7 +128,7 @@ views.resources = (() => {
           const def = foxholeResources.find((f) => f.key === r.resource_def_key);
           const thumb =
             def && def.icon
-              ? `<img src="${ui.escapeHtml(def.icon)}" class="h-6 w-6 object-contain" />`
+              ? `<img src="${ui.escapeHtml(def.icon)}" class="h-9 w-9 object-contain" />`
               : `<span class="text-lg">${ui.escapeHtml(r.icon || "•")}</span>`;
           return `
         <div class="flex items-center justify-between px-4 py-2 bg-zinc-900">

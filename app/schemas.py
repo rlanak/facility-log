@@ -49,7 +49,7 @@ class FacilityOut(FacilityBase):
 
 
 class BuildingBase(BaseModel):
-    name: str
+    name: str | None = None
     role: str = ""
     position: int = 0
     building_type_key: str | None = None
@@ -101,6 +101,7 @@ class StockEntryIn(BaseModel):
     quantity_raw: str
     source: str = "manual"
     source_image_id: int | None = None
+    resource_def_key: str | None = None
 
 
 class StockEntryOut(BaseModel):

@@ -10,6 +10,8 @@ could not be confirmed against a dedicated comparison page in the time
 available; they're included as likely-shared but may need pruning.
 
 Run once: python scripts/generate_foxhole_seed.py
+Then run scripts/download_foxhole_icons.py to patch in real, verified icon
+paths — this script itself never writes an icon path (see main() below).
 """
 import json
 from pathlib import Path
@@ -536,11 +538,15 @@ BUILDING_TYPES = {
 def main():
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
+    # icon is always written as None here — the 3rd tuple element above is
+    # just a historical note, never a verified file. download_foxhole_icons.py
+    # is the only script that resolves + downloads a real file and patches
+    # a verified "/assets/foxhole/..." path in; run it after this one.
     resources_json = {
         key: {
             "name": {"en": name_en, "pt": None},
             "farmable": farmable,
-            "icon": f"items/{icon_hint}" if icon_hint else None,
+            "icon": None,
         }
         for key, (name_en, farmable, icon_hint) in RESOURCES.items()
     }

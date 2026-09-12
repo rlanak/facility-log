@@ -10,10 +10,22 @@ views.facilityDetail = (() => {
     return foxholeBuildingTypes.find((t) => t.key === key);
   }
 
+  function resourcesForBuildingType(foxholeType) {
+    const seen = new Map();
+    for (const recipe of foxholeType.recipes) {
+      for (const io of [...recipe.inputs, ...recipe.outputs]) {
+        if (!io.resource || seen.has(io.resource)) continue;
+        const def = foxholeResourceDefs[io.resource];
+        seen.set(io.resource, { key: io.resource, name: def ? def.name_en : io.resource, icon: def ? def.icon : null });
+      }
+    }
+    return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
   function resourceThumb(resourceId) {
     const resource = allResources.find((r) => r.id === resourceId);
     const def = resource && foxholeResourceDefs[resource.resource_def_key];
-    return def && def.icon ? `<img src="${ui.escapeHtml(def.icon)}" class="h-5 w-5 inline-block object-contain align-text-bottom" />` : "";
+    return def && def.icon ? `<img src="${ui.escapeHtml(def.icon)}" class="h-8 w-8 inline-block object-contain align-middle" />` : "";
   }
 
   function formatDuration(seconds) {
@@ -91,14 +103,12 @@ views.facilityDetail = (() => {
       <datalist id="resources-datalist">
         ${allResources.map((r) => `<option value="${ui.escapeHtml(r.name)}"></option>`).join("")}
       </datalist>
-      <form id="new-building-form" class="grid grid-cols-[180px_1fr_160px_auto] gap-2 mb-6">
+      <form id="new-building-form" class="grid grid-cols-[220px_1fr_auto] gap-2 mb-6">
         <select id="b-type" class="bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
           <option value="">Prédio livre (sem tipo)</option>
           ${foxholeBuildingTypes.map((t) => `<option value="${t.key}">📖 ${ui.escapeHtml(t.name_en)}</option>`).join("")}
         </select>
-        <input id="b-name" required placeholder="Nome/apelido (ex: Coal Refinery 1)"
-          class="bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
-        <input id="b-role" placeholder="Papel (opcional)"
+        <input id="b-name" placeholder="Apelido (opcional — usa o nome do tipo se vazio)"
           class="bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
         <button class="bg-emerald-700 hover:bg-emerald-600 px-4 py-2 rounded text-sm font-semibold whitespace-nowrap">+ Prédio</button>
       </form>
@@ -107,19 +117,17 @@ views.facilityDetail = (() => {
 
     const typeSelect = document.getElementById("b-type");
     const nameInput = document.getElementById("b-name");
-    typeSelect.addEventListener("change", () => {
-      const type = getFoxholeType(typeSelect.value);
-      if (type && !nameInput.value.trim()) nameInput.value = type.name_en;
-    });
 
     document.getElementById("new-building-form").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const name = nameInput.value.trim();
-      const role = document.getElementById("b-role").value.trim();
+      const name = nameInput.value.trim() || null;
       const building_type_key = typeSelect.value || null;
-      if (!name) return;
+      if (!name && !building_type_key) {
+        ui.toast("Informe um apelido ou selecione um tipo do Foxhole.", true);
+        return;
+      }
       try {
-        await api.createBuilding(facilityId, { name, role, building_type_key });
+        await api.createBuilding(facilityId, { name, building_type_key });
         e.target.reset();
         renderBuildingsList();
       } catch (err) {
@@ -128,6 +136,7 @@ views.facilityDetail = (() => {
     });
 
     async function renderBuildingsList() {
+      allResources = await api.listResources();
       const listEl = document.getElementById("buildings-list");
       const buildings = await api.listBuildings(facilityId);
       if (buildings.length === 0) {
@@ -150,16 +159,16 @@ views.facilityDetail = (() => {
 
     const buildingThumb =
       foxholeType && foxholeType.icon
-        ? `<img src="${ui.escapeHtml(foxholeType.icon)}" class="h-8 w-8 inline-block object-contain align-middle mr-2" />`
+        ? `<img src="${ui.escapeHtml(foxholeType.icon)}" class="h-12 w-12 inline-block object-contain align-middle mr-3" />`
         : "";
+    const showTypeBadge = foxholeType && building.name !== foxholeType.name_en;
 
     card.innerHTML = `
       <div class="flex items-center justify-between">
         <div class="flex items-center">
           ${buildingThumb}
           <span class="font-semibold">${ui.escapeHtml(building.name)}</span>
-          ${building.role ? `<span class="text-xs text-zinc-500 ml-2">${ui.escapeHtml(building.role)}</span>` : ""}
-          ${foxholeType ? `<span class="text-xs text-zinc-600 ml-2" title="tipo Foxhole">📖 ${ui.escapeHtml(foxholeType.name_en)}</span>` : ""}
+          ${showTypeBadge ? `<span class="text-xs text-zinc-600 ml-2" title="tipo Foxhole">📖 ${ui.escapeHtml(foxholeType.name_en)}</span>` : ""}
         </div>
         <div class="flex gap-2">
           <button class="edit-building text-xs text-zinc-400 hover:text-zinc-200">editar</button>
@@ -173,7 +182,7 @@ views.facilityDetail = (() => {
             : stock
                 .map(
                   (s) =>
-                    `<span class="mr-3 inline-flex items-center gap-1">${resourceThumb(s.resource_id) || ui.escapeHtml(s.resource_icon)} ${ui.escapeHtml(s.resource_name)}: <strong>${s.quantity}</strong></span>`
+                    `<span class="mr-4 inline-flex items-center gap-1.5">${resourceThumb(s.resource_id) || ui.escapeHtml(s.resource_icon)} ${ui.escapeHtml(s.resource_name)}: <strong>${s.quantity}</strong></span>`
                 )
                 .join("")
         }
@@ -204,11 +213,10 @@ views.facilityDetail = (() => {
     });
 
     card.querySelector(".edit-building").addEventListener("click", async () => {
-      const name = prompt("Nome do prédio:", building.name);
+      const label = foxholeType ? "Apelido (vazio usa o nome do tipo):" : "Nome do prédio:";
+      const name = prompt(label, building.name);
       if (name === null) return;
-      const role = prompt("Papel (opcional):", building.role || "");
-      if (role === null) return;
-      await api.updateBuilding(building.id, { name: name.trim(), role: role.trim() });
+      await api.updateBuilding(building.id, { name: name.trim() || null });
       onChange();
     });
 
@@ -217,7 +225,7 @@ views.facilityDetail = (() => {
     toggleBtn.addEventListener("click", () => {
       formContainer.classList.toggle("hidden");
       if (!formContainer.classList.contains("hidden") && formContainer.children.length === 0) {
-        buildStockForm(formContainer, building, onChange);
+        buildStockForm(formContainer, building, foxholeType, onChange);
       }
     });
 
@@ -313,7 +321,75 @@ views.facilityDetail = (() => {
     });
   }
 
-  function buildStockForm(container, building, onChange) {
+  function buildStockForm(container, building, foxholeType, onChange) {
+    if (foxholeType) {
+      buildPredefinedStockForm(container, building, foxholeType, onChange);
+    } else {
+      buildFreeformStockForm(container, building, onChange);
+    }
+  }
+
+  function buildPredefinedStockForm(container, building, foxholeType, onChange) {
+    const resources = resourcesForBuildingType(foxholeType);
+    const currentByKey = Object.fromEntries(
+      allResources.filter((r) => r.resource_def_key).map((r) => [r.resource_def_key, r])
+    );
+
+    container.innerHTML = `
+      <div class="border border-zinc-800 rounded p-3 bg-zinc-950">
+        <div class="predefined-rows grid gap-2"></div>
+        <div class="flex gap-2 mt-3">
+          <button type="button" class="save-stock bg-emerald-700 hover:bg-emerald-600 px-3 py-1.5 rounded text-xs font-semibold">Salvar Lançamento</button>
+        </div>
+        <p class="text-xs text-zinc-500 mt-2">Itens desse tipo de prédio (Foxhole). Deixe em branco o que não quiser lançar. Aceita <code>25.7k</code>, <code>1,8k</code> ou <code>32000</code>.</p>
+      </div>
+    `;
+
+    const rowsEl = container.querySelector(".predefined-rows");
+    rowsEl.innerHTML = resources
+      .map((r) => {
+        const current = currentByKey[r.key];
+        const thumb = r.icon
+          ? `<img src="${ui.escapeHtml(r.icon)}" class="h-7 w-7 object-contain" />`
+          : `<span class="w-7"></span>`;
+        return `
+        <div class="flex items-center gap-2">
+          ${thumb}
+          <span class="flex-1 text-sm">${ui.escapeHtml(r.name)}</span>
+          <input placeholder="Qtd (ex: 25.7k)" data-key="${r.key}" data-current-id="${current ? current.id : ""}"
+            class="w-32 bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500 row-qty" />
+        </div>`;
+      })
+      .join("");
+
+    container.querySelector(".save-stock").addEventListener("click", async () => {
+      const entries = [];
+      rowsEl.querySelectorAll(".row-qty").forEach((input) => {
+        const qty = input.value.trim();
+        if (!qty) return;
+        const def = foxholeResourceDefs[input.dataset.key];
+        const current = allResources.find((r) => String(r.id) === input.dataset.currentId);
+        entries.push({
+          resource_name: current ? current.name : def.name_en,
+          quantity_raw: qty,
+          resource_def_key: input.dataset.key,
+        });
+      });
+      if (entries.length === 0) {
+        ui.toast("Preencha pelo menos uma quantidade.", true);
+        return;
+      }
+      try {
+        await api.addBuildingStock(building.id, entries);
+        ui.toast("Estoque lançado!");
+        onChange();
+      } catch (err) {
+        ui.toast(err.message, true);
+      }
+    });
+  }
+
+  function buildFreeformStockForm(container, building, onChange) {
     container.innerHTML = `
       <div class="border border-zinc-800 rounded p-3 bg-zinc-950">
         <div class="stock-rows space-y-2"></div>
