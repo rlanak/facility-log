@@ -16,10 +16,8 @@ views.resources = (() => {
       </div>
 
       <h2 class="text-sm font-bold text-zinc-300 mb-2">${i18n.t("resources.manualTitle")}</h2>
-      <form id="new-resource-form" class="grid grid-cols-[1fr_100px_140px_auto] gap-2 mb-2">
+      <form id="new-resource-form" class="grid grid-cols-[1fr_140px_auto] gap-2 mb-2">
         <input id="res-name" required placeholder="${i18n.t("resources.namePlaceholder")}"
-          class="bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
-        <input id="res-icon" placeholder="${i18n.t("resources.iconPlaceholder")}"
           class="bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
         <input id="res-target" type="number" step="any" placeholder="${i18n.t("resources.targetPlaceholder")}"
           class="bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
@@ -35,14 +33,13 @@ views.resources = (() => {
     document.getElementById("new-resource-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       const name = document.getElementById("res-name").value.trim();
-      const icon = document.getElementById("res-icon").value.trim();
       const targetRaw = document.getElementById("res-target").value;
       const farmable = document.getElementById("res-farmable").checked;
       if (!name) return;
       try {
         await api.createResource({
           name,
-          icon,
+          icon: "",
           target_max: targetRaw ? parseFloat(targetRaw) : null,
           farmable,
         });

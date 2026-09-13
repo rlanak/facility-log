@@ -162,8 +162,9 @@ def delete_building(db: Session, building: models.Building) -> None:
 def update_building_production(
     db: Session, building: models.Building, data: schemas.BuildingProductionUpdate
 ) -> models.Building:
-    building.active_recipe_key = data.recipe_key
-    building.queue_count = data.queue_count if data.recipe_key else 0
+    building.production_slots = [
+        {"recipe_key": slot.recipe_key, "queue_count": slot.queue_count} for slot in data.slots if slot.queue_count > 0
+    ]
     db.commit()
     db.refresh(building)
     return building

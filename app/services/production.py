@@ -74,3 +74,28 @@ def estimate_production(
         "inputs_per_cycle": items(tracked_inputs, 1),
         "leftovers": leftovers,
     }
+
+
+def estimate_building_slots(
+    building_type_key: str,
+    slots: list[dict],
+    current_stock: dict[str, float],
+    now: datetime,
+    lang: str = "pt-BR",
+) -> list[dict]:
+    """One estimate per active production slot (a building can run several
+    different recipes at once, up to its queue_slots total — see
+    Building.production_slots). Each slot is estimated independently against
+    the same current_stock snapshot: if two slots share an input, each one's
+    numbers assume the other isn't also drawing on it, so combined they can
+    overstate true runway. Matches the project's existing "ballpark, not a
+    precise simulation" stance for production estimates.
+    """
+    estimates = []
+    for slot in slots:
+        estimate = estimate_production(
+            building_type_key, slot["recipe_key"], slot["queue_count"], current_stock, now, lang
+        )
+        if estimate:
+            estimates.append(estimate)
+    return estimates

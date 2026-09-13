@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app import crud, schemas
 from app.database import get_db
-from app.services import production
+from app.services import foxhole_data, production
 from app.services.errors_i18n import err
 
 router = APIRouter(tags=["buildings"])
@@ -58,19 +58,23 @@ def set_building_production(
     building = crud.get_building(db, building_id)
     if not building:
         raise HTTPException(status_code=404, detail=err("building_not_found", lang))
-    if data.recipe_key and not building.building_type_key:
+    if data.slots and not building.building_type_key:
         raise HTTPException(status_code=422, detail=err("building_not_linked", lang))
+    building_type = foxhole_data.get_building_type(building.building_type_key) if building.building_type_key else None
+    total_queues = sum(slot.queue_count for slot in data.slots)
+    if building_type and total_queues > building_type["queue_slots"]:
+        raise HTTPException(status_code=422, detail=err("queue_slots_exceeded", lang))
     return crud.update_building_production(db, building, data)
 
 
-@router.get("/api/buildings/{building_id}/production-estimate", response_model=schemas.ProductionEstimateOut | None)
+@router.get("/api/buildings/{building_id}/production-estimate", response_model=list[schemas.ProductionEstimateOut])
 def get_production_estimate(building_id: int, lang: str = "pt-BR", db: Session = Depends(get_db)):
     building = crud.get_building(db, building_id)
     if not building:
         raise HTTPException(status_code=404, detail=err("building_not_found", lang))
-    if not building.building_type_key or not building.active_recipe_key:
-        return None
+    if not building.building_type_key or not building.production_slots:
+        return []
     current_stock = crud.get_current_stock_by_resource_def(db, building_id)
-    return production.estimate_production(
-        building.building_type_key, building.active_recipe_key, building.queue_count, current_stock, datetime.now(), lang
+    return production.estimate_building_slots(
+        building.building_type_key, building.production_slots, current_stock, datetime.now(), lang
     )

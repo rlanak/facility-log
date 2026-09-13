@@ -127,9 +127,9 @@ RESOURCE_ICON_FILES = {
     # caught 5 more candidates (Tenta Torpedo, BF5 White Ash Flask Grenade,
     # B2 Varsi Anti-Tank Grenade, Mounted Bonesaw MK.3, Clancy-Raca M4) that
     # this Colonial-only catalog had mislabeled — actually Warden per the
-    # wiki. Deliberately left out of this dict pending a fix to those 5
-    # resource entries themselves (a data problem, not an icon problem) —
-    # see the "not faction-verified" item in the project backlog notes.
+    # wiki. Confirmed against a full 108-item faction audit and removed from
+    # resources.json/building_types.json entirely (2026-09-13) — never had
+    # icons downloaded, so nothing to remove from this dict.
     "120mm": ("120mm", "LightArtilleryAmmoItemIcon.png", "LightArtilleryAmmoItemIcon.png"),
     "14_5mm": ("14.5mm", "ATRifleAmmoItemIcon.png", "ATRifleAmmoItemIcon.png"),
     "150mm": ("150mm", "HeavyArtilleryAmmoItemIcon.png", "HeavyArtilleryAmmoItemIcon.png"),

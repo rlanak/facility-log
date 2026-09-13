@@ -16,7 +16,7 @@ _STRINGS = {
         "recommendation_title": "**\U0001f3af Foco de Farm Recomendado**",
         "recommendation_no_data": "Sem dados de estoque suficientes pra recomendar.",
         "recommendation_no_farmable": "Nenhum recurso farmável cadastrado — marque os recursos que são matéria-prima no catálogo.",
-        "justification_with_target": "{qty} em estoque, só {pct} da meta de {target}. Prioridade alta.",
+        "justification_with_target": "{qty} em estoque, só {pct} da meta de {target} — faltam {missing}. Prioridade alta.",
         "justification_no_target": "{qty} em estoque, o mais baixo sem meta cadastrada.",
         "discord_part": "**Parte {i}/{n}**",
     },
@@ -29,7 +29,7 @@ _STRINGS = {
         "recommendation_title": "**\U0001f3af Recommended Farm Focus**",
         "recommendation_no_data": "Not enough stock data to make a recommendation.",
         "recommendation_no_farmable": "No farmable resource registered — mark resources that are raw materials in the catalog.",
-        "justification_with_target": "{qty} in stock, only {pct} of the {target} target. High priority.",
+        "justification_with_target": "{qty} in stock, only {pct} of the {target} target — {missing} short. High priority.",
         "justification_no_target": "{qty} in stock, the lowest without a registered target.",
         "discord_part": "**Part {i}/{n}**",
     },
@@ -114,13 +114,13 @@ def build_building_paragraph(
         for entry in sorted(entries, key=lambda e: crud.resolve_resource_name(e.resource, lang))
     )
 
-    if building.building_type_key and building.active_recipe_key and building.queue_count > 0:
+    if building.building_type_key and building.production_slots:
         current_stock = {e.resource.resource_def_key: e.quantity for e in entries if e.resource.resource_def_key}
-        estimate = production_service.estimate_production(
-            building.building_type_key, building.active_recipe_key, building.queue_count, current_stock, now, lang
+        estimates = production_service.estimate_building_slots(
+            building.building_type_key, building.production_slots, current_stock, now, lang
         )
-        if estimate:
-            body += f"\n{format_production_line(building.queue_count, estimate, lang)}"
+        for estimate in estimates:
+            body += f"\n{format_production_line(estimate['queue_count'], estimate, lang)}"
 
     return body
 
@@ -189,7 +189,10 @@ def build_recommendation_block(totals: list[ResourceTotal], lang: str = "pt-BR")
         if rec["pct"] is not None:
             pct_text = f"{rec['pct'] * 100:.0f}%"
             target_text = format_qty(resource.target_max)
-            justification = _t("justification_with_target", lang, qty=qty_text, pct=pct_text, target=target_text)
+            missing_text = format_qty(max(resource.target_max - rec["quantity"], 0))
+            justification = _t(
+                "justification_with_target", lang, qty=qty_text, pct=pct_text, target=target_text, missing=missing_text
+            )
         else:
             justification = _t("justification_no_target", lang, qty=qty_text)
         icon_prefix = f"{resource.icon} " if resource.icon else ""

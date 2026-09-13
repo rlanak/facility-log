@@ -447,22 +447,6 @@
     "farmable": false,
     "icon": "/assets/foxhole/items/DemolitionRocketAmmoIcon.png"
   },
-  "tenta_torpedo": {
-    "name": {
-      "en": "Tenta Torpedo",
-      "pt": "Torpedo Tenta"
-    },
-    "farmable": false,
-    "icon": null
-  },
-  "bf5_white_ash_flask_grenade": {
-    "name": {
-      "en": "BF5 White Ash Flask Grenade",
-      "pt": "Granada de Frasco BF5 White Ash"
-    },
-    "farmable": false,
-    "icon": null
-  },
   "ignifist_30": {
     "name": {
       "en": "Ignifist 30",
@@ -518,14 +502,6 @@
     },
     "farmable": false,
     "icon": "/assets/foxhole/items/Smokegrenadeicon1.png"
-  },
-  "b2_varsi_at_grenade": {
-    "name": {
-      "en": "B2 Varsi Anti-Tank Grenade",
-      "pt": "Granada Antitanque B2 Varsi"
-    },
-    "farmable": false,
-    "icon": null
   },
   "tremola_grenade_gpb1": {
     "name": {
@@ -631,14 +607,6 @@
     "farmable": false,
     "icon": "/assets/foxhole/items/BannerTCItemIcon.png"
   },
-  "mounted_bonesaw_mk3": {
-    "name": {
-      "en": "Mounted Bonesaw MK.3",
-      "pt": "Bonesaw MK.3 Montada"
-    },
-    "farmable": false,
-    "icon": null
-  },
   "tripod_generic": {
     "name": {
       "en": "Tripod",
@@ -646,14 +614,6 @@
     },
     "farmable": false,
     "icon": "/assets/foxhole/items/DeployableTripodItemIcon.png"
-  },
-  "clancy_raca_m4": {
-    "name": {
-      "en": "Clancy-Raca M4",
-      "pt": "Clancy-Raca M4"
-    },
-    "farmable": false,
-    "icon": null
   },
   "dusk_ce_iii": {
     "name": {

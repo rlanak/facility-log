@@ -112,7 +112,7 @@ views.facilityDetail = (() => {
           class="bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
         <button class="bg-emerald-700 hover:bg-emerald-600 px-4 py-2 rounded text-sm font-semibold whitespace-nowrap">${i18n.t("facilityDetail.addBuilding")}</button>
       </form>
-      <div id="buildings-list" class="space-y-3"></div>
+      <div id="buildings-list" class="grid gap-3 sm:grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 items-start"></div>
     `;
 
     const typeSelect = document.getElementById("b-type");
@@ -145,65 +145,99 @@ views.facilityDetail = (() => {
       }
       listEl.innerHTML = "";
       for (const building of buildings) {
-        listEl.appendChild(await buildingCard(building, renderBuildingsList));
+        const card = await buildingCard(building, renderBuildingsList);
+        makeCardDraggable(listEl, card, building.id);
+        listEl.appendChild(card);
       }
+    }
+
+    function makeCardDraggable(listEl, card, buildingId) {
+      card.dataset.buildingId = buildingId;
+      const handle = card.querySelector(".drag-handle");
+      if (handle) {
+        handle.draggable = true;
+        handle.addEventListener("dragstart", (e) => {
+          e.dataTransfer.setData("text/plain", String(buildingId));
+          e.dataTransfer.effectAllowed = "move";
+          card.classList.add("opacity-40");
+        });
+        handle.addEventListener("dragend", () => card.classList.remove("opacity-40"));
+      }
+      card.addEventListener("dragover", (e) => e.preventDefault());
+      card.addEventListener("drop", async (e) => {
+        e.preventDefault();
+        const draggedId = e.dataTransfer.getData("text/plain");
+        if (!draggedId || draggedId === String(buildingId)) return;
+        const draggedEl = listEl.querySelector(`[data-building-id="${draggedId}"]`);
+        if (!draggedEl) return;
+        const rect = card.getBoundingClientRect();
+        const insertBefore = e.clientY - rect.top < rect.height / 2;
+        listEl.insertBefore(draggedEl, insertBefore ? card : card.nextSibling);
+        const cards = [...listEl.children];
+        await Promise.all(cards.map((el, idx) => api.updateBuilding(el.dataset.buildingId, { position: idx })));
+      });
     }
 
     renderBuildingsList();
   }
 
   async function buildingCard(building, onChange) {
-    const card = ui.el("div", { class: "bg-zinc-900 border border-zinc-800 rounded-lg p-4" });
+    const card = ui.el("div", { class: "bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden flex" });
     const stock = await api.getBuildingStock(building.id);
     const foxholeType = building.building_type_key ? getFoxholeType(building.building_type_key) : null;
 
-    const buildingThumb =
+    const iconPanel =
       foxholeType && foxholeType.icon
-        ? `<img src="${ui.escapeHtml(foxholeType.icon)}" class="h-12 w-12 inline-block object-contain align-middle mr-3" />`
+        ? `<div class="w-28 shrink-0 bg-zinc-950 border-r border-zinc-800 flex items-center justify-center p-3">
+             <img src="${ui.escapeHtml(foxholeType.icon)}" class="w-full h-auto max-h-24 object-contain" />
+           </div>`
         : "";
     const showTypeBadge = foxholeType && building.name !== foxholeType.name_en;
     const buildingDisplayName = i18n.buildingName(building, foxholeType);
 
     card.innerHTML = `
-      <div class="flex items-center justify-between">
-        <div class="flex items-center">
-          ${buildingThumb}
-          <span class="font-semibold">${ui.escapeHtml(buildingDisplayName)}</span>
-          ${showTypeBadge ? `<span class="text-xs text-zinc-600 ml-2" title="${i18n.t("facilityDetail.foxholeType")}">📖 ${ui.escapeHtml(i18n.catalogName(foxholeType))}</span>` : ""}
+      ${iconPanel}
+      <div class="flex-1 min-w-0 p-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center">
+            <span class="font-semibold">${ui.escapeHtml(buildingDisplayName)}</span>
+            ${showTypeBadge ? `<span class="text-xs text-zinc-600 ml-2" title="${i18n.t("facilityDetail.foxholeType")}">📖 ${ui.escapeHtml(i18n.catalogName(foxholeType))}</span>` : ""}
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="drag-handle cursor-move text-zinc-600 hover:text-zinc-400 px-1" title="${i18n.t("facilityDetail.dragToReorder")}">⠿</span>
+            <button class="edit-building text-xs text-zinc-400 hover:text-zinc-200">${i18n.t("common.edit")}</button>
+            <button class="delete-building text-xs text-red-400 hover:text-red-300">${i18n.t("common.delete")}</button>
+          </div>
         </div>
-        <div class="flex gap-2">
-          <button class="edit-building text-xs text-zinc-400 hover:text-zinc-200">${i18n.t("common.edit")}</button>
-          <button class="delete-building text-xs text-red-400 hover:text-red-300">${i18n.t("common.delete")}</button>
+        <div class="text-sm text-zinc-300 mt-2">
+          ${
+            stock.length === 0
+              ? `<span class="text-zinc-600">${i18n.t("facilityDetail.noEntries")}</span>`
+              : stock
+                  .map(
+                    (s) =>
+                      `<span class="mr-4 inline-flex items-center gap-1.5">${resourceThumb(s.resource_id) || ui.escapeHtml(s.resource_icon)} ${ui.escapeHtml(s.resource_name)}: <strong>${s.quantity}</strong></span>`
+                  )
+                  .join("")
+          }
         </div>
+        <div class="production-status text-sm text-zinc-400 mt-2"></div>
+        <div class="flex gap-2 mt-3 flex-wrap">
+          <button class="toggle-stock-form text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.launchStock")}</button>
+          <button class="toggle-print-form text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.sendPrint")}</button>
+          ${
+            foxholeType
+              ? `<button class="toggle-production-form text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.production")}</button>`
+              : ""
+          }
+        </div>
+        <div class="stock-form-container hidden mt-3"></div>
+        <div class="print-form-container hidden mt-3"></div>
+        <div class="production-form-container hidden mt-3"></div>
       </div>
-      <div class="text-sm text-zinc-300 mt-2">
-        ${
-          stock.length === 0
-            ? `<span class="text-zinc-600">${i18n.t("facilityDetail.noEntries")}</span>`
-            : stock
-                .map(
-                  (s) =>
-                    `<span class="mr-4 inline-flex items-center gap-1.5">${resourceThumb(s.resource_id) || ui.escapeHtml(s.resource_icon)} ${ui.escapeHtml(s.resource_name)}: <strong>${s.quantity}</strong></span>`
-                )
-                .join("")
-        }
-      </div>
-      <div class="production-status text-sm text-zinc-400 mt-2"></div>
-      <div class="flex gap-2 mt-3 flex-wrap">
-        <button class="toggle-stock-form text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.launchStock")}</button>
-        <button class="toggle-print-form text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.sendPrint")}</button>
-        ${
-          foxholeType
-            ? `<button class="toggle-production-form text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.production")}</button>`
-            : ""
-        }
-      </div>
-      <div class="stock-form-container hidden mt-3"></div>
-      <div class="print-form-container hidden mt-3"></div>
-      <div class="production-form-container hidden mt-3"></div>
     `;
 
-    if (foxholeType && building.active_recipe_key) {
+    if (foxholeType && building.production_slots && building.production_slots.length > 0) {
       renderProductionStatus(card.querySelector(".production-status"), building);
     }
 
@@ -254,14 +288,17 @@ views.facilityDetail = (() => {
   }
 
   async function renderProductionStatus(container, building) {
-    let estimate;
+    let estimates;
     try {
-      estimate = await api.getProductionEstimate(building.id);
+      estimates = await api.getProductionEstimate(building.id);
     } catch (err) {
       return;
     }
-    if (!estimate) return;
-    container.textContent = formatProductionLine(estimate);
+    if (!estimates || estimates.length === 0) return;
+    container.innerHTML = "";
+    for (const estimate of estimates) {
+      container.appendChild(ui.el("div", {}, formatProductionLine(estimate)));
+    }
   }
 
   function formatProductionLine(estimate) {
@@ -299,28 +336,30 @@ views.facilityDetail = (() => {
       return `${outputs} (${formatDuration(recipe.time_seconds)})`;
     }
 
+    function recipeOptionsHtml(selectedKey) {
+      return (
+        `<option value="">${i18n.t("facilityDetail.noRecipe")}</option>` +
+        Object.entries(recipesByModule)
+          .map(
+            ([mod, recipes]) => `
+          <optgroup label="${ui.escapeHtml(mod)}">
+            ${recipes
+              .map(
+                (r) =>
+                  `<option value="${r.key}" ${r.key === selectedKey ? "selected" : ""}>${ui.escapeHtml(recipeLabel(r))}${r.note ? " ⚠" : ""}</option>`
+              )
+              .join("")}
+          </optgroup>`
+          )
+          .join("")
+      );
+    }
+
     container.innerHTML = `
       <div class="border border-zinc-800 rounded p-3 bg-zinc-950">
-        <label class="block text-xs text-zinc-400 mb-1">${i18n.t("facilityDetail.recipeLabel")}</label>
-        <select class="production-recipe w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm mb-2 focus:outline-none focus:border-emerald-500">
-          <option value="">${i18n.t("facilityDetail.noRecipe")}</option>
-          ${Object.entries(recipesByModule)
-            .map(
-              ([mod, recipes]) => `
-            <optgroup label="${ui.escapeHtml(mod)}">
-              ${recipes
-                .map(
-                  (r) =>
-                    `<option value="${r.key}" ${r.key === building.active_recipe_key ? "selected" : ""}>${ui.escapeHtml(recipeLabel(r))}${r.note ? " ⚠" : ""}</option>`
-                )
-                .join("")}
-            </optgroup>`
-            )
-            .join("")}
-        </select>
-        <label class="block text-xs text-zinc-400 mb-1">${i18n.t("facilityDetail.queueLabel", { n: foxholeType.queue_slots })}</label>
-        <input type="number" min="0" max="${foxholeType.queue_slots}" value="${building.queue_count || 1}"
-          class="production-queue w-24 bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm mb-3 focus:outline-none focus:border-emerald-500" />
+        <div class="production-slot-rows grid gap-2 mb-2"></div>
+        <button type="button" class="add-slot text-xs text-zinc-400 hover:text-zinc-200 mb-2">${i18n.t("facilityDetail.addQueue")}</button>
+        <p class="slot-total text-xs text-zinc-500 mb-3"></p>
         <div>
           <button type="button" class="save-production bg-emerald-700 hover:bg-emerald-600 px-3 py-1.5 rounded text-xs font-semibold">${i18n.t("facilityDetail.saveProduction")}</button>
         </div>
@@ -328,11 +367,55 @@ views.facilityDetail = (() => {
       </div>
     `;
 
+    const rowsEl = container.querySelector(".production-slot-rows");
+    const totalEl = container.querySelector(".slot-total");
+
+    function updateTotal() {
+      const total = [...rowsEl.querySelectorAll(".slot-queue")].reduce((sum, input) => sum + (parseInt(input.value, 10) || 0), 0);
+      totalEl.textContent = i18n.t("facilityDetail.queueTotal", { total, max: foxholeType.queue_slots });
+      totalEl.classList.toggle("text-red-400", total > foxholeType.queue_slots);
+      totalEl.classList.toggle("text-zinc-500", total <= foxholeType.queue_slots);
+    }
+
+    function addSlotRow(recipeKey, queueCount) {
+      const row = ui.el("div", { class: "flex gap-2 items-center" });
+      row.innerHTML = `
+        <select class="slot-recipe flex-1 bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500">
+          ${recipeOptionsHtml(recipeKey)}
+        </select>
+        <input type="number" min="1" max="${foxholeType.queue_slots}" value="${queueCount || 1}"
+          class="slot-queue w-16 bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500" />
+        <button type="button" class="remove-slot text-zinc-500 hover:text-red-400 px-1">✕</button>
+      `;
+      row.querySelector(".remove-slot").addEventListener("click", () => {
+        row.remove();
+        updateTotal();
+      });
+      row.querySelector(".slot-queue").addEventListener("input", updateTotal);
+      rowsEl.appendChild(row);
+    }
+
+    if (building.production_slots && building.production_slots.length > 0) {
+      building.production_slots.forEach((slot) => addSlotRow(slot.recipe_key, slot.queue_count));
+    } else {
+      addSlotRow("", 1);
+    }
+    updateTotal();
+
+    container.querySelector(".add-slot").addEventListener("click", () => {
+      addSlotRow("", 1);
+      updateTotal();
+    });
+
     container.querySelector(".save-production").addEventListener("click", async () => {
-      const recipeKey = container.querySelector(".production-recipe").value || null;
-      const queueCount = parseInt(container.querySelector(".production-queue").value, 10) || 0;
+      const slots = [...rowsEl.querySelectorAll(":scope > div")]
+        .map((row) => ({
+          recipe_key: row.querySelector(".slot-recipe").value,
+          queue_count: parseInt(row.querySelector(".slot-queue").value, 10) || 0,
+        }))
+        .filter((slot) => slot.recipe_key && slot.queue_count > 0);
       try {
-        await api.setBuildingProduction(building.id, { recipe_key: recipeKey, queue_count: queueCount });
+        await api.setBuildingProduction(building.id, { slots });
         ui.toast(i18n.t("facilityDetail.productionUpdated"));
         onChange();
       } catch (err) {
