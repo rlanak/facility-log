@@ -218,14 +218,14 @@ views.print = (() => {
         const nameInput = el("input", {
           list: "print-resources-datalist",
           placeholder: i18n.t("print.resourcePlaceholder"),
-          class: "flex-1 bg-zinc-950 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500",
+          class: "flex-1 min-w-0 bg-zinc-950 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500",
         });
         nameInput.value = crop.resourceName;
         nameInput.addEventListener("input", () => (crop.resourceName = nameInput.value));
 
         const qtyInput = el("input", {
           placeholder: i18n.t("print.qtyPlaceholder"),
-          class: "w-28 bg-zinc-950 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500",
+          class: "w-28 shrink-0 bg-zinc-950 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500",
         });
         qtyInput.value = crop.quantityRaw;
         qtyInput.addEventListener("input", () => (crop.quantityRaw = qtyInput.value));
