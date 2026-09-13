@@ -93,6 +93,7 @@ class ProductionEstimateOut(BaseModel):
     eta: datetime
     outputs: list[ProductionEstimateItem]
     inputs_consumed: list[ProductionEstimateItem]
+    inputs_per_cycle: list[ProductionEstimateItem]
     leftovers: list[ProductionEstimateItem]
 
 

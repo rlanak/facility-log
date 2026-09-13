@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app import crud, schemas
 from app.database import get_db
+from app.services.errors_i18n import err
 
 router = APIRouter(prefix="/api/facilities", tags=["facilities"])
 
@@ -18,34 +19,34 @@ def create_facility(data: schemas.FacilityCreate, db: Session = Depends(get_db))
 
 
 @router.get("/{facility_id}", response_model=schemas.FacilityOut)
-def get_facility(facility_id: int, db: Session = Depends(get_db)):
+def get_facility(facility_id: int, lang: str = "pt-BR", db: Session = Depends(get_db)):
     facility = crud.get_facility(db, facility_id)
     if not facility:
-        raise HTTPException(status_code=404, detail="Facility não encontrada.")
+        raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
     return facility
 
 
 @router.put("/{facility_id}", response_model=schemas.FacilityOut)
-def update_facility(facility_id: int, data: schemas.FacilityUpdate, db: Session = Depends(get_db)):
+def update_facility(facility_id: int, data: schemas.FacilityUpdate, lang: str = "pt-BR", db: Session = Depends(get_db)):
     facility = crud.get_facility(db, facility_id)
     if not facility:
-        raise HTTPException(status_code=404, detail="Facility não encontrada.")
+        raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
     return crud.update_facility(db, facility, data)
 
 
 @router.delete("/{facility_id}", status_code=204)
-def delete_facility(facility_id: int, db: Session = Depends(get_db)):
+def delete_facility(facility_id: int, lang: str = "pt-BR", db: Session = Depends(get_db)):
     facility = crud.get_facility(db, facility_id)
     if not facility:
-        raise HTTPException(status_code=404, detail="Facility não encontrada.")
+        raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
     crud.delete_facility(db, facility)
 
 
 @router.get("/{facility_id}/stock", response_model=list[schemas.BuildingStockOut])
-def get_facility_stock(facility_id: int, db: Session = Depends(get_db)):
+def get_facility_stock(facility_id: int, lang: str = "pt-BR", db: Session = Depends(get_db)):
     facility = crud.get_facility(db, facility_id)
     if not facility:
-        raise HTTPException(status_code=404, detail="Facility não encontrada.")
+        raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
     stock = crud.get_current_stock_for_facility(db, facility_id)
     return [
         schemas.BuildingStockOut(
@@ -54,7 +55,7 @@ def get_facility_stock(facility_id: int, db: Session = Depends(get_db)):
                 schemas.StockEntryOut(
                     id=e.id,
                     resource_id=e.resource_id,
-                    resource_name=e.resource.display_name,
+                    resource_name=crud.resolve_resource_name(e.resource, lang),
                     resource_icon=e.resource.icon,
                     quantity=e.quantity,
                     source=e.source,

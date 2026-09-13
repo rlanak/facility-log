@@ -141,7 +141,8 @@
         "time_seconds": 270
       }
     ],
-    "icon": "/assets/foxhole/structures/FacilityRefinery2Icon.png"
+    "icon": "/assets/foxhole/structures/FacilityRefinery2Icon.png",
+    "name_pt": "Refinaria de Carvão"
   },
   "materials_factory": {
     "name_en": "Materials Factory",
@@ -357,7 +358,8 @@
         "time_seconds": 25
       }
     ],
-    "icon": "/assets/foxhole/structures/MetalworksFactoryBase.png"
+    "icon": "/assets/foxhole/structures/MetalworksFactoryBase.png",
+    "name_pt": "Fábrica de Materiais"
   },
   "metalworks_factory": {
     "name_en": "Metalworks Factory",
@@ -681,7 +683,8 @@
         "time_seconds": 90
       }
     ],
-    "icon": "/assets/foxhole/structures/MetalworksFactoryBase.png"
+    "icon": "/assets/foxhole/structures/MetalworksFactoryBase.png",
+    "name_pt": "Metalúrgica"
   },
   "oil_refinery": {
     "name_en": "Oil Refinery",
@@ -778,7 +781,8 @@
         "note": "only one upgrade module can be installed at a time"
       }
     ],
-    "icon": "/assets/foxhole/structures/OilRefineryMod2Icon.png"
+    "icon": "/assets/foxhole/structures/OilRefineryMod2Icon.png",
+    "name_pt": "Refinaria de Petróleo"
   },
   "ammunition_factory": {
     "name_en": "Ammunition Factory",
@@ -1528,7 +1532,8 @@
         "time_seconds": 25
       }
     ],
-    "icon": "/assets/foxhole/structures/FacilitySmallArmsFactoryIcon.png"
+    "icon": "/assets/foxhole/structures/FacilitySmallArmsFactoryIcon.png",
+    "name_pt": "Fábrica de Munição"
   },
   "infantry_kit_factory": {
     "name_en": "Infantry Kit Factory",
@@ -2405,7 +2410,8 @@
         "note": "not faction-verified"
       }
     ],
-    "icon": "/assets/foxhole/structures/FacilitySmallArmsFactoryIcon.png"
+    "icon": "/assets/foxhole/structures/FacilitySmallArmsFactoryIcon.png",
+    "name_pt": "Fábrica de Kits de Infantaria"
   },
   "aircraft_maintenance_factory": {
     "name_en": "Aircraft Maintenance Factory",
@@ -2605,7 +2611,8 @@
         "time_seconds": 300
       }
     ],
-    "icon": "/assets/foxhole/structures/FacilityFactoryAircraftIcon.png"
+    "icon": "/assets/foxhole/structures/FacilityFactoryAircraftIcon.png",
+    "name_pt": "Fábrica de Manutenção de Aeronaves"
   },
   "concrete_mixer": {
     "name_en": "Concrete Mixer",
@@ -2664,6 +2671,7 @@
         "time_seconds": 90
       }
     ],
-    "icon": "/assets/foxhole/structures/ConcreteMixerIcon.png"
+    "icon": "/assets/foxhole/structures/ConcreteMixerIcon.png",
+    "name_pt": "Betoneira"
   }
 }

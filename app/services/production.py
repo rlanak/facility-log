@@ -10,6 +10,7 @@ def estimate_production(
     queue_count: int,
     current_stock: dict[str, float],
     now: datetime,
+    lang: str = "pt-BR",
 ) -> dict | None:
     """Estimates how long it'll take `queue_count` parallel production lines to
     burn through the *currently logged stock* of this recipe's inputs, and how
@@ -45,7 +46,7 @@ def estimate_production(
         return [
             {
                 "resource": io["resource"],
-                "name": foxhole_data.resource_display_name(io["resource"]),
+                "name": foxhole_data.resource_display_name(io["resource"], lang),
                 "qty": io.get("qty", 1) * qty_multiplier,
             }
             for io in io_list
@@ -67,5 +68,9 @@ def estimate_production(
         "eta": eta,
         "outputs": outputs,
         "inputs_consumed": inputs_consumed,
+        # Unmultiplied per-cycle requirement (inputs_consumed is total_cycles * qty,
+        # which is all zero when total_cycles is 0 — callers need this one instead
+        # to report how much is actually needed when stock can't sustain a cycle).
+        "inputs_per_cycle": items(tracked_inputs, 1),
         "leftovers": leftovers,
     }
