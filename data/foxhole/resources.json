@@ -21,7 +21,9 @@
       "pt": "Água"
     },
     "farmable": true,
-    "icon": "/assets/foxhole/items/WaterIcon.png"
+    "icon": "/assets/foxhole/items/WaterIcon.png",
+    "is_liquid": true,
+    "liters_per_unit": 50
   },
   "oil": {
     "name": {
@@ -29,7 +31,9 @@
       "pt": "Petróleo"
     },
     "farmable": true,
-    "icon": "/assets/foxhole/items/OilIcon.png"
+    "icon": "/assets/foxhole/items/OilIcon.png",
+    "is_liquid": true,
+    "liters_per_unit": 50
   },
   "salvage": {
     "name": {
@@ -77,7 +81,9 @@
       "pt": "Óleo Pesado"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/HeavyOilIcon.png"
+    "icon": "/assets/foxhole/items/HeavyOilIcon.png",
+    "is_liquid": true,
+    "liters_per_unit": 30
   },
   "petrol": {
     "name": {
@@ -85,7 +91,9 @@
       "pt": "Gasolina"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/PetrolIcon.png"
+    "icon": "/assets/foxhole/items/PetrolIcon.png",
+    "is_liquid": true,
+    "liters_per_unit": 50
   },
   "enriched_oil": {
     "name": {
@@ -93,7 +101,9 @@
       "pt": "Petróleo Enriquecido"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/EnrichedOilIcon.png"
+    "icon": "/assets/foxhole/items/EnrichedOilIcon.png",
+    "is_liquid": true,
+    "liters_per_unit": 30
   },
   "construction_materials": {
     "name": {

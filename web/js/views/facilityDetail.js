@@ -16,10 +16,28 @@ views.facilityDetail = (() => {
       for (const io of [...recipe.inputs, ...recipe.outputs]) {
         if (!io.resource || seen.has(io.resource)) continue;
         const def = foxholeResourceDefs[io.resource];
+        if (def && def.is_liquid) continue; // liquids get their own Tanque de Líquido section, not the crate form
         seen.set(io.resource, { key: io.resource, name: def ? i18n.catalogName(def) : io.resource, icon: def ? def.icon : null });
       }
     }
     return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  // Which liquids a building currently has a tank for: derived from the
+  // liquid resources used by whichever recipes the user has active in
+  // production — not a separate setting. See memory/liquid_tank_system.md.
+  function activeLiquidKeys(building, foxholeType) {
+    if (!foxholeType) return [];
+    const activeRecipeKeys = new Set((building.production_slots || []).map((s) => s.recipe_key));
+    const keys = new Map();
+    for (const recipe of foxholeType.recipes) {
+      if (!activeRecipeKeys.has(recipe.key)) continue;
+      for (const io of [...recipe.inputs, ...recipe.outputs]) {
+        const def = io.resource && foxholeResourceDefs[io.resource];
+        if (def && def.is_liquid && !keys.has(io.resource)) keys.set(io.resource, def);
+      }
+    }
+    return [...keys.entries()];
   }
 
   function resourceThumb(resourceId) {
@@ -185,6 +203,13 @@ views.facilityDetail = (() => {
     const card = ui.el("div", { class: "bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden flex" });
     const stock = await api.getBuildingStock(building.id);
     const foxholeType = building.building_type_key ? getFoxholeType(building.building_type_key) : null;
+    const liquidKeys = activeLiquidKeys(building, foxholeType);
+    const liquidResourceIds = new Set(
+      liquidKeys
+        .map(([key]) => allResources.find((r) => r.resource_def_key === key)?.id)
+        .filter((id) => id != null)
+    );
+    const nonLiquidStock = stock.filter((s) => !liquidResourceIds.has(s.resource_id));
 
     const iconPanel =
       foxholeType && foxholeType.icon
@@ -211,9 +236,9 @@ views.facilityDetail = (() => {
         </div>
         <div class="text-sm text-zinc-300 mt-2">
           ${
-            stock.length === 0
+            nonLiquidStock.length === 0
               ? `<span class="text-zinc-600">${i18n.t("facilityDetail.noEntries")}</span>`
-              : stock
+              : nonLiquidStock
                   .map(
                     (s) =>
                       `<span class="mr-4 inline-flex items-center gap-1.5">${resourceThumb(s.resource_id) || ui.escapeHtml(s.resource_icon)} ${ui.escapeHtml(s.resource_name)}: <strong>${s.quantity}</strong></span>`
@@ -222,6 +247,31 @@ views.facilityDetail = (() => {
           }
         </div>
         <div class="production-status text-sm text-zinc-400 mt-2"></div>
+        ${
+          liquidKeys.length > 0
+            ? `<div class="liquid-tank-section border border-zinc-800 rounded p-2 mt-2">
+                 <p class="text-xs text-zinc-500 mb-1.5">${i18n.t("facilityDetail.liquidTankTitle")}</p>
+                 ${liquidKeys
+                   .map(([key, def]) => {
+                     const resource = allResources.find((r) => r.resource_def_key === key);
+                     const entry = resource ? stock.find((s) => s.resource_id === resource.id) : null;
+                     const units = entry ? entry.quantity : 0;
+                     const liters = Math.round(units * def.liters_per_unit);
+                     const pct = Math.min(100, (liters / 5000) * 100);
+                     return `
+                     <div class="flex items-center gap-2 mb-1 text-sm">
+                       <span class="w-28 truncate">${ui.escapeHtml(i18n.catalogName(def))}</span>
+                       <div class="flex-1 bg-zinc-800 rounded h-3 overflow-hidden">
+                         <div class="bg-sky-600 h-full" style="width:${pct}%"></div>
+                       </div>
+                       <span class="text-xs text-zinc-500 w-24 text-right">${liters}L / 5000L</span>
+                       <button class="add-liquid text-emerald-400 hover:text-emerald-300 px-1 font-bold" data-key="${key}" data-current="${units}">+</button>
+                     </div>`;
+                   })
+                   .join("")}
+               </div>`
+            : ""
+        }
         <div class="flex gap-2 mt-3 flex-wrap">
           <button class="toggle-stock-form text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.launchStock")}</button>
           <button class="toggle-print-form text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.sendPrint")}</button>
@@ -240,6 +290,29 @@ views.facilityDetail = (() => {
     if (foxholeType && building.production_slots && building.production_slots.length > 0) {
       renderProductionStatus(card.querySelector(".production-status"), building);
     }
+
+    card.querySelectorAll(".add-liquid").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const key = btn.dataset.key;
+        const def = foxholeResourceDefs[key];
+        const maxUnits = Math.floor(5000 / def.liters_per_unit);
+        const raw = prompt(
+          i18n.t("facilityDetail.liquidPrompt", { name: i18n.catalogName(def), max: maxUnits }),
+          btn.dataset.current || ""
+        );
+        if (raw === null) return;
+        const qty = raw.trim();
+        if (!qty) return;
+        try {
+          await api.addBuildingStock(building.id, [
+            { resource_name: def.name_en, quantity_raw: qty, resource_def_key: key },
+          ]);
+          onChange();
+        } catch (err) {
+          ui.toast(err.message, true);
+        }
+      });
+    });
 
     card.querySelector(".delete-building").addEventListener("click", async () => {
       if (!confirm(i18n.t("facilityDetail.deleteBuildingConfirm", { name: buildingDisplayName }))) return;

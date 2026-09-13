@@ -2,7 +2,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.services import foxhole_data
+from app.services import errors_i18n, foxhole_data
 from app.services.number_parser import parse_quantity
 
 
@@ -203,13 +203,21 @@ def get_current_stock_by_resource_def(db: Session, building_id: int) -> dict[str
 
 
 def add_stock_entries(
-    db: Session, building_id: int, entries: list[schemas.StockEntryIn]
+    db: Session, building_id: int, entries: list[schemas.StockEntryIn], lang: str = "pt-BR"
 ) -> list[models.StockEntry]:
     parsed = [(entry, parse_quantity(entry.quantity_raw)) for entry in entries]
 
     created: list[models.StockEntry] = []
     for entry, quantity in parsed:
         resource = get_or_create_resource(db, entry.resource_name, entry.resource_def_key)
+        def_key = entry.resource_def_key or resource.resource_def_key
+        max_units = foxhole_data.liquid_tank_max_units(def_key) if def_key else None
+        if max_units is not None and quantity > max_units:
+            raise ValueError(
+                errors_i18n.err("liquid_tank_exceeded", lang).format(
+                    name=resolve_resource_name(resource, lang), max=round(max_units, 1)
+                )
+            )
         stock_entry = models.StockEntry(
             building_id=building_id,
             resource_id=resource.id,
