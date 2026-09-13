@@ -34,7 +34,7 @@ def add_building_stock(
     if not crud.get_building(db, building_id):
         raise HTTPException(status_code=404, detail=err("building_not_found", lang))
     try:
-        created = crud.add_stock_entries(db, building_id, entries)
+        created = crud.add_stock_entries(db, building_id, entries, lang)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     return [

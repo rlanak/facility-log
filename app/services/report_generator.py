@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from app import crud, models
+from app.services import foxhole_data
 from app.services import production as production_service
 
 DISCORD_LIMIT = 2000
@@ -13,6 +14,7 @@ _STRINGS = {
         "production_insufficient": "⚙️ {queue}x em produção configurada — estoque insuficiente pra 1 ciclo (precisa de {needed} por ciclo).",
         "production_line": "⚙️ {queue}x em produção — {cycles} ciclos com o estoque atual, pronto em {duration} (~{eta}): {outputs}",
         "production_leftover": ". Sobra: {leftovers}",
+        "liquid_tank": "🧪 Tanque:",
         "recommendation_title": "**\U0001f3af Foco de Farm Recomendado**",
         "recommendation_no_data": "Sem dados de estoque suficientes pra recomendar.",
         "recommendation_no_farmable": "Nenhum recurso farmável cadastrado — marque os recursos que são matéria-prima no catálogo.",
@@ -26,6 +28,7 @@ _STRINGS = {
         "production_insufficient": "⚙️ {queue}x production set up — not enough stock for 1 cycle (needs {needed} per cycle).",
         "production_line": "⚙️ {queue}x in production — {cycles} cycles with current stock, ready in {duration} (~{eta}): {outputs}",
         "production_leftover": ". Leftover: {leftovers}",
+        "liquid_tank": "🧪 Tank:",
         "recommendation_title": "**\U0001f3af Recommended Farm Focus**",
         "recommendation_no_data": "Not enough stock data to make a recommendation.",
         "recommendation_no_farmable": "No farmable resource registered — mark resources that are raw materials in the catalog.",
@@ -109,10 +112,27 @@ def build_building_paragraph(
     if building.role:
         title += f" _({building.role})_"
 
-    body = f"{title}\n{_t('no_entries', lang)}" if not entries else f"{title}\n" + " • ".join(
-        f"{entry.resource.icon} {crud.resolve_resource_name(entry.resource, lang)}: {format_qty(entry.quantity)}".strip()
-        for entry in sorted(entries, key=lambda e: crud.resolve_resource_name(e.resource, lang))
+    liquid_keys = (
+        set(foxhole_data.active_liquid_keys(building.building_type_key, building.production_slots))
+        if building.building_type_key
+        else set()
     )
+    solid_entries = [e for e in entries if e.resource.resource_def_key not in liquid_keys]
+
+    body = f"{title}\n{_t('no_entries', lang)}" if not solid_entries else f"{title}\n" + " • ".join(
+        f"{entry.resource.icon} {crud.resolve_resource_name(entry.resource, lang)}: {format_qty(entry.quantity)}".strip()
+        for entry in sorted(solid_entries, key=lambda e: crud.resolve_resource_name(e.resource, lang))
+    )
+
+    if liquid_keys:
+        current_stock = {e.resource.resource_def_key: e.quantity for e in entries if e.resource.resource_def_key}
+        tank_lines = []
+        for key in liquid_keys:
+            units = current_stock.get(key, 0)
+            liters = round(units * foxhole_data.liquid_liters_per_unit(key))
+            name = foxhole_data.resource_display_name(key, lang)
+            tank_lines.append(f"{name}: {liters}L/{foxhole_data.LIQUID_TANK_CAPACITY_LITERS}L")
+        body += f"\n{_t('liquid_tank', lang)} " + " • ".join(tank_lines)
 
     if building.building_type_key and building.production_slots:
         current_stock = {e.resource.resource_def_key: e.quantity for e in entries if e.resource.resource_def_key}
