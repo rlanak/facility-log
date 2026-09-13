@@ -51,6 +51,36 @@ def update_resource(db: Session, resource: models.Resource, data: schemas.Resour
     return resource
 
 
+def resolve_resource_name(resource: models.Resource, lang: str = "pt-BR") -> str:
+    """A resource's stored `name` is the English catalog default baked in at
+    import time (or a free-typed name for non-catalog resources) — resolve
+    the localized catalog name instead when nothing custom overrides it.
+    """
+    if resource.nickname:
+        return resource.nickname
+    if resource.resource_def_key:
+        return foxhole_data.resource_display_name(resource.resource_def_key, lang)
+    return resource.name
+
+
+def resolve_building_name(building: models.Building, lang: str = "pt-BR") -> str:
+    if not building.building_type_key:
+        return building.name
+    building_type = foxhole_data.get_building_type(building.building_type_key)
+    if not building_type or building.name != building_type["name_en"]:
+        return building.name
+    return foxhole_data.building_display_name(building.building_type_key, lang)
+
+
+def resource_in_use(db: Session, resource_id: int) -> bool:
+    return (
+        db.scalar(
+            select(models.StockEntry.id).where(models.StockEntry.resource_id == resource_id).limit(1)
+        )
+        is not None
+    )
+
+
 def delete_resource(db: Session, resource: models.Resource) -> None:
     db.delete(resource)
     db.commit()
@@ -149,13 +179,16 @@ def get_current_stock_for_building(db: Session, building_id: int) -> list[models
         .group_by(models.StockEntry.resource_id)
         .subquery()
     )
-    return list(
-        db.scalars(
-            select(models.StockEntry).join(
-                latest_ids_subq, models.StockEntry.id == latest_ids_subq.c.max_id
-            )
+    entries = db.scalars(
+        select(models.StockEntry).join(
+            latest_ids_subq, models.StockEntry.id == latest_ids_subq.c.max_id
         )
     )
+    # Defensive: resource_in_use() now blocks deleting a resource that still has
+    # stock entries, but this filters out any pre-existing orphaned rows (e.g.
+    # from before that check existed) instead of crashing every caller that
+    # reads entry.resource.
+    return [e for e in entries if e.resource is not None]
 
 
 def get_current_stock_for_facility(db: Session, facility_id: int) -> dict[models.Building, list[models.StockEntry]]:

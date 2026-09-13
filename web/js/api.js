@@ -1,6 +1,11 @@
 const api = (() => {
+  function withLang(path) {
+    const sep = path.includes("?") ? "&" : "?";
+    return `${path}${sep}lang=${encodeURIComponent(i18n.getLang())}`;
+  }
+
   async function request(method, path, body) {
-    const res = await fetch(path, {
+    const res = await fetch(withLang(path), {
       method,
       headers: body ? { "Content-Type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
@@ -20,7 +25,7 @@ const api = (() => {
   async function upload(path, file) {
     const formData = new FormData();
     formData.append("file", file);
-    const res = await fetch(path, { method: "POST", body: formData });
+    const res = await fetch(withLang(path), { method: "POST", body: formData });
     if (!res.ok) {
       let detail = res.statusText;
       try {

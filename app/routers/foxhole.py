@@ -25,6 +25,7 @@ def list_foxhole_building_types():
         {
             "key": key,
             "name_en": data["name_en"],
+            "name_pt": data.get("name_pt"),
             "queue_slots": data["queue_slots"],
             "wiki_url": data.get("wiki_url"),
             "icon": data.get("icon"),

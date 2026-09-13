@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app import crud, schemas
 from app.database import UPLOADS_DIR, get_db
 from app.services import ocr_service
+from app.services.errors_i18n import err
 
 router = APIRouter(tags=["images"])
 
@@ -23,18 +24,18 @@ def _image_to_out(image) -> schemas.UploadImageOut:
 
 
 @router.get("/api/buildings/{building_id}/images", response_model=list[schemas.UploadImageOut])
-def list_building_images(building_id: int, db: Session = Depends(get_db)):
+def list_building_images(building_id: int, lang: str = "pt-BR", db: Session = Depends(get_db)):
     if not crud.get_building(db, building_id):
-        raise HTTPException(status_code=404, detail="Prédio não encontrado.")
+        raise HTTPException(status_code=404, detail=err("building_not_found", lang))
     return [_image_to_out(img) for img in crud.get_building_images(db, building_id)]
 
 
 @router.post("/api/buildings/{building_id}/images", response_model=schemas.UploadImageOut, status_code=201)
-async def upload_building_image(building_id: int, file: UploadFile, db: Session = Depends(get_db)):
+async def upload_building_image(building_id: int, file: UploadFile, lang: str = "pt-BR", db: Session = Depends(get_db)):
     if not crud.get_building(db, building_id):
-        raise HTTPException(status_code=404, detail="Prédio não encontrado.")
+        raise HTTPException(status_code=404, detail=err("building_not_found", lang))
     if file.content_type not in ALLOWED_CONTENT_TYPES:
-        raise HTTPException(status_code=422, detail="Envie uma imagem PNG, JPEG ou WEBP.")
+        raise HTTPException(status_code=422, detail=err("invalid_image_type", lang))
 
     suffix = Path(file.filename or "").suffix or ".png"
     filename = f"{uuid.uuid4().hex}{suffix}"
@@ -53,10 +54,10 @@ def ocr_status():
 
 
 @router.post("/api/images/{image_id}/ocr", response_model=schemas.OcrResult)
-def read_image_crop(image_id: int, box: schemas.OcrCropRequest, db: Session = Depends(get_db)):
+def read_image_crop(image_id: int, box: schemas.OcrCropRequest, lang: str = "pt-BR", db: Session = Depends(get_db)):
     image = crud.get_upload_image(db, image_id)
     if not image:
-        raise HTTPException(status_code=404, detail="Imagem não encontrada.")
+        raise HTTPException(status_code=404, detail=err("image_not_found", lang))
 
     result = ocr_service.read_crop(
         Path(image.file_path), (box.x, box.y, box.x + box.width, box.y + box.height)

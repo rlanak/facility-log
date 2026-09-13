@@ -13,9 +13,9 @@ const ui = (() => {
   async function copyText(text) {
     try {
       await navigator.clipboard.writeText(text);
-      toast("Copiado!");
+      toast(i18n.t("ui.copied"));
     } catch (err) {
-      toast("Não consegui copiar automaticamente. Selecione e copie manualmente.", true);
+      toast(i18n.t("ui.copyFailed"), true);
     }
   }
 

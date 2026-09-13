@@ -16,7 +16,7 @@ views.facilityDetail = (() => {
       for (const io of [...recipe.inputs, ...recipe.outputs]) {
         if (!io.resource || seen.has(io.resource)) continue;
         const def = foxholeResourceDefs[io.resource];
-        seen.set(io.resource, { key: io.resource, name: def ? def.name_en : io.resource, icon: def ? def.icon : null });
+        seen.set(io.resource, { key: io.resource, name: def ? i18n.catalogName(def) : io.resource, icon: def ? def.icon : null });
       }
     }
     return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
@@ -52,7 +52,7 @@ views.facilityDetail = (() => {
     try {
       facility = await api.getFacility(facilityId);
     } catch (err) {
-      app.innerHTML = `<p class="text-red-400">Facility não encontrada.</p>`;
+      app.innerHTML = `<p class="text-red-400">${i18n.t("facilityDetail.notFound")}</p>`;
       return;
     }
 
@@ -60,27 +60,27 @@ views.facilityDetail = (() => {
       <div class="flex items-center justify-between mb-2">
         <h1 class="text-xl font-bold">${ui.escapeHtml(facility.name)}</h1>
         <div class="flex gap-2">
-          <button id="rename-facility" class="text-xs text-zinc-400 hover:text-zinc-200">renomear</button>
-          <button id="delete-facility" class="text-xs text-red-400 hover:text-red-300">excluir facility</button>
+          <button id="rename-facility" class="text-xs text-zinc-400 hover:text-zinc-200">${i18n.t("facilityDetail.rename")}</button>
+          <button id="delete-facility" class="text-xs text-red-400 hover:text-red-300">${i18n.t("facilityDetail.deleteFacility")}</button>
         </div>
       </div>
       <div class="flex gap-2 mb-6">
-        ${tabLink("buildings", "Prédios & Estoque", activeTab)}
-        ${tabLink("report", "Relatório", activeTab)}
-        ${tabLink("history", "Histórico", activeTab)}
+        ${tabLink("buildings", i18n.t("facilityDetail.tabBuildings"), activeTab)}
+        ${tabLink("report", i18n.t("facilityDetail.tabReport"), activeTab)}
+        ${tabLink("history", i18n.t("facilityDetail.tabHistory"), activeTab)}
       </div>
       <div id="tab-content"></div>
     `;
 
     document.getElementById("rename-facility").addEventListener("click", async () => {
-      const name = prompt("Novo nome da facility:", facility.name);
+      const name = prompt(i18n.t("facilityDetail.renamePrompt"), facility.name);
       if (!name || !name.trim()) return;
       await api.updateFacility(facilityId, { name: name.trim() });
       render(app, facilityId, activeTab);
     });
 
     document.getElementById("delete-facility").addEventListener("click", async () => {
-      if (!confirm("Excluir essa facility? Todos os prédios, estoques e relatórios serão apagados.")) return;
+      if (!confirm(i18n.t("facilityDetail.deleteConfirm"))) return;
       await api.deleteFacility(facilityId);
       location.hash = "#/";
     });
@@ -105,12 +105,12 @@ views.facilityDetail = (() => {
       </datalist>
       <form id="new-building-form" class="grid grid-cols-[220px_1fr_auto] gap-2 mb-6">
         <select id="b-type" class="bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
-          <option value="">Prédio livre (sem tipo)</option>
-          ${foxholeBuildingTypes.map((t) => `<option value="${t.key}">📖 ${ui.escapeHtml(t.name_en)}</option>`).join("")}
+          <option value="">${i18n.t("facilityDetail.freeBuilding")}</option>
+          ${foxholeBuildingTypes.map((t) => `<option value="${t.key}">📖 ${ui.escapeHtml(i18n.catalogName(t))}</option>`).join("")}
         </select>
-        <input id="b-name" placeholder="Apelido (opcional — usa o nome do tipo se vazio)"
+        <input id="b-name" placeholder="${i18n.t("facilityDetail.buildingNamePlaceholder")}"
           class="bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
-        <button class="bg-emerald-700 hover:bg-emerald-600 px-4 py-2 rounded text-sm font-semibold whitespace-nowrap">+ Prédio</button>
+        <button class="bg-emerald-700 hover:bg-emerald-600 px-4 py-2 rounded text-sm font-semibold whitespace-nowrap">${i18n.t("facilityDetail.addBuilding")}</button>
       </form>
       <div id="buildings-list" class="space-y-3"></div>
     `;
@@ -123,7 +123,7 @@ views.facilityDetail = (() => {
       const name = nameInput.value.trim() || null;
       const building_type_key = typeSelect.value || null;
       if (!name && !building_type_key) {
-        ui.toast("Informe um apelido ou selecione um tipo do Foxhole.", true);
+        ui.toast(i18n.t("facilityDetail.needNameOrType"), true);
         return;
       }
       try {
@@ -140,7 +140,7 @@ views.facilityDetail = (() => {
       const listEl = document.getElementById("buildings-list");
       const buildings = await api.listBuildings(facilityId);
       if (buildings.length === 0) {
-        listEl.innerHTML = `<p class="text-zinc-500 text-sm">Nenhum prédio cadastrado ainda.</p>`;
+        listEl.innerHTML = `<p class="text-zinc-500 text-sm">${i18n.t("facilityDetail.noBuildings")}</p>`;
         return;
       }
       listEl.innerHTML = "";
@@ -162,23 +162,24 @@ views.facilityDetail = (() => {
         ? `<img src="${ui.escapeHtml(foxholeType.icon)}" class="h-12 w-12 inline-block object-contain align-middle mr-3" />`
         : "";
     const showTypeBadge = foxholeType && building.name !== foxholeType.name_en;
+    const buildingDisplayName = i18n.buildingName(building, foxholeType);
 
     card.innerHTML = `
       <div class="flex items-center justify-between">
         <div class="flex items-center">
           ${buildingThumb}
-          <span class="font-semibold">${ui.escapeHtml(building.name)}</span>
-          ${showTypeBadge ? `<span class="text-xs text-zinc-600 ml-2" title="tipo Foxhole">📖 ${ui.escapeHtml(foxholeType.name_en)}</span>` : ""}
+          <span class="font-semibold">${ui.escapeHtml(buildingDisplayName)}</span>
+          ${showTypeBadge ? `<span class="text-xs text-zinc-600 ml-2" title="${i18n.t("facilityDetail.foxholeType")}">📖 ${ui.escapeHtml(i18n.catalogName(foxholeType))}</span>` : ""}
         </div>
         <div class="flex gap-2">
-          <button class="edit-building text-xs text-zinc-400 hover:text-zinc-200">editar</button>
-          <button class="delete-building text-xs text-red-400 hover:text-red-300">excluir</button>
+          <button class="edit-building text-xs text-zinc-400 hover:text-zinc-200">${i18n.t("common.edit")}</button>
+          <button class="delete-building text-xs text-red-400 hover:text-red-300">${i18n.t("common.delete")}</button>
         </div>
       </div>
       <div class="text-sm text-zinc-300 mt-2">
         ${
           stock.length === 0
-            ? '<span class="text-zinc-600">sem lançamentos</span>'
+            ? `<span class="text-zinc-600">${i18n.t("facilityDetail.noEntries")}</span>`
             : stock
                 .map(
                   (s) =>
@@ -189,11 +190,11 @@ views.facilityDetail = (() => {
       </div>
       <div class="production-status text-sm text-zinc-400 mt-2"></div>
       <div class="flex gap-2 mt-3 flex-wrap">
-        <button class="toggle-stock-form text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">+ Lançar estoque</button>
-        <button class="toggle-print-form text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">📷 Enviar print (OCR)</button>
+        <button class="toggle-stock-form text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.launchStock")}</button>
+        <button class="toggle-print-form text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.sendPrint")}</button>
         ${
           foxholeType
-            ? '<button class="toggle-production-form text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">⚙️ Produção</button>'
+            ? `<button class="toggle-production-form text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.production")}</button>`
             : ""
         }
       </div>
@@ -207,13 +208,13 @@ views.facilityDetail = (() => {
     }
 
     card.querySelector(".delete-building").addEventListener("click", async () => {
-      if (!confirm(`Excluir o prédio "${building.name}"? Estoques e imagens associados também serão apagados.`)) return;
+      if (!confirm(i18n.t("facilityDetail.deleteBuildingConfirm", { name: buildingDisplayName }))) return;
       await api.deleteBuilding(building.id);
       onChange();
     });
 
     card.querySelector(".edit-building").addEventListener("click", async () => {
-      const label = foxholeType ? "Apelido (vazio usa o nome do tipo):" : "Nome do prédio:";
+      const label = foxholeType ? i18n.t("facilityDetail.editNicknamePrompt") : i18n.t("facilityDetail.editNamePrompt");
       const name = prompt(label, building.name);
       if (name === null) return;
       await api.updateBuilding(building.id, { name: name.trim() || null });
@@ -265,15 +266,21 @@ views.facilityDetail = (() => {
 
   function formatProductionLine(estimate) {
     if (estimate.cycles <= 0) {
-      const needed = estimate.inputs_consumed.map((i) => `${i.qty || 1} ${i.name}`).join(", ");
-      return `⚙️ ${estimate.queue_count}x em produção configurada — estoque insuficiente pra 1 ciclo (precisa de ${needed} por ciclo).`;
+      const needed = estimate.inputs_per_cycle.map((i) => `${i.qty} ${i.name}`).join(", ");
+      return i18n.t("facilityDetail.production.insufficient", { queue: estimate.queue_count, needed });
     }
-    const eta = new Date(estimate.eta).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    const eta = new Date(estimate.eta).toLocaleTimeString(i18n.getLang(), { hour: "2-digit", minute: "2-digit" });
     const outputs = estimate.outputs.map((o) => `${o.qty} ${o.name}`).join(", ");
-    let line = `⚙️ ${estimate.queue_count}x em produção — ${estimate.cycles} ciclos com o estoque atual, pronto em ${formatDuration(estimate.time_seconds)} (~${eta}): ${outputs}`;
+    let line = i18n.t("facilityDetail.production.line", {
+      queue: estimate.queue_count,
+      cycles: estimate.cycles,
+      duration: formatDuration(estimate.time_seconds),
+      eta,
+      outputs,
+    });
     const leftovers = estimate.leftovers.filter((l) => l.qty > 0);
     if (leftovers.length > 0) {
-      line += `. Sobra: ${leftovers.map((l) => `${l.qty} ${l.name}`).join(", ")}`;
+      line += i18n.t("facilityDetail.production.leftover", { leftovers: leftovers.map((l) => `${l.qty} ${l.name}`).join(", ") });
     }
     return line;
   }
@@ -287,16 +294,16 @@ views.facilityDetail = (() => {
 
     function recipeLabel(recipe) {
       const outputs = recipe.outputs
-        .map((o) => `${o.qty ?? 1}x ${(foxholeResourceDefs[o.resource] || {}).name_en || o.resource}`)
+        .map((o) => `${o.qty ?? 1}x ${i18n.catalogName(foxholeResourceDefs[o.resource]) || o.resource}`)
         .join(" + ");
       return `${outputs} (${formatDuration(recipe.time_seconds)})`;
     }
 
     container.innerHTML = `
       <div class="border border-zinc-800 rounded p-3 bg-zinc-950">
-        <label class="block text-xs text-zinc-400 mb-1">Receita em produção</label>
+        <label class="block text-xs text-zinc-400 mb-1">${i18n.t("facilityDetail.recipeLabel")}</label>
         <select class="production-recipe w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm mb-2 focus:outline-none focus:border-emerald-500">
-          <option value="">— nenhuma —</option>
+          <option value="">${i18n.t("facilityDetail.noRecipe")}</option>
           ${Object.entries(recipesByModule)
             .map(
               ([mod, recipes]) => `
@@ -311,13 +318,13 @@ views.facilityDetail = (() => {
             )
             .join("")}
         </select>
-        <label class="block text-xs text-zinc-400 mb-1">Filas simultâneas (até ${foxholeType.queue_slots})</label>
+        <label class="block text-xs text-zinc-400 mb-1">${i18n.t("facilityDetail.queueLabel", { n: foxholeType.queue_slots })}</label>
         <input type="number" min="0" max="${foxholeType.queue_slots}" value="${building.queue_count || 1}"
           class="production-queue w-24 bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm mb-3 focus:outline-none focus:border-emerald-500" />
         <div>
-          <button type="button" class="save-production bg-emerald-700 hover:bg-emerald-600 px-3 py-1.5 rounded text-xs font-semibold">Salvar Produção</button>
+          <button type="button" class="save-production bg-emerald-700 hover:bg-emerald-600 px-3 py-1.5 rounded text-xs font-semibold">${i18n.t("facilityDetail.saveProduction")}</button>
         </div>
-        <p class="text-xs text-zinc-500 mt-2">Estimativa informativa (não sincroniza com o jogo) — ⚠ = receita não verificada quanto à facção, confira antes de confiar.</p>
+        <p class="text-xs text-zinc-500 mt-2">${i18n.t("facilityDetail.productionHint")}</p>
       </div>
     `;
 
@@ -326,7 +333,7 @@ views.facilityDetail = (() => {
       const queueCount = parseInt(container.querySelector(".production-queue").value, 10) || 0;
       try {
         await api.setBuildingProduction(building.id, { recipe_key: recipeKey, queue_count: queueCount });
-        ui.toast("Produção atualizada!");
+        ui.toast(i18n.t("facilityDetail.productionUpdated"));
         onChange();
       } catch (err) {
         ui.toast(err.message, true);
@@ -348,13 +355,14 @@ views.facilityDetail = (() => {
       allResources.filter((r) => r.resource_def_key).map((r) => [r.resource_def_key, r])
     );
 
+    const hint = i18n.t("facilityDetail.predefinedHint", { ex1: "<code>25.7k</code>", ex2: "<code>1,8k</code>", ex3: "<code>32000</code>" });
     container.innerHTML = `
       <div class="border border-zinc-800 rounded p-3 bg-zinc-950">
         <div class="predefined-rows grid gap-2"></div>
         <div class="flex gap-2 mt-3">
-          <button type="button" class="save-stock bg-emerald-700 hover:bg-emerald-600 px-3 py-1.5 rounded text-xs font-semibold">Salvar Lançamento</button>
+          <button type="button" class="save-stock bg-emerald-700 hover:bg-emerald-600 px-3 py-1.5 rounded text-xs font-semibold">${i18n.t("facilityDetail.saveStock")}</button>
         </div>
-        <p class="text-xs text-zinc-500 mt-2">Itens desse tipo de prédio (Foxhole). Deixe em branco o que não quiser lançar. Aceita <code>25.7k</code>, <code>1,8k</code> ou <code>32000</code>.</p>
+        <p class="text-xs text-zinc-500 mt-2">${hint}</p>
       </div>
     `;
 
@@ -369,7 +377,7 @@ views.facilityDetail = (() => {
         <div class="flex items-center gap-2">
           ${thumb}
           <span class="flex-1 text-sm">${ui.escapeHtml(r.name)}</span>
-          <input placeholder="Qtd (ex: 25.7k)" data-key="${r.key}" data-current-id="${current ? current.id : ""}"
+          <input placeholder="${i18n.t("facilityDetail.qtyPlaceholder")}" data-key="${r.key}" data-current-id="${current ? current.id : ""}"
             class="w-32 bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500 row-qty" />
         </div>`;
       })
@@ -389,12 +397,12 @@ views.facilityDetail = (() => {
         });
       });
       if (entries.length === 0) {
-        ui.toast("Preencha pelo menos uma quantidade.", true);
+        ui.toast(i18n.t("facilityDetail.fillOneQty"), true);
         return;
       }
       try {
         await api.addBuildingStock(building.id, entries);
-        ui.toast("Estoque lançado!");
+        ui.toast(i18n.t("facilityDetail.stockSaved"));
         onChange();
       } catch (err) {
         ui.toast(err.message, true);
@@ -403,14 +411,15 @@ views.facilityDetail = (() => {
   }
 
   function buildFreeformStockForm(container, building, onChange) {
+    const hint = i18n.t("facilityDetail.freeformHint", { ex1: "<code>25.7k</code>", ex2: "<code>1,8k</code>", ex3: "<code>32000</code>" });
     container.innerHTML = `
       <div class="border border-zinc-800 rounded p-3 bg-zinc-950">
         <div class="stock-rows space-y-2"></div>
-        <button type="button" class="add-row text-xs text-zinc-400 hover:text-zinc-200 mt-2">+ Adicionar linha</button>
+        <button type="button" class="add-row text-xs text-zinc-400 hover:text-zinc-200 mt-2">${i18n.t("facilityDetail.addRow")}</button>
         <div class="flex gap-2 mt-3">
-          <button type="button" class="save-stock bg-emerald-700 hover:bg-emerald-600 px-3 py-1.5 rounded text-xs font-semibold">Salvar Lançamento</button>
+          <button type="button" class="save-stock bg-emerald-700 hover:bg-emerald-600 px-3 py-1.5 rounded text-xs font-semibold">${i18n.t("facilityDetail.saveStock")}</button>
         </div>
-        <p class="text-xs text-zinc-500 mt-2">Aceita formatos como <code>25.7k</code>, <code>1,8k</code> ou <code>32000</code>.</p>
+        <p class="text-xs text-zinc-500 mt-2">${hint}</p>
       </div>
     `;
 
@@ -419,9 +428,9 @@ views.facilityDetail = (() => {
     function addRow() {
       const row = ui.el("div", { class: "flex gap-2" });
       row.innerHTML = `
-        <input list="resources-datalist" placeholder="Recurso (ex: Coal)"
+        <input list="resources-datalist" placeholder="${i18n.t("facilityDetail.resourcePlaceholder")}"
           class="flex-1 bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500 row-resource" />
-        <input placeholder="Qtd (ex: 25.7k)"
+        <input placeholder="${i18n.t("facilityDetail.qtyPlaceholder")}"
           class="w-32 bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500 row-qty" />
         <button type="button" class="remove-row text-zinc-500 hover:text-red-400 px-2">✕</button>
       `;
@@ -442,12 +451,12 @@ views.facilityDetail = (() => {
         if (name && qty) entries.push({ resource_name: name, quantity_raw: qty });
       });
       if (entries.length === 0) {
-        ui.toast("Preencha pelo menos uma linha.", true);
+        ui.toast(i18n.t("facilityDetail.fillOneRow"), true);
         return;
       }
       try {
         await api.addBuildingStock(building.id, entries);
-        ui.toast("Estoque lançado!");
+        ui.toast(i18n.t("facilityDetail.stockSaved"));
         onChange();
       } catch (err) {
         ui.toast(err.message, true);

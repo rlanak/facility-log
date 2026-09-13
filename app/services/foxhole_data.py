@@ -30,6 +30,21 @@ def get_recipe(building_type_key: str, recipe_key: str) -> dict | None:
     return next((r for r in building_type["recipes"] if r["key"] == recipe_key), None)
 
 
-def resource_display_name(resource_key: str) -> str:
+LANG_CODES = {"en-US": "en", "pt-BR": "pt"}
+
+
+def resource_display_name(resource_key: str, lang: str = "pt-BR") -> str:
     res_def = get_resource_def(resource_key)
-    return res_def["name"]["en"] if res_def else resource_key
+    if not res_def:
+        return resource_key
+    names = res_def["name"]
+    return names.get(LANG_CODES.get(lang, "pt")) or names["en"]
+
+
+def building_display_name(building_type_key: str, lang: str = "pt-BR") -> str:
+    building_type = get_building_type(building_type_key)
+    if not building_type:
+        return building_type_key
+    if LANG_CODES.get(lang) == "en":
+        return building_type["name_en"]
+    return building_type.get("name_pt") or building_type["name_en"]

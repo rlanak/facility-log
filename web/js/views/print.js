@@ -23,16 +23,14 @@ views.print = (() => {
     container.innerHTML = "";
     container.appendChild(
       el("p", { class: "text-xs mb-2 " + (ocrAvailable ? "text-emerald-400" : "text-amber-400") },
-        ocrAvailable
-          ? "✓ OCR automático disponível — o valor lido vem pré-preenchido, mas sempre confirme antes de salvar."
-          : "⚠ OCR automático indisponível (Tesseract não encontrado no sistema). Você ainda pode recortar a imagem e digitar os valores manualmente."
+        ocrAvailable ? i18n.t("print.ocrAvailable") : i18n.t("print.ocrUnavailable")
       )
     );
 
     const dropzone = el("div", {
       tabindex: "0",
       class: "border-2 border-dashed border-zinc-700 rounded-lg p-6 text-center text-sm text-zinc-400 focus:outline-none focus:border-emerald-500 cursor-pointer",
-    }, "Clique pra escolher um arquivo, arraste uma imagem aqui, ou cole (Ctrl+V) um print copiado.");
+    }, i18n.t("print.dropzone"));
 
     const fileInput = el("input", { type: "file", accept: "image/png,image/jpeg,image/webp", class: "hidden" });
 
@@ -44,13 +42,13 @@ views.print = (() => {
     stage.appendChild(canvas);
     stageWrap.appendChild(stage);
     stageWrap.appendChild(
-      el("p", { class: "text-xs text-zinc-500 mt-2" }, "Arraste retângulos sobre cada ícone + número que quiser lançar.")
+      el("p", { class: "text-xs text-zinc-500 mt-2" }, i18n.t("print.dragHint"))
     );
 
     const cropsListEl = el("div", { class: "grid gap-2 mt-4" });
     const saveBtn = el("button", {
       class: "hidden bg-emerald-700 hover:bg-emerald-600 px-4 py-2 rounded text-sm font-semibold mt-4",
-    }, "Salvar Lançamentos");
+    }, i18n.t("print.saveEntries"));
 
     container.appendChild(dropzone);
     container.appendChild(fileInput);
@@ -84,9 +82,9 @@ views.print = (() => {
         });
         stageWrap.classList.remove("hidden");
         setupCanvas();
-        ui.toast("Print enviado!");
+        ui.toast(i18n.t("print.uploaded"));
       } catch (err) {
-        ui.toast(err.message || "Falha ao carregar a imagem.", true);
+        ui.toast(err.message || i18n.t("print.uploadFailed"), true);
       }
     }
 
@@ -219,14 +217,14 @@ views.print = (() => {
 
         const nameInput = el("input", {
           list: "print-resources-datalist",
-          placeholder: "Recurso",
+          placeholder: i18n.t("print.resourcePlaceholder"),
           class: "flex-1 bg-zinc-950 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500",
         });
         nameInput.value = crop.resourceName;
         nameInput.addEventListener("input", () => (crop.resourceName = nameInput.value));
 
         const qtyInput = el("input", {
-          placeholder: "Qtd",
+          placeholder: i18n.t("print.qtyPlaceholder"),
           class: "w-28 bg-zinc-950 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500",
         });
         qtyInput.value = crop.quantityRaw;
@@ -269,12 +267,12 @@ views.print = (() => {
           source_image_id: image.id,
         }));
       if (entries.length === 0) {
-        ui.toast("Preencha recurso e quantidade em pelo menos um recorte.", true);
+        ui.toast(i18n.t("print.fillOneCrop"), true);
         return;
       }
       try {
         await api.addBuildingStock(building.id, entries);
-        ui.toast(`${entries.length} lançamento(s) salvos a partir do print!`);
+        ui.toast(i18n.t("print.saved", { n: entries.length }));
         crops = [];
         redrawCanvas();
         renderCropsList();
