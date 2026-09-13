@@ -146,6 +146,7 @@ views.resources = (() => {
           </div>
           <div class="flex items-center gap-2">
             <button data-id="${r.id}" class="edit-nickname text-xs text-zinc-400 hover:text-zinc-200">apelido</button>
+            <button data-id="${r.id}" class="edit-target text-xs text-zinc-400 hover:text-zinc-200">meta</button>
             <button data-id="${r.id}" class="delete-resource text-xs text-red-400 hover:text-red-300">excluir</button>
           </div>
         </div>
@@ -184,6 +185,28 @@ views.resources = (() => {
           if (nickname === null) return;
           try {
             await api.updateResource(btn.dataset.id, { nickname: nickname.trim() || null });
+            renderList();
+          } catch (err) {
+            ui.toast(err.message, true);
+          }
+        });
+      });
+
+      listEl.querySelectorAll(".edit-target").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const resource = currentResources.find((r) => String(r.id) === btn.dataset.id);
+          const targetRaw = prompt(
+            "Meta de estoque (deixe vazio pra remover):",
+            resource.target_max != null ? String(resource.target_max) : ""
+          );
+          if (targetRaw === null) return;
+          const target = targetRaw.trim();
+          if (target && isNaN(parseFloat(target))) {
+            ui.toast("Digite um número válido.", true);
+            return;
+          }
+          try {
+            await api.updateResource(btn.dataset.id, { target_max: target ? parseFloat(target) : null });
             renderList();
           } catch (err) {
             ui.toast(err.message, true);

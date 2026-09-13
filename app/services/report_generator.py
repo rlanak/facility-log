@@ -63,17 +63,31 @@ def build_building_paragraph(building: models.Building, entries: list[models.Sto
     )
 
     if building.building_type_key and building.active_recipe_key and building.queue_count > 0:
+        current_stock = {e.resource.resource_def_key: e.quantity for e in entries if e.resource.resource_def_key}
         estimate = production_service.estimate_production(
-            building.building_type_key, building.active_recipe_key, building.queue_count, now
+            building.building_type_key, building.active_recipe_key, building.queue_count, current_stock, now
         )
         if estimate:
-            outputs_text = ", ".join(f"{format_qty(o['qty'])} {o['name']}" for o in estimate["outputs"])
-            body += (
-                f"\n⚙️ {building.queue_count}x em produção — pronto ~{estimate['eta'].strftime('%H:%M')}"
-                f" (daqui {format_duration(estimate['time_seconds'])}): {outputs_text}"
-            )
+            body += f"\n{format_production_line(building.queue_count, estimate)}"
 
     return body
+
+
+def format_production_line(queue_count: int, estimate: dict) -> str:
+    if estimate["cycles"] <= 0:
+        needed = ", ".join(f"{format_qty(i['qty'] or 1)} {i['name']}" for i in estimate["inputs_consumed"])
+        return f"⚙️ {queue_count}x em produção configurada — estoque insuficiente pra 1 ciclo (precisa de {needed} por ciclo)."
+
+    outputs_text = ", ".join(f"{format_qty(o['qty'])} {o['name']}" for o in estimate["outputs"])
+    line = (
+        f"⚙️ {queue_count}x em produção — {estimate['cycles']} ciclos com o estoque atual,"
+        f" pronto em {format_duration(estimate['time_seconds'])} (~{estimate['eta'].strftime('%H:%M')}): {outputs_text}"
+    )
+    leftovers = [l for l in estimate["leftovers"] if l["qty"] > 0]
+    if leftovers:
+        leftovers_text = ", ".join(f"{format_qty(l['qty'])} {l['name']}" for l in leftovers)
+        line += f". Sobra: {leftovers_text}"
+    return line
 
 
 def build_stock_block(stock_by_building: dict[models.Building, list[models.StockEntry]], now: datetime) -> str:

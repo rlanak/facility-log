@@ -163,6 +163,11 @@ def get_current_stock_for_facility(db: Session, facility_id: int) -> dict[models
     return {building: get_current_stock_for_building(db, building.id) for building in buildings}
 
 
+def get_current_stock_by_resource_def(db: Session, building_id: int) -> dict[str, float]:
+    entries = get_current_stock_for_building(db, building_id)
+    return {e.resource.resource_def_key: e.quantity for e in entries if e.resource.resource_def_key}
+
+
 def add_stock_entries(
     db: Session, building_id: int, entries: list[schemas.StockEntryIn]
 ) -> list[models.StockEntry]:

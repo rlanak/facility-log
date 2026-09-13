@@ -67,6 +67,7 @@ def get_production_estimate(building_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Prédio não encontrado.")
     if not building.building_type_key or not building.active_recipe_key:
         return None
+    current_stock = crud.get_current_stock_by_resource_def(db, building_id)
     return production.estimate_production(
-        building.building_type_key, building.active_recipe_key, building.queue_count, datetime.now()
+        building.building_type_key, building.active_recipe_key, building.queue_count, current_stock, datetime.now()
     )

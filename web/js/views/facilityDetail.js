@@ -260,9 +260,22 @@ views.facilityDetail = (() => {
       return;
     }
     if (!estimate) return;
+    container.textContent = formatProductionLine(estimate);
+  }
+
+  function formatProductionLine(estimate) {
+    if (estimate.cycles <= 0) {
+      const needed = estimate.inputs_consumed.map((i) => `${i.qty || 1} ${i.name}`).join(", ");
+      return `⚙️ ${estimate.queue_count}x em produção configurada — estoque insuficiente pra 1 ciclo (precisa de ${needed} por ciclo).`;
+    }
     const eta = new Date(estimate.eta).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
     const outputs = estimate.outputs.map((o) => `${o.qty} ${o.name}`).join(", ");
-    container.innerHTML = `⚙️ ${estimate.queue_count}x em produção — pronto ~${eta}: ${ui.escapeHtml(outputs)}`;
+    let line = `⚙️ ${estimate.queue_count}x em produção — ${estimate.cycles} ciclos com o estoque atual, pronto em ${formatDuration(estimate.time_seconds)} (~${eta}): ${outputs}`;
+    const leftovers = estimate.leftovers.filter((l) => l.qty > 0);
+    if (leftovers.length > 0) {
+      line += `. Sobra: ${leftovers.map((l) => `${l.qty} ${l.name}`).join(", ")}`;
+    }
+    return line;
   }
 
   function buildProductionForm(container, building, foxholeType, onChange) {

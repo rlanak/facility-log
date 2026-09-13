@@ -88,10 +88,12 @@ class ProductionEstimateOut(BaseModel):
     recipe_key: str
     module: str | None = None
     queue_count: int
+    cycles: int
     time_seconds: int
     eta: datetime
     outputs: list[ProductionEstimateItem]
-    inputs: list[ProductionEstimateItem]
+    inputs_consumed: list[ProductionEstimateItem]
+    leftovers: list[ProductionEstimateItem]
 
 
 

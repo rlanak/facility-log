@@ -1,13 +1,25 @@
+import math
 from datetime import datetime, timedelta
 
 from app.services import foxhole_data
 
 
-def estimate_production(building_type_key: str, recipe_key: str, queue_count: int, now: datetime) -> dict | None:
-    """Rough production estimate: assumes `queue_count` concurrent orders of the
-    same recipe all started around `now`, so they all finish ~recipe.time_seconds
-    later. This is intentionally not a precise, server-synced countdown — it's a
-    ballpark figure the user enters/refreshes by hand (see recipe data notes).
+def estimate_production(
+    building_type_key: str,
+    recipe_key: str,
+    queue_count: int,
+    current_stock: dict[str, float],
+    now: datetime,
+) -> dict | None:
+    """Estimates how long it'll take `queue_count` parallel production lines to
+    burn through the *currently logged stock* of this recipe's inputs, and how
+    much output that yields — not just one cycle. `current_stock` is the
+    building's current qty per Foxhole resource key (from its stock entries).
+
+    Whichever tracked input runs out first caps the number of full cycles
+    (a recipe needs its full input amount each cycle, no partial cycles).
+    This is a ballpark figure the user enters/refreshes by hand, not a
+    precise/live countdown — see recipe data notes.
     """
     if queue_count <= 0:
         return None
@@ -16,32 +28,44 @@ def estimate_production(building_type_key: str, recipe_key: str, queue_count: in
     if not recipe:
         return None
 
-    eta = now + timedelta(seconds=recipe["time_seconds"])
+    tracked_inputs = [io for io in recipe["inputs"] if "resource" in io]
+    if not tracked_inputs:
+        return None
 
-    outputs = [
-        {
-            "resource": io["resource"],
-            "name": foxhole_data.resource_display_name(io["resource"]),
-            "qty": io.get("qty", 1) * queue_count,
-        }
-        for io in recipe["outputs"]
+    cycles_per_input = [
+        current_stock.get(io["resource"], 0) // io.get("qty", 1) for io in tracked_inputs
     ]
-    inputs = [
-        {
-            "resource": io["resource"],
-            "name": foxhole_data.resource_display_name(io["resource"]),
-            "qty": io.get("qty", 1) * queue_count,
-        }
-        for io in recipe["inputs"]
-        if "resource" in io
+    total_cycles = int(min(cycles_per_input))
+
+    rounds = math.ceil(total_cycles / queue_count) if total_cycles > 0 else 0
+    total_time_seconds = rounds * recipe["time_seconds"]
+    eta = now + timedelta(seconds=total_time_seconds)
+
+    def items(io_list, qty_multiplier):
+        return [
+            {
+                "resource": io["resource"],
+                "name": foxhole_data.resource_display_name(io["resource"]),
+                "qty": io.get("qty", 1) * qty_multiplier,
+            }
+            for io in io_list
+        ]
+
+    outputs = items(recipe["outputs"], total_cycles)
+    inputs_consumed = items(tracked_inputs, total_cycles)
+    leftovers = [
+        {**item, "qty": current_stock.get(item["resource"], 0) - item["qty"]}
+        for item in inputs_consumed
     ]
 
     return {
         "recipe_key": recipe_key,
         "module": recipe.get("module"),
         "queue_count": queue_count,
-        "time_seconds": recipe["time_seconds"],
+        "cycles": total_cycles,
+        "time_seconds": total_time_seconds,
         "eta": eta,
         "outputs": outputs,
-        "inputs": inputs,
+        "inputs_consumed": inputs_consumed,
+        "leftovers": leftovers,
     }
