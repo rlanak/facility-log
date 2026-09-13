@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app import crud, schemas
 from app.database import UPLOADS_DIR, get_db
-from app.services import ocr_service
+from app.services import icon_match_service, ocr_service
 from app.services.errors_i18n import err
 
 router = APIRouter(tags=["images"])
@@ -50,7 +50,10 @@ async def upload_building_image(building_id: int, file: UploadFile, lang: str = 
 
 @router.get("/api/ocr/status")
 def ocr_status():
-    return {"available": ocr_service.is_available()}
+    return {
+        "available": ocr_service.is_available(),
+        "stockpile_detect_available": icon_match_service.is_available(),
+    }
 
 
 @router.post("/api/images/{image_id}/ocr", response_model=schemas.OcrResult)
@@ -63,3 +66,17 @@ def read_image_crop(image_id: int, box: schemas.OcrCropRequest, lang: str = "pt-
         Path(image.file_path), (box.x, box.y, box.x + box.width, box.y + box.height)
     )
     return schemas.OcrResult(**result)
+
+
+@router.post("/api/images/{image_id}/detect-stockpile", response_model=schemas.StockpileDetectionOut)
+def detect_stockpile(image_id: int, box: schemas.OcrCropRequest, lang: str = "pt-BR", db: Session = Depends(get_db)):
+    image = crud.get_upload_image(db, image_id)
+    if not image:
+        raise HTTPException(status_code=404, detail=err("image_not_found", lang))
+    if not icon_match_service.is_available():
+        return schemas.StockpileDetectionOut(available=False, items=[])
+
+    items = icon_match_service.detect_items(
+        Path(image.file_path), (box.x, box.y, box.x + box.width, box.y + box.height)
+    )
+    return schemas.StockpileDetectionOut(available=True, items=[schemas.DetectedStockItem(**i) for i in items])

@@ -64,14 +64,20 @@ def _prepare_crop(image_path: Path, box: tuple[int, int, int, int]) -> Image.Ima
     return crop
 
 
-def read_crop(image_path: Path, box: tuple[int, int, int, int]) -> dict:
+def read_crop(image_path: Path, box: tuple[int, int, int, int], psm: int = 7) -> dict:
     if not is_available():
         return {"available": False, "raw_text": "", "guess": ""}
 
     crop = _prepare_crop(image_path, box)
     raw_text = pytesseract.image_to_string(
-        crop, config="--psm 7 -c tessedit_char_whitelist=0123456789.,kKmM"
+        crop, config=f"--psm {psm} -c tessedit_char_whitelist=0123456789.,kKmM"
     ).strip()
 
     digits_only = "".join(_DIGITS_RE.findall(raw_text))
+    if not any(c.isdigit() for c in digits_only):
+        # Tesseract can return pure punctuation (a stray "." or ",") on a
+        # noisy crop -- _DIGITS_RE matches that as a non-empty "guess" even
+        # though it has no actual digit, which crashes quantity parsing
+        # downstream instead of just failing to read. Treat it as no guess.
+        digits_only = ""
     return {"available": True, "raw_text": raw_text, "guess": digits_only}
