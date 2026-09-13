@@ -50,7 +50,15 @@ def _prepare_crop(image_path: Path, box: tuple[int, int, int, int]) -> Image.Ima
         y1 = max(y0 + 1, min(y1, height))
         crop = img.crop((x0, y0, x1, y1))
 
-    crop = crop.resize((crop.width * 3, crop.height * 3), Image.LANCZOS)
+    # NEAREST, not LANCZOS: real Foxhole stockpile counts are only ~10-15px
+    # tall at native screenshot resolution, rendered in a thin stylized font.
+    # LANCZOS's smoothing blurs those already-thin anti-aliased strokes into
+    # mush at this size; NEAREST keeps hard pixel edges Tesseract can actually
+    # segment. Verified against real game screenshots (not just the synthetic
+    # test) — this measurably fixed cases LANCZOS got wrong, though neither
+    # is anywhere near 100% reliable at this source resolution, especially
+    # once any icon pixels bleed into the crop (see ocr_coverage memory note).
+    crop = crop.resize((crop.width * 6, crop.height * 6), Image.NEAREST)
     crop = ImageOps.grayscale(crop)
     crop = ImageOps.autocontrast(crop)
     return crop
