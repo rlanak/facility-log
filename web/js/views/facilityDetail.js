@@ -78,8 +78,8 @@ views.facilityDetail = (() => {
       <div class="flex items-center justify-between mb-2">
         <h1 class="text-xl font-bold">${ui.escapeHtml(facility.name)}</h1>
         <div class="flex gap-2">
-          <button id="rename-facility" class="text-xs text-zinc-400 hover:text-zinc-200">${i18n.t("facilityDetail.rename")}</button>
-          <button id="delete-facility" class="text-xs text-red-400 hover:text-red-300">${i18n.t("facilityDetail.deleteFacility")}</button>
+          <button id="rename-facility" class="text-xs text-zinc-300 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded px-2 py-1">${i18n.t("facilityDetail.rename")}</button>
+          <button id="delete-facility" class="text-xs text-red-400 hover:text-red-300 border border-red-900 hover:border-red-600 rounded px-2 py-1">${i18n.t("facilityDetail.deleteFacility")}</button>
         </div>
       </div>
       <div class="flex gap-2 mb-6">
@@ -130,7 +130,7 @@ views.facilityDetail = (() => {
           class="bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
         <button class="bg-emerald-700 hover:bg-emerald-600 px-4 py-2 rounded text-sm font-semibold whitespace-nowrap">${i18n.t("facilityDetail.addBuilding")}</button>
       </form>
-      <div id="buildings-list" class="grid gap-3 sm:grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 items-start"></div>
+      <div id="buildings-list" class="grid gap-3 grid-cols-[repeat(auto-fit,minmax(320px,1fr))] items-start"></div>
     `;
 
     const typeSelect = document.getElementById("b-type");
@@ -230,8 +230,8 @@ views.facilityDetail = (() => {
           </div>
           <div class="flex items-center gap-2">
             <span class="drag-handle cursor-move text-zinc-600 hover:text-zinc-400 px-1" title="${i18n.t("facilityDetail.dragToReorder")}">⠿</span>
-            <button class="edit-building text-xs text-zinc-400 hover:text-zinc-200">${i18n.t("common.edit")}</button>
-            <button class="delete-building text-xs text-red-400 hover:text-red-300">${i18n.t("common.delete")}</button>
+            <button class="edit-building text-xs text-zinc-300 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded px-2 py-1">${i18n.t("common.edit")}</button>
+            <button class="delete-building text-xs text-red-400 hover:text-red-300 border border-red-900 hover:border-red-600 rounded px-2 py-1">${i18n.t("common.delete")}</button>
           </div>
         </div>
         <div class="text-sm text-zinc-300 mt-2">
