@@ -356,7 +356,8 @@
         ],
         "time_seconds": 25
       }
-    ]
+    ],
+    "icon": "/assets/foxhole/structures/MetalworksFactoryBase.png"
   },
   "metalworks_factory": {
     "name_en": "Metalworks Factory",
@@ -2403,7 +2404,8 @@
         "time_seconds": 7200,
         "note": "not faction-verified"
       }
-    ]
+    ],
+    "icon": "/assets/foxhole/structures/FacilitySmallArmsFactoryIcon.png"
   },
   "aircraft_maintenance_factory": {
     "name_en": "Aircraft Maintenance Factory",
@@ -2602,7 +2604,8 @@
         ],
         "time_seconds": 300
       }
-    ]
+    ],
+    "icon": "/assets/foxhole/structures/FacilityFactoryAircraftIcon.png"
   },
   "concrete_mixer": {
     "name_en": "Concrete Mixer",
