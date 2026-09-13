@@ -49,7 +49,7 @@ class FacilityOut(FacilityBase):
 
 
 class BuildingBase(BaseModel):
-    name: str
+    name: str | None = None
     role: str = ""
     position: int = 0
     building_type_key: str | None = None
@@ -88,10 +88,12 @@ class ProductionEstimateOut(BaseModel):
     recipe_key: str
     module: str | None = None
     queue_count: int
+    cycles: int
     time_seconds: int
     eta: datetime
     outputs: list[ProductionEstimateItem]
-    inputs: list[ProductionEstimateItem]
+    inputs_consumed: list[ProductionEstimateItem]
+    leftovers: list[ProductionEstimateItem]
 
 
 
@@ -101,6 +103,7 @@ class StockEntryIn(BaseModel):
     quantity_raw: str
     source: str = "manual"
     source_image_id: int | None = None
+    resource_def_key: str | None = None
 
 
 class StockEntryOut(BaseModel):

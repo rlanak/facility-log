@@ -21,6 +21,8 @@ def list_buildings(facility_id: int, db: Session = Depends(get_db)):
 def create_building(facility_id: int, data: schemas.BuildingCreate, db: Session = Depends(get_db)):
     if not crud.get_facility(db, facility_id):
         raise HTTPException(status_code=404, detail="Facility não encontrada.")
+    if not data.name and not data.building_type_key:
+        raise HTTPException(status_code=422, detail="Informe um nome ou selecione um tipo do Foxhole.")
     return crud.create_building(db, facility_id, data)
 
 
@@ -65,6 +67,7 @@ def get_production_estimate(building_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Prédio não encontrado.")
     if not building.building_type_key or not building.active_recipe_key:
         return None
+    current_stock = crud.get_current_stock_by_resource_def(db, building_id)
     return production.estimate_production(
-        building.building_type_key, building.active_recipe_key, building.queue_count, datetime.now()
+        building.building_type_key, building.active_recipe_key, building.queue_count, current_stock, datetime.now()
     )

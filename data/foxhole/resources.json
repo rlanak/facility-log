@@ -29,7 +29,7 @@
       "pt": null
     },
     "farmable": true,
-    "icon": "items/OilIcon.png"
+    "icon": null
   },
   "salvage": {
     "name": {
@@ -53,7 +53,7 @@
       "pt": null
     },
     "farmable": true,
-    "icon": "items/RareMetalIcon.png"
+    "icon": null
   },
   "coke": {
     "name": {
@@ -69,7 +69,7 @@
       "pt": null
     },
     "farmable": false,
-    "icon": "items/ConcreteMaterialsIcon.png"
+    "icon": null
   },
   "heavy_oil": {
     "name": {
@@ -77,7 +77,7 @@
       "pt": null
     },
     "farmable": false,
-    "icon": "items/HeavyOilIcon.png"
+    "icon": null
   },
   "petrol": {
     "name": {
@@ -85,7 +85,7 @@
       "pt": null
     },
     "farmable": false,
-    "icon": "items/PetrolIcon.png"
+    "icon": null
   },
   "enriched_oil": {
     "name": {
@@ -237,7 +237,7 @@
       "pt": null
     },
     "farmable": false,
-    "icon": null
+    "icon": "/assets/foxhole/items/ExplosiveMaterialIcon.png"
   },
   "heavy_explosive_powder": {
     "name": {

@@ -1,4 +1,5 @@
 import re
+import shutil
 from functools import lru_cache
 from pathlib import Path
 
@@ -7,9 +8,30 @@ from PIL import Image, ImageOps
 
 _DIGITS_RE = re.compile(r"[0-9.,]+")
 
+# The UB-Mannheim Windows installer (winget install UB-Mannheim.TesseractOCR)
+# doesn't reliably put tesseract.exe on PATH, so `shutil.which` alone often
+# misses a real install — check its default locations too before giving up.
+_COMMON_WINDOWS_PATHS = [
+    r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+    r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+]
+
+
+def _locate_tesseract() -> str | None:
+    found = shutil.which("tesseract")
+    if found:
+        return found
+    for path in _COMMON_WINDOWS_PATHS:
+        if Path(path).is_file():
+            return path
+    return None
+
 
 @lru_cache(maxsize=1)
 def is_available() -> bool:
+    found = _locate_tesseract()
+    if found:
+        pytesseract.pytesseract.tesseract_cmd = found
     try:
         pytesseract.get_tesseract_version()
         return True

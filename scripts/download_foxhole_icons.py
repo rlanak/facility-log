@@ -35,6 +35,7 @@ RESOURCE_ICON_FILES = {
     "flame_ammo": "ItemIcons/FlameAmmoIcon.png",
     "rpg_ammo": "ItemIcons/RpgItemIcon.png",
     "construction_materials": "ItemIcons/BasicMaterialsIcon.png",
+    "explosive_powder": "ItemIcons/ExplosiveMaterialIcon.png",
 }
 
 # building_type_key -> "StructureIcons/<file>.png"

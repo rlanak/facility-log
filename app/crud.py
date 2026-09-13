@@ -2,6 +2,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app import models, schemas
+from app.services import foxhole_data
 from app.services.number_parser import parse_quantity
 
 
@@ -25,11 +26,17 @@ def create_resource(db: Session, data: schemas.ResourceCreate) -> models.Resourc
     return resource
 
 
-def get_or_create_resource(db: Session, name: str) -> models.Resource:
+def get_or_create_resource(db: Session, name: str, resource_def_key: str | None = None) -> models.Resource:
     resource = get_resource_by_name(db, name)
     if resource:
         return resource
-    resource = models.Resource(name=name.strip())
+    farmable = True
+    icon = ""
+    if resource_def_key:
+        res_def = foxhole_data.get_resource_def(resource_def_key)
+        if res_def:
+            farmable = res_def["farmable"]
+    resource = models.Resource(name=name.strip(), resource_def_key=resource_def_key, farmable=farmable, icon=icon)
     db.add(resource)
     db.commit()
     db.refresh(resource)
@@ -92,8 +99,15 @@ def get_building(db: Session, building_id: int) -> models.Building | None:
     return db.get(models.Building, building_id)
 
 
+def _default_building_name(building_type_key: str | None) -> str:
+    building_type = building_type_key and foxhole_data.get_building_type(building_type_key)
+    return building_type["name_en"] if building_type else "Prédio"
+
+
 def create_building(db: Session, facility_id: int, data: schemas.BuildingCreate) -> models.Building:
-    building = models.Building(facility_id=facility_id, **data.model_dump())
+    payload = data.model_dump()
+    payload["name"] = payload["name"] or _default_building_name(payload.get("building_type_key"))
+    building = models.Building(facility_id=facility_id, **payload)
     db.add(building)
     db.commit()
     db.refresh(building)
@@ -102,6 +116,8 @@ def create_building(db: Session, facility_id: int, data: schemas.BuildingCreate)
 
 def update_building(db: Session, building: models.Building, data: schemas.BuildingUpdate) -> models.Building:
     for field, value in data.model_dump(exclude_unset=True).items():
+        if field == "name" and not value:
+            value = _default_building_name(building.building_type_key)
         setattr(building, field, value)
     db.commit()
     db.refresh(building)
@@ -147,6 +163,11 @@ def get_current_stock_for_facility(db: Session, facility_id: int) -> dict[models
     return {building: get_current_stock_for_building(db, building.id) for building in buildings}
 
 
+def get_current_stock_by_resource_def(db: Session, building_id: int) -> dict[str, float]:
+    entries = get_current_stock_for_building(db, building_id)
+    return {e.resource.resource_def_key: e.quantity for e in entries if e.resource.resource_def_key}
+
+
 def add_stock_entries(
     db: Session, building_id: int, entries: list[schemas.StockEntryIn]
 ) -> list[models.StockEntry]:
@@ -154,7 +175,7 @@ def add_stock_entries(
 
     created: list[models.StockEntry] = []
     for entry, quantity in parsed:
-        resource = get_or_create_resource(db, entry.resource_name)
+        resource = get_or_create_resource(db, entry.resource_name, entry.resource_def_key)
         stock_entry = models.StockEntry(
             building_id=building_id,
             resource_id=resource.id,
