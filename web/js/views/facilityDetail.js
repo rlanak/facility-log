@@ -200,7 +200,12 @@ views.facilityDetail = (() => {
   }
 
   async function buildingCard(building, onChange) {
-    const card = ui.el("div", { class: "bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden flex" });
+    // No overflow-hidden here: it used to silently clip the header buttons
+    // and stock-form rows whenever the card ended up narrower than their
+    // content (any grid with 2+ cards) instead of letting them wrap. The
+    // icon panel gets its own rounded-l-lg + overflow-hidden below so the
+    // card's rounded corners still look right without relying on this.
+    const card = ui.el("div", { class: "bg-zinc-900 border border-zinc-800 rounded-lg flex flex-wrap" });
     const stock = await api.getBuildingStock(building.id);
     const foxholeType = building.building_type_key ? getFoxholeType(building.building_type_key) : null;
     const liquidKeys = activeLiquidKeys(building, foxholeType);
@@ -213,7 +218,7 @@ views.facilityDetail = (() => {
 
     const iconPanel =
       foxholeType && foxholeType.icon
-        ? `<div class="w-28 shrink-0 bg-zinc-950 border-r border-zinc-800 flex items-center justify-center p-3">
+        ? `<div class="w-28 shrink-0 rounded-l-lg overflow-hidden bg-zinc-950 border-r border-zinc-800 flex items-center justify-center p-3">
              <img src="${ui.escapeHtml(foxholeType.icon)}" class="w-full h-auto max-h-24 object-contain" />
            </div>`
         : "";
@@ -223,12 +228,12 @@ views.facilityDetail = (() => {
     card.innerHTML = `
       ${iconPanel}
       <div class="flex-1 min-w-0 p-4">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center">
-            <span class="font-semibold">${ui.escapeHtml(buildingDisplayName)}</span>
+        <div class="flex items-start justify-between gap-2 flex-wrap">
+          <div class="flex items-center flex-wrap min-w-0">
+            <span class="font-semibold break-words">${ui.escapeHtml(buildingDisplayName)}</span>
             ${showTypeBadge ? `<span class="text-xs text-zinc-600 ml-2" title="${i18n.t("facilityDetail.foxholeType")}">📖 ${ui.escapeHtml(i18n.catalogName(foxholeType))}</span>` : ""}
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 flex-wrap shrink-0">
             <span class="drag-handle cursor-move text-zinc-600 hover:text-zinc-400 px-1" title="${i18n.t("facilityDetail.dragToReorder")}">⠿</span>
             <button class="edit-building text-xs text-zinc-300 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded px-2 py-1">${i18n.t("common.edit")}</button>
             <button class="delete-building text-xs text-red-400 hover:text-red-300 border border-red-900 hover:border-red-600 rounded px-2 py-1">${i18n.t("common.delete")}</button>
@@ -532,9 +537,9 @@ views.facilityDetail = (() => {
         return `
         <div class="flex items-center gap-2">
           ${thumb}
-          <span class="flex-1 text-sm">${ui.escapeHtml(r.name)}</span>
+          <span class="flex-1 min-w-0 truncate text-sm" title="${ui.escapeHtml(r.name)}">${ui.escapeHtml(r.name)}</span>
           <input placeholder="${i18n.t("facilityDetail.qtyPlaceholder")}" data-key="${r.key}" data-current-id="${current ? current.id : ""}"
-            class="w-32 bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500 row-qty" />
+            class="w-28 shrink-0 bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500 row-qty" />
         </div>`;
       })
       .join("");
@@ -585,9 +590,9 @@ views.facilityDetail = (() => {
       const row = ui.el("div", { class: "flex gap-2" });
       row.innerHTML = `
         <input list="resources-datalist" placeholder="${i18n.t("facilityDetail.resourcePlaceholder")}"
-          class="flex-1 bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500 row-resource" />
+          class="flex-1 min-w-0 bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500 row-resource" />
         <input placeholder="${i18n.t("facilityDetail.qtyPlaceholder")}"
-          class="w-32 bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500 row-qty" />
+          class="w-28 shrink-0 bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500 row-qty" />
         <button type="button" class="remove-row text-zinc-500 hover:text-red-400 px-2">✕</button>
       `;
       row.querySelector(".remove-row").addEventListener("click", () => row.remove());

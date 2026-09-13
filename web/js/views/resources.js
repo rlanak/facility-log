@@ -129,8 +129,8 @@ views.resources = (() => {
           const displayName = i18n.resourceName(r, Object.fromEntries(foxholeResources.map((f) => [f.key, f])));
           const catalogLabel = def ? i18n.catalogName(def) : r.name;
           return `
-        <div class="flex items-center justify-between px-4 py-2 bg-zinc-900">
-          <div class="flex items-center gap-3">
+        <div class="flex items-center justify-between gap-2 flex-wrap px-4 py-2 bg-zinc-900">
+          <div class="flex items-center gap-3 flex-wrap min-w-0">
             ${thumb}
             <span class="font-medium">${ui.escapeHtml(displayName)}</span>
             ${r.nickname ? `<span class="text-xs text-zinc-600">(${ui.escapeHtml(catalogLabel)})</span>` : ""}
@@ -142,10 +142,10 @@ views.resources = (() => {
             </label>
             ${!r.farmable ? `<span class="text-xs text-zinc-600">${i18n.t("resources.producedIntermediate")}</span>` : ""}
           </div>
-          <div class="flex items-center gap-2">
-            <button data-id="${r.id}" class="edit-nickname text-xs text-zinc-400 hover:text-zinc-200">${i18n.t("resources.nicknameBtn")}</button>
-            <button data-id="${r.id}" class="edit-target text-xs text-zinc-400 hover:text-zinc-200">${i18n.t("resources.targetBtn")}</button>
-            <button data-id="${r.id}" class="delete-resource text-xs text-red-400 hover:text-red-300">${i18n.t("common.delete")}</button>
+          <div class="flex items-center gap-2 flex-wrap">
+            <button data-id="${r.id}" class="edit-nickname text-xs text-zinc-300 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded px-2 py-1">${i18n.t("resources.nicknameBtn")}</button>
+            <button data-id="${r.id}" class="edit-target text-xs text-zinc-300 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded px-2 py-1">${i18n.t("resources.targetBtn")}</button>
+            <button data-id="${r.id}" class="delete-resource text-xs text-red-400 hover:text-red-300 border border-red-900 hover:border-red-600 rounded px-2 py-1">${i18n.t("common.delete")}</button>
           </div>
         </div>
       `;
