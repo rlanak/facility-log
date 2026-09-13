@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 
 from sqlalchemy import ForeignKey, String, Text
@@ -52,9 +53,23 @@ class Building(Base):
     role: Mapped[str] = mapped_column(String(100), default="")
     position: Mapped[int] = mapped_column(default=0)
     building_type_key: Mapped[str | None] = mapped_column(String(80), default=None)
+    # Up to the building type's queue_slots total, each running a different
+    # recipe — the game allows distinct simultaneous production orders, not
+    # just N copies of one recipe. JSON-encoded list of {recipe_key, queue_count}.
+    # active_recipe_key/queue_count below are legacy (pre-multi-queue), kept only
+    # so apply_migrations() can backfill existing single-recipe data once.
+    production_slots_json: Mapped[str] = mapped_column("production_slots", Text, default="[]")
     active_recipe_key: Mapped[str | None] = mapped_column(String(80), default=None)
     queue_count: Mapped[int] = mapped_column(default=0)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+    @property
+    def production_slots(self) -> list[dict]:
+        return json.loads(self.production_slots_json or "[]")
+
+    @production_slots.setter
+    def production_slots(self, slots: list[dict]) -> None:
+        self.production_slots_json = json.dumps(slots)
 
     facility: Mapped["Facility"] = relationship(back_populates="buildings")
     stock_entries: Mapped[list["StockEntry"]] = relationship(

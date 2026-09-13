@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from sqlalchemy import create_engine
@@ -37,6 +38,7 @@ _ADDED_COLUMNS = [
     ("buildings", "building_type_key", "VARCHAR(80)"),
     ("buildings", "active_recipe_key", "VARCHAR(80)"),
     ("buildings", "queue_count", "INTEGER DEFAULT 0"),
+    ("buildings", "production_slots", "TEXT DEFAULT '[]'"),
 ]
 
 
@@ -46,4 +48,23 @@ def apply_migrations() -> None:
             existing = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")}
             if column not in existing:
                 conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+        # One-time backfill: buildings still on the old single-recipe fields
+        # (production_slots never written) get migrated into the new
+        # multi-queue shape. Naturally idempotent — once backfilled,
+        # production_slots is no longer '[]' so this no-ops on later startups.
+        # Plain Python instead of SQLite's json_object() to not depend on the
+        # JSON1 extension being compiled in.
+        rows = conn.exec_driver_sql(
+            """
+            SELECT id, active_recipe_key, queue_count FROM buildings
+            WHERE (production_slots IS NULL OR production_slots = '[]')
+              AND active_recipe_key IS NOT NULL
+              AND queue_count > 0
+            """
+        ).fetchall()
+        for building_id, recipe_key, queue_count in rows:
+            slots_json = json.dumps([{"recipe_key": recipe_key, "queue_count": queue_count}])
+            conn.exec_driver_sql(
+                "UPDATE buildings SET production_slots = ? WHERE id = ?", (slots_json, building_id)
+            )
         conn.commit()

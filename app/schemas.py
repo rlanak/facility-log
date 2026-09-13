@@ -65,17 +65,20 @@ class BuildingUpdate(BaseModel):
     position: int | None = None
 
 
+class ProductionSlot(BaseModel):
+    recipe_key: str
+    queue_count: int = 1
+
+
 class BuildingOut(BuildingBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
     facility_id: int
-    active_recipe_key: str | None = None
-    queue_count: int = 0
+    production_slots: list[ProductionSlot] = []
 
 
 class BuildingProductionUpdate(BaseModel):
-    recipe_key: str | None = None
-    queue_count: int = 0
+    slots: list[ProductionSlot]
 
 
 class ProductionEstimateItem(BaseModel):

@@ -1036,8 +1036,7 @@
             "qty": 1
           }
         ],
-        "time_seconds": 25,
-        "note": "not faction-verified"
+        "time_seconds": 25
       },
       {
         "key": "4c_rocket",
@@ -1061,8 +1060,7 @@
             "qty": 1
           }
         ],
-        "time_seconds": 25,
-        "note": "not faction-verified"
+        "time_seconds": 25
       },
       {
         "key": "shatter_missile",
@@ -1086,8 +1084,7 @@
             "qty": 1
           }
         ],
-        "time_seconds": 25,
-        "note": "not faction-verified"
+        "time_seconds": 25
       },
       {
         "key": "unstable_substances",
@@ -1111,33 +1108,7 @@
             "qty": 1
           }
         ],
-        "time_seconds": 1800,
-        "note": "not faction-verified"
-      },
-      {
-        "key": "tenta_torpedo",
-        "module": "Rocket Battery Workshop Upgrade",
-        "inputs": [
-          {
-            "resource": "heavy_explosive_powder",
-            "qty": 14
-          },
-          {
-            "resource": "processed_construction_materials",
-            "qty": 2
-          },
-          {
-            "power_mw": 6
-          }
-        ],
-        "outputs": [
-          {
-            "resource": "tenta_torpedo",
-            "qty": 1
-          }
-        ],
-        "time_seconds": 240,
-        "note": "not faction-verified"
+        "time_seconds": 1800
       },
       {
         "key": "912_shrike_rounds",
@@ -1161,8 +1132,7 @@
             "qty": 1
           }
         ],
-        "time_seconds": 90,
-        "note": "not faction-verified"
+        "time_seconds": 90
       },
       {
         "key": "75mm",
@@ -1186,8 +1156,7 @@
             "qty": 1
           }
         ],
-        "time_seconds": 60,
-        "note": "not faction-verified"
+        "time_seconds": 60
       },
       {
         "key": "94_5mm",
@@ -1211,8 +1180,7 @@
             "qty": 1
           }
         ],
-        "time_seconds": 60,
-        "note": "not faction-verified"
+        "time_seconds": 60
       },
       {
         "key": "950_70b_aa_shell",
@@ -1233,8 +1201,7 @@
             "qty": 1
           }
         ],
-        "time_seconds": 25,
-        "note": "not faction-verified"
+        "time_seconds": 25
       },
       {
         "key": "120mm",
@@ -1258,8 +1225,7 @@
             "qty": 1
           }
         ],
-        "time_seconds": 25,
-        "note": "not faction-verified"
+        "time_seconds": 25
       },
       {
         "key": "150mm",
@@ -1283,8 +1249,7 @@
             "qty": 1
           }
         ],
-        "time_seconds": 40,
-        "note": "not faction-verified"
+        "time_seconds": 40
       },
       {
         "key": "300mm",
@@ -1308,8 +1273,7 @@
             "qty": 1
           }
         ],
-        "time_seconds": 120,
-        "note": "not faction-verified"
+        "time_seconds": 120
       },
       {
         "key": "mark_ii_raidbreaker",
@@ -1333,8 +1297,7 @@
             "qty": 1
           }
         ],
-        "time_seconds": 120,
-        "note": "not faction-verified"
+        "time_seconds": 120
       },
       {
         "key": "model_7_evie",
@@ -1358,8 +1321,7 @@
             "qty": 1
           }
         ],
-        "time_seconds": 25,
-        "note": "not faction-verified"
+        "time_seconds": 25
       },
       {
         "key": "moray_torpedo",
@@ -1383,8 +1345,7 @@
             "qty": 1
           }
         ],
-        "time_seconds": 240,
-        "note": "not faction-verified"
+        "time_seconds": 240
       },
       {
         "key": "typhon",
@@ -1489,27 +1450,6 @@
           }
         ],
         "time_seconds": 25
-      },
-      {
-        "key": "mounted_bonesaw",
-        "module": "Tripod Factory Upgrade",
-        "inputs": [
-          {
-            "resource": "construction_materials",
-            "qty": 3
-          },
-          {
-            "power_mw": 4
-          }
-        ],
-        "outputs": [
-          {
-            "resource": "mounted_bonesaw_mk3",
-            "qty": 1
-          }
-        ],
-        "time_seconds": 25,
-        "note": "listed as available to both factions"
       },
       {
         "key": "tripod",
@@ -1781,30 +1721,6 @@
         "time_seconds": 120
       },
       {
-        "key": "clancy_raca_m4",
-        "module": "Special-Issue Firearms Assembly Upgrade",
-        "inputs": [
-          {
-            "resource": "construction_materials",
-            "qty": 50
-          },
-          {
-            "resource": "processed_construction_materials",
-            "qty": 40
-          },
-          {
-            "power_mw": 2
-          }
-        ],
-        "outputs": [
-          {
-            "resource": "clancy_raca_m4",
-            "qty": 3
-          }
-        ],
-        "time_seconds": 100
-      },
-      {
         "key": "dusk_ce_iii",
         "module": "Special-Issue Firearms Assembly Upgrade",
         "inputs": [
@@ -1946,8 +1862,7 @@
             "qty": 5
           }
         ],
-        "time_seconds": 100,
-        "note": "not faction-verified"
+        "time_seconds": 100
       },
       {
         "key": "shrapnel_mortar_shell_special",
@@ -2018,31 +1933,6 @@
         "time_seconds": 60
       },
       {
-        "key": "bf5_flask_grenade",
-        "module": "Small Arms Workshop Upgrade",
-        "inputs": [
-          {
-            "resource": "explosive_powder",
-            "qty": 440
-          },
-          {
-            "resource": "construction_materials",
-            "qty": 110
-          },
-          {
-            "power_mw": 12
-          }
-        ],
-        "outputs": [
-          {
-            "resource": "bf5_white_ash_flask_grenade",
-            "qty": 100
-          }
-        ],
-        "time_seconds": 6900,
-        "note": "not faction-verified"
-      },
-      {
         "key": "ignifist_30",
         "module": "Small Arms Workshop Upgrade",
         "inputs": [
@@ -2064,8 +1954,7 @@
             "qty": 100
           }
         ],
-        "time_seconds": 6900,
-        "note": "not faction-verified"
+        "time_seconds": 6900
       },
       {
         "key": "14_5mm",
@@ -2085,8 +1974,7 @@
             "qty": 100
           }
         ],
-        "time_seconds": 9000,
-        "note": "not faction-verified"
+        "time_seconds": 9000
       },
       {
         "key": "at_sticky_bomb",
@@ -2110,8 +1998,7 @@
             "qty": 100
           }
         ],
-        "time_seconds": 6900,
-        "note": "not faction-verified"
+        "time_seconds": 6900
       },
       {
         "key": "flare_mortar_shell",
@@ -2135,8 +2022,7 @@
             "qty": 150
           }
         ],
-        "time_seconds": 9000,
-        "note": "not faction-verified"
+        "time_seconds": 9000
       },
       {
         "key": "mortar_shell",
@@ -2160,8 +2046,7 @@
             "qty": 150
           }
         ],
-        "time_seconds": 9000,
-        "note": "not faction-verified"
+        "time_seconds": 9000
       },
       {
         "key": "pt815_smoke_grenade",
@@ -2181,8 +2066,7 @@
             "qty": 150
           }
         ],
-        "time_seconds": 6900,
-        "note": "not faction-verified"
+        "time_seconds": 6900
       },
       {
         "key": "shrapnel_mortar_shell_workshop",
@@ -2206,33 +2090,7 @@
             "qty": 150
           }
         ],
-        "time_seconds": 9000,
-        "note": "not faction-verified"
-      },
-      {
-        "key": "b2_varsi_grenade",
-        "module": "Heavy Munitions Foundry Upgrade",
-        "inputs": [
-          {
-            "resource": "construction_materials",
-            "qty": 105
-          },
-          {
-            "resource": "explosive_powder",
-            "qty": 685
-          },
-          {
-            "power_mw": 24
-          }
-        ],
-        "outputs": [
-          {
-            "resource": "b2_varsi_at_grenade",
-            "qty": 200
-          }
-        ],
-        "time_seconds": 7200,
-        "note": "not faction-verified"
+        "time_seconds": 9000
       },
       {
         "key": "30mm",
@@ -2256,8 +2114,7 @@
             "qty": 200
           }
         ],
-        "time_seconds": 9000,
-        "note": "not faction-verified"
+        "time_seconds": 9000
       },
       {
         "key": "40mm",
@@ -2281,8 +2138,7 @@
             "qty": 200
           }
         ],
-        "time_seconds": 18000,
-        "note": "not faction-verified"
+        "time_seconds": 18000
       },
       {
         "key": "68mm",
@@ -2306,8 +2162,7 @@
             "qty": 200
           }
         ],
-        "time_seconds": 18000,
-        "note": "not faction-verified"
+        "time_seconds": 18000
       },
       {
         "key": "ap_rpg",
@@ -2331,8 +2186,7 @@
             "qty": 150
           }
         ],
-        "time_seconds": 9000,
-        "note": "not faction-verified"
+        "time_seconds": 9000
       },
       {
         "key": "arc_rpg",
@@ -2356,8 +2210,7 @@
             "qty": 150
           }
         ],
-        "time_seconds": 9000,
-        "note": "not faction-verified"
+        "time_seconds": 9000
       },
       {
         "key": "rpg_ammo",
@@ -2381,8 +2234,7 @@
             "qty": 150
           }
         ],
-        "time_seconds": 9000,
-        "note": "not faction-verified"
+        "time_seconds": 9000
       },
       {
         "key": "tremola_grenade",
@@ -2406,8 +2258,7 @@
             "qty": 200
           }
         ],
-        "time_seconds": 7200,
-        "note": "not faction-verified"
+        "time_seconds": 7200
       }
     ],
     "icon": "/assets/foxhole/structures/FacilitySmallArmsFactoryIcon.png",
