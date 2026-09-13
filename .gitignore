@@ -6,3 +6,4 @@ data/facility_log.db
 data/uploads/*
 !data/uploads/.gitkeep
 .env
+print/
