@@ -103,6 +103,18 @@ def _trim(value: float) -> str:
     return f"{value:.1f}".rstrip("0").rstrip(".")
 
 
+def _display_qty(quantity: float, resource_def_key: str | None) -> str:
+    """Liquids are shown in Liters everywhere in the report, not their raw
+    Foxhole "unit"/gallon count — the tank is already framed in Liters
+    (5000L cap) and that's how players think about liquids in-game, so keep
+    that framing consistent even for crate/"normal" liquid stock instead of
+    switching back to a raw unit count there."""
+    liters_per_unit = foxhole_data.liquid_liters_per_unit(resource_def_key) if resource_def_key else None
+    if liters_per_unit:
+        return f"{format_qty(round(quantity * liters_per_unit))}L"
+    return format_qty(quantity)
+
+
 def format_duration(seconds: int) -> str:
     seconds = int(seconds)
     days, remainder = divmod(seconds, 86400)
@@ -160,7 +172,7 @@ def build_building_paragraph(
     solid_entries = [e for e in entries if not (e.resource.resource_def_key in liquid_keys and e.storage == "tank")]
 
     body = f"{title}\n{_t('no_entries', lang)}" if not solid_entries else f"{title}\n" + " • ".join(
-        f"{entry.resource.icon} {crud.resolve_resource_name(entry.resource, catalog_lang)}: {format_qty(entry.quantity)}".strip()
+        f"{entry.resource.icon} {crud.resolve_resource_name(entry.resource, catalog_lang)}: {_display_qty(entry.quantity, entry.resource.resource_def_key)}".strip()
         for entry in sorted(solid_entries, key=lambda e: crud.resolve_resource_name(e.resource, catalog_lang))
     )
 
@@ -195,12 +207,18 @@ def format_production_line(queue_count: int, estimate: dict, lang: str = "pt-BR"
     if estimate["cycles"] <= 0:
         missing_items = [i for i in estimate["inputs_per_cycle"] if i.get("available", 0) < i["qty"]]
         needed = ", ".join(
-            _t("production_missing_item", lang, qty=format_qty(i["qty"]), name=i["name"], available=format_qty(i["available"]))
+            _t(
+                "production_missing_item",
+                lang,
+                qty=_display_qty(i["qty"], i.get("resource")),
+                name=i["name"],
+                available=_display_qty(i["available"], i.get("resource")),
+            )
             for i in missing_items
         )
         return _t("production_insufficient", lang, queue=queue_count, needed=needed)
 
-    outputs_text = ", ".join(f"{format_qty(o['qty'])} {o['name']}" for o in estimate["outputs"])
+    outputs_text = ", ".join(f"{_display_qty(o['qty'], o.get('resource'))} {o['name']}" for o in estimate["outputs"])
     line = _t(
         "production_line",
         lang,
@@ -212,7 +230,7 @@ def format_production_line(queue_count: int, estimate: dict, lang: str = "pt-BR"
     )
     leftovers = [l for l in estimate["leftovers"] if l["qty"] > 0]
     if leftovers:
-        leftovers_text = ", ".join(f"{format_qty(l['qty'])} {l['name']}" for l in leftovers)
+        leftovers_text = ", ".join(f"{_display_qty(l['qty'], l.get('resource'))} {l['name']}" for l in leftovers)
         line += _t("production_leftover", lang, leftovers=leftovers_text)
     return line
 
@@ -308,8 +326,14 @@ def build_recommendation_block(
     farmable_keys, imported_keys = _resource_key_flags(all_resources)
     stock_pool = dict(stock_by_def_key)
     chain_targets = sorted(catalog_targets, key=lambda x: crud.resolve_resource_name(x[0], catalog_lang))
+    # Pass the full target_max here, not the already-subtracted `deficit` —
+    # stock_pool still holds this resource's full current stock, and
+    # resolve_requirements() does its own have-vs-needed netting against
+    # that same pool. Passing `deficit` would net the current stock a
+    # second time, so a Meta on a resource that already has some stock
+    # under-counted (or even zeroed out) the real production need.
     result = material_chain.resolve_requirements(
-        [(r.resource_def_key, deficit) for r, _current, deficit in chain_targets],
+        [(r.resource_def_key, r.target_max) for r, _current, _deficit in chain_targets],
         stock_pool,
         preferred_recipes,
         farmable_keys,
@@ -324,9 +348,9 @@ def build_recommendation_block(
             lang,
             icon=f"{r.icon} " if r.icon else "",
             name=crud.resolve_resource_name(r, catalog_lang),
-            current=format_qty(current),
-            target=format_qty(r.target_max),
-            missing=format_qty(deficit),
+            current=_display_qty(current, r.resource_def_key),
+            target=_display_qty(r.target_max, r.resource_def_key),
+            missing=_display_qty(deficit, r.resource_def_key),
         )
         for r, current, deficit in sorted(
             catalog_targets + freeform_targets, key=lambda x: crud.resolve_resource_name(x[0], catalog_lang)
@@ -364,17 +388,18 @@ def build_recommendation_block(
 
     if result["imports"]:
         import_lines = [
-            f"{foxhole_data.resource_display_name(key, catalog_lang)}: {format_qty(qty)}"
+            f"{foxhole_data.resource_display_name(key, catalog_lang)}: {_display_qty(qty, key)}"
             for key, qty in sorted(result["imports"].items(), key=lambda kv: -kv[1])
         ]
         lines.append(_format_list(_t("import_needed_title", lang), import_lines, bulleted))
 
     farm_lines = [
-        f"{foxhole_data.resource_display_name(key, catalog_lang)}: {format_qty(qty)}"
+        f"{foxhole_data.resource_display_name(key, catalog_lang)}: {_display_qty(qty, key)}"
         for key, qty in sorted(result["farm"].items(), key=lambda kv: -kv[1])
     ]
     farm_lines += [
-        f"{crud.resolve_resource_name(r, catalog_lang)}: {format_qty(deficit)}" for r, _current, deficit in freeform_targets
+        f"{crud.resolve_resource_name(r, catalog_lang)}: {_display_qty(deficit, r.resource_def_key)}"
+        for r, _current, deficit in freeform_targets
     ]
     if farm_lines:
         lines.append(_format_list(_t("farm_needed_title", lang), farm_lines, bulleted))
@@ -398,7 +423,7 @@ def build_totals_block(
         return f"{title}\n{_t('no_entries', lang)}"
 
     resource_lines = [
-        f"{t.resource.icon} {crud.resolve_resource_name(t.resource, catalog_lang)}: {format_qty(t.quantity)}".strip()
+        f"{t.resource.icon} {crud.resolve_resource_name(t.resource, catalog_lang)}: {_display_qty(t.quantity, t.resource.resource_def_key)}".strip()
         for t in sorted(totals, key=lambda t: crud.resolve_resource_name(t.resource, catalog_lang))
     ]
     body = _format_list(title, resource_lines, bulleted=True)
