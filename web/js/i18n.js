@@ -131,6 +131,8 @@ const i18n = (() => {
       "report.noneYet": "Nenhum relatório gerado ainda.",
       "report.reportOf": "Relatório de {date}",
       "report.expand": "expandir ▾",
+      "report.deleteConfirm": "Excluir esse relatório do histórico? Essa ação não pode ser desfeita.",
+      "report.deleted": "Relatório excluído!",
 
       "ui.copied": "Copiado!",
       "ui.copyFailed": "Não consegui copiar automaticamente. Selecione e copie manualmente.",
@@ -266,6 +268,8 @@ const i18n = (() => {
       "report.noneYet": "No reports generated yet.",
       "report.reportOf": "Report from {date}",
       "report.expand": "expand ▾",
+      "report.deleteConfirm": "Delete this report from history? This can't be undone.",
+      "report.deleted": "Report deleted!",
 
       "ui.copied": "Copied!",
       "ui.copyFailed": "Couldn't copy automatically. Select and copy manually.",

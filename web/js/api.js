@@ -61,6 +61,7 @@ const api = (() => {
     createReport: (facilityId) => request("POST", `/api/facilities/${facilityId}/reports`),
     listReports: (facilityId) => request("GET", `/api/facilities/${facilityId}/reports`),
     getReport: (id) => request("GET", `/api/reports/${id}`),
+    deleteReport: (id) => request("DELETE", `/api/reports/${id}`),
 
     ocrStatus: () => request("GET", "/api/ocr/status"),
     listBuildingImages: (buildingId) => request("GET", `/api/buildings/${buildingId}/images`),

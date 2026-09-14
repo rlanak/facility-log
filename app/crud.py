@@ -313,3 +313,8 @@ def get_reports(db: Session, facility_id: int) -> list[models.Report]:
 
 def get_report(db: Session, report_id: int) -> models.Report | None:
     return db.get(models.Report, report_id)
+
+
+def delete_report(db: Session, report: models.Report) -> None:
+    db.delete(report)
+    db.commit()

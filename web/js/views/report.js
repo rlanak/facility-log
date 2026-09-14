@@ -80,18 +80,41 @@ views.report = (() => {
     reports.forEach((report) => {
       const item = ui.el("div", { class: "border border-zinc-800 rounded-lg mb-2 overflow-hidden" });
       const header = ui.el(
-        "button",
-        { class: "w-full text-left px-4 py-3 bg-zinc-900 hover:bg-zinc-800 text-sm flex justify-between items-center" },
+        "div",
+        { class: "w-full px-4 py-3 bg-zinc-900 hover:bg-zinc-800 text-sm flex justify-between items-center gap-2" },
         [
-          ui.el("span", {}, i18n.t("report.reportOf", { date: new Date(report.generated_at).toLocaleString(i18n.getLang()) })),
-          ui.el("span", { class: "text-zinc-500 text-xs" }, i18n.t("report.expand")),
+          ui.el(
+            "button",
+            { class: "flex-1 min-w-0 text-left" },
+            [
+              ui.el("span", {}, i18n.t("report.reportOf", { date: new Date(report.generated_at).toLocaleString(i18n.getLang()) })),
+              ui.el("span", { class: "text-zinc-500 text-xs ml-2" }, i18n.t("report.expand")),
+            ]
+          ),
+          ui.el(
+            "button",
+            { class: "delete-report shrink-0 text-xs text-red-400 hover:text-red-300 border border-red-900 hover:border-red-600 rounded px-2 py-1" },
+            i18n.t("common.delete")
+          ),
         ]
       );
+      const toggleBtn = header.querySelector("button:first-child");
+      const deleteBtn = header.querySelector(".delete-report");
       const body = ui.el("div", { class: "p-4 hidden" });
-      header.addEventListener("click", () => {
+      toggleBtn.addEventListener("click", () => {
         body.classList.toggle("hidden");
         if (!body.classList.contains("hidden") && body.children.length === 0) {
           renderReportViewer(body, report);
+        }
+      });
+      deleteBtn.addEventListener("click", async () => {
+        if (!confirm(i18n.t("report.deleteConfirm"))) return;
+        try {
+          await api.deleteReport(report.id);
+          ui.toast(i18n.t("report.deleted"));
+          renderHistoryTab(container, facilityId);
+        } catch (err) {
+          ui.toast(err.message, true);
         }
       });
       item.appendChild(header);

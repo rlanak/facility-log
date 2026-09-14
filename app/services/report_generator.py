@@ -60,6 +60,16 @@ def _t(key: str, lang: str, **kwargs) -> str:
     return template.format(**kwargs)
 
 
+def _format_list(title: str, items: list[str], bulleted: bool) -> str:
+    """A titled list of items — one bullet per line for Discord (much
+    easier to scan than a long " • "-joined run-on line), or the old
+    compact single-line join for the in-app blocks, which stay as they
+    were since that's not what needed the readability fix."""
+    if bulleted:
+        return f"{title}\n" + "\n".join(f"• {item}" for item in items)
+    return f"{title} " + " • ".join(items)
+
+
 # Plain strftime formats instead of the stdlib locale module — locale names
 # need to be installed on the OS to work (unreliable on Windows), and this is
 # the only date formatting this module needs.
@@ -248,6 +258,7 @@ def build_recommendation_block(
     all_resources: list[models.Resource],
     lang: str = "pt-BR",
     catalog_lang: str | None = None,
+    bulleted: bool = False,
 ) -> str:
     """What's missing, all the way down the production chain, to hit every
     Target (Meta) currently registered on a resource — replaces the old
@@ -314,7 +325,7 @@ def build_recommendation_block(
             catalog_targets + freeform_targets, key=lambda x: crud.resolve_resource_name(x[0], catalog_lang)
         )
     ]
-    lines.append("\n".join(meta_lines))
+    lines.append("\n".join(f"• {m}" if bulleted else m for m in meta_lines))
 
     if result["production"]:
         prod_lines = []
@@ -335,14 +346,14 @@ def build_recommendation_block(
                     building=foxhole_data.building_display_name(bt_key, catalog_lang),
                 )
             )
-        lines.append(f"{_t('production_needed_title', lang)} " + " • ".join(prod_lines))
+        lines.append(_format_list(_t("production_needed_title", lang), prod_lines, bulleted))
 
     if result["imports"]:
         import_lines = [
             f"{foxhole_data.resource_display_name(key, catalog_lang)}: {format_qty(qty)}"
             for key, qty in sorted(result["imports"].items(), key=lambda kv: -kv[1])
         ]
-        lines.append(f"{_t('import_needed_title', lang)} " + " • ".join(import_lines))
+        lines.append(_format_list(_t("import_needed_title", lang), import_lines, bulleted))
 
     farm_lines = [
         f"{foxhole_data.resource_display_name(key, catalog_lang)}: {format_qty(qty)}"
@@ -352,7 +363,7 @@ def build_recommendation_block(
         f"{crud.resolve_resource_name(r, catalog_lang)}: {format_qty(deficit)}" for r, _current, deficit in freeform_targets
     ]
     if farm_lines:
-        lines.append(f"{_t('farm_needed_title', lang)} " + " • ".join(farm_lines))
+        lines.append(_format_list(_t("farm_needed_title", lang), farm_lines, bulleted))
 
     return "\n".join(lines)
 
@@ -372,10 +383,11 @@ def build_totals_block(
     if not totals:
         return f"{title}\n{_t('no_entries', lang)}"
 
-    body = f"{title}\n" + " • ".join(
+    resource_lines = [
         f"{t.resource.icon} {crud.resolve_resource_name(t.resource, catalog_lang)}: {format_qty(t.quantity)}".strip()
         for t in sorted(totals, key=lambda t: crud.resolve_resource_name(t.resource, catalog_lang))
-    )
+    ]
+    body = _format_list(title, resource_lines, bulleted=True)
 
     queue_totals: dict[tuple[str, str], int] = {}
     for building in stock_by_building:
@@ -403,7 +415,7 @@ def build_totals_block(
                     building=foxhole_data.building_display_name(bt_key, catalog_lang),
                 )
             )
-        body += f"\n{_t('totals_production_title', lang)} " + " • ".join(prod_lines)
+        body += "\n\n" + _format_list(_t("totals_production_title", lang), prod_lines, bulleted=True)
 
     return body
 
@@ -473,8 +485,14 @@ def generate_report(
     # total instead of repeating the per-building breakdown already shown in
     # "Estoque Atual" — kept as separate paragraphs (not folded into
     # markdown_content) so it can be persisted and re-split independently.
+    # It also re-renders the recommendation with one bullet per line instead
+    # of the dense " • "-joined run-on — much easier to read on Discord —
+    # while leaving the in-app "Recomendação de Farm" block above untouched.
     totals_block = build_totals_block(stock_by_building, totals, lang, catalog_lang)
-    discord_paragraphs = [header_block, totals_block, recommendation_block]
+    discord_recommendation_block = build_recommendation_block(
+        stock_by_building, totals, all_resources, lang, catalog_lang, bulleted=True
+    )
+    discord_paragraphs = [header_block, totals_block, discord_recommendation_block]
     parts = split_for_discord(discord_paragraphs, lang=lang)
 
     snapshot = {

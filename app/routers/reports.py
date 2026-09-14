@@ -64,3 +64,11 @@ def get_report(report_id: int, lang: str = "pt-BR", db: Session = Depends(get_db
     if not report:
         raise HTTPException(status_code=404, detail=err("report_not_found", lang))
     return _to_report_out(report)
+
+
+@router.delete("/api/reports/{report_id}", status_code=204)
+def delete_report(report_id: int, lang: str = "pt-BR", db: Session = Depends(get_db)):
+    report = crud.get_report(db, report_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=err("report_not_found", lang))
+    crud.delete_report(db, report)
