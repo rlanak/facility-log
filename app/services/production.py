@@ -83,19 +83,28 @@ def estimate_building_slots(
     now: datetime,
     lang: str = "pt-BR",
 ) -> list[dict]:
-    """One estimate per active production slot (a building can run several
-    different recipes at once, up to its queue_slots total — see
-    Building.production_slots). Each slot is estimated independently against
-    the same current_stock snapshot: if two slots share an input, each one's
+    """One estimate per distinct recipe among the active production slots (a
+    building can run several different recipes at once, up to its
+    queue_slots total — see Building.production_slots). Slots that repeat
+    the same recipe_key (the user added it to more than one queue row
+    instead of bumping one row's count) are merged into a single estimate
+    with their queue_count summed — two rows of the same recipe are one
+    production line split across rows, not two independent lines. Distinct
+    recipes are still estimated independently against the same
+    current_stock snapshot: if two of them share an input, each one's
     numbers assume the other isn't also drawing on it, so combined they can
     overstate true runway. Matches the project's existing "ballpark, not a
     precise simulation" stance for production estimates.
     """
-    estimates = []
+    merged_queue_counts: dict[str, int] = {}
     for slot in slots:
-        estimate = estimate_production(
-            building_type_key, slot["recipe_key"], slot["queue_count"], current_stock, now, lang
+        merged_queue_counts[slot["recipe_key"]] = (
+            merged_queue_counts.get(slot["recipe_key"], 0) + slot["queue_count"]
         )
+
+    estimates = []
+    for recipe_key, queue_count in merged_queue_counts.items():
+        estimate = estimate_production(building_type_key, recipe_key, queue_count, current_stock, now, lang)
         if estimate:
             estimates.append(estimate)
     return estimates
