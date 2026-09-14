@@ -66,6 +66,7 @@ const api = (() => {
     listBuildingImages: (buildingId) => request("GET", `/api/buildings/${buildingId}/images`),
     uploadBuildingImage: (buildingId, file) => upload(`/api/buildings/${buildingId}/images`, file),
     readImageCrop: (imageId, box) => request("POST", `/api/images/${imageId}/ocr`, box),
+    detectStockpile: (imageId, box) => request("POST", `/api/images/${imageId}/detect-stockpile`, box),
 
     listFoxholeResources: () => request("GET", "/api/foxhole/resources"),
     listFoxholeBuildingTypes: () => request("GET", "/api/foxhole/building-types"),

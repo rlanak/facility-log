@@ -142,6 +142,27 @@ class OcrResult(BaseModel):
     guess: str
 
 
+class DetectedStockItem(BaseModel):
+    resource_def_key: str
+    name_en: str
+    name_pt: str | None = None
+    confidence: float
+    ambiguous: bool = False
+    rival_key: str | None = None
+    rival_name_en: str | None = None
+    quantity_raw: str
+    quantity_guess: str
+    box_x: int
+    box_y: int
+    box_width: int
+    box_height: int
+
+
+class StockpileDetectionOut(BaseModel):
+    available: bool
+    items: list[DetectedStockItem] = []
+
+
 class BuildingStockOut(BaseModel):
     building: BuildingOut
     entries: list[StockEntryOut]
