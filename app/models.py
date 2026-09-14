@@ -19,6 +19,13 @@ class Resource(Base):
     icon: Mapped[str] = mapped_column(String(20), default="")
     target_max: Mapped[float | None] = mapped_column(default=None)
     farmable: Mapped[bool] = mapped_column(default=True)
+    # Acquired from an outside source (a coalition/ally) instead of being
+    # farmed or produced locally — e.g. a regiment that imports finished
+    # Processed Construction Materials rather than making them itself. Takes
+    # priority over `farmable` in the recommendation chain: an imported
+    # resource is reported as "go get this from outside" regardless of
+    # whether it's also technically gatherable or producible.
+    imported: Mapped[bool] = mapped_column(default=False)
     resource_def_key: Mapped[str | None] = mapped_column(String(80), default=None)
     nickname: Mapped[str | None] = mapped_column(String(120), default=None)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)

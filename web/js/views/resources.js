@@ -23,9 +23,13 @@ views.resources = (() => {
           class="bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
         <button class="bg-emerald-700 hover:bg-emerald-600 px-4 py-2 rounded text-sm font-semibold whitespace-nowrap">${i18n.t("resources.add")}</button>
       </form>
-      <label class="flex items-center gap-2 text-sm text-zinc-400 mb-6">
+      <label class="flex items-center gap-2 text-sm text-zinc-400 mb-2">
         <input id="res-farmable" type="checkbox" checked class="accent-emerald-600" />
         ${i18n.t("resources.farmableLabel")}
+      </label>
+      <label class="flex items-center gap-2 text-sm text-zinc-400 mb-6">
+        <input id="res-imported" type="checkbox" class="accent-emerald-600" />
+        ${i18n.t("resources.importedLabel")}
       </label>
       <div id="resources-list" class="divide-y divide-zinc-800 border border-zinc-800 rounded-lg overflow-hidden"></div>
     `;
@@ -35,6 +39,7 @@ views.resources = (() => {
       const name = document.getElementById("res-name").value.trim();
       const targetRaw = document.getElementById("res-target").value;
       const farmable = document.getElementById("res-farmable").checked;
+      const imported = document.getElementById("res-imported").checked;
       if (!name) return;
       try {
         await api.createResource({
@@ -42,9 +47,11 @@ views.resources = (() => {
           icon: "",
           target_max: targetRaw ? parseFloat(targetRaw) : null,
           farmable,
+          imported,
         });
         e.target.reset();
         document.getElementById("res-farmable").checked = true;
+        document.getElementById("res-imported").checked = false;
         renderList();
       } catch (err) {
         ui.toast(err.message, true);
@@ -140,7 +147,11 @@ views.resources = (() => {
               <input type="checkbox" data-id="${r.id}" class="toggle-farmable accent-emerald-600" ${r.farmable ? "checked" : ""} />
               ${i18n.t("resources.farmable")}
             </label>
-            ${!r.farmable ? `<span class="text-xs text-zinc-600">${i18n.t("resources.producedIntermediate")}</span>` : ""}
+            <label class="flex items-center gap-1 text-xs text-zinc-400">
+              <input type="checkbox" data-id="${r.id}" class="toggle-imported accent-emerald-600" ${r.imported ? "checked" : ""} />
+              ${i18n.t("resources.imported")}
+            </label>
+            ${r.imported ? `<span class="text-xs text-zinc-600">${i18n.t("resources.importedBadge")}</span>` : !r.farmable ? `<span class="text-xs text-zinc-600">${i18n.t("resources.producedIntermediate")}</span>` : ""}
           </div>
           <div class="flex items-center gap-2 flex-wrap">
             <button data-id="${r.id}" class="edit-nickname text-xs text-zinc-300 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded px-2 py-1">${i18n.t("resources.nicknameBtn")}</button>
@@ -168,6 +179,18 @@ views.resources = (() => {
         checkbox.addEventListener("change", async () => {
           try {
             await api.updateResource(checkbox.dataset.id, { farmable: checkbox.checked });
+            renderList();
+          } catch (err) {
+            ui.toast(err.message, true);
+            checkbox.checked = !checkbox.checked;
+          }
+        });
+      });
+
+      listEl.querySelectorAll(".toggle-imported").forEach((checkbox) => {
+        checkbox.addEventListener("change", async () => {
+          try {
+            await api.updateResource(checkbox.dataset.id, { imported: checkbox.checked });
             renderList();
           } catch (err) {
             ui.toast(err.message, true);

@@ -8,6 +8,7 @@ class ResourceBase(BaseModel):
     icon: str = ""
     target_max: float | None = None
     farmable: bool = True
+    imported: bool = False
     resource_def_key: str | None = None
     nickname: str | None = None
 
@@ -21,6 +22,7 @@ class ResourceUpdate(BaseModel):
     icon: str | None = None
     target_max: float | None = None
     farmable: bool | None = None
+    imported: bool | None = None
     nickname: str | None = None
 
 

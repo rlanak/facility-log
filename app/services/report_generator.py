@@ -22,11 +22,12 @@ _STRINGS = {
         "recommendation_all_met": "Todas as Metas cadastradas já estão em dia. ✅",
         "meta_line": "{icon}**{name}**: {current}/{target} — faltam {missing}",
         "production_needed_title": "🏭 Produção necessária:",
-        "production_needed_item": "{cycles}x {name} ({building})",
+        "production_needed_item": "{cycles} ciclos de {name} ({building})",
+        "import_needed_title": "📦 Importar (produção externa):",
         "farm_needed_title": "🌾 Farm necessário:",
         "totals_title": "Total da Facility",
         "totals_production_title": "⚙️ Produção ativa (total):",
-        "totals_production_item": "{queue}x {outputs} ({building})",
+        "totals_production_item": "{queue} filas de {outputs} ({building})",
         "discord_part": "**Parte {i}/{n}**",
     },
     "en-US": {
@@ -42,11 +43,12 @@ _STRINGS = {
         "recommendation_all_met": "All registered Targets are already met. ✅",
         "meta_line": "{icon}**{name}**: {current}/{target} — {missing} short",
         "production_needed_title": "🏭 Production needed:",
-        "production_needed_item": "{cycles}x {name} ({building})",
+        "production_needed_item": "{cycles} cycles of {name} ({building})",
+        "import_needed_title": "📦 Import (outside production):",
         "farm_needed_title": "🌾 Farming needed:",
         "totals_title": "Facility Total",
         "totals_production_title": "⚙️ Active production (total):",
-        "totals_production_item": "{queue}x {outputs} ({building})",
+        "totals_production_item": "{queue} queues of {outputs} ({building})",
         "discord_part": "**Part {i}/{n}**",
     },
 }
@@ -219,6 +221,27 @@ def _totals_by_def_key(totals: list[ResourceTotal]) -> dict[str, float]:
     return result
 
 
+def _resource_key_flags(all_resources: list[models.Resource]) -> tuple[set[str], set[str]]:
+    """farmable_keys / imported_keys for every Foxhole catalog resource — the
+    app's own Resource row wins when the player has customized it (via the
+    Catálogo de Recursos checkboxes), else falls back to the static
+    catalog's own farmable default (same default used when a resource is
+    first imported — see crud.get_or_create_resource)."""
+    by_key = {r.resource_def_key: r for r in all_resources if r.resource_def_key}
+    farmable_keys: set[str] = set()
+    imported_keys: set[str] = set()
+    for key, res_def in foxhole_data.get_resource_defs().items():
+        resource = by_key.get(key)
+        if resource:
+            if resource.imported:
+                imported_keys.add(key)
+            elif resource.farmable:
+                farmable_keys.add(key)
+        elif res_def.get("farmable", True):
+            farmable_keys.add(key)
+    return farmable_keys, imported_keys
+
+
 def build_recommendation_block(
     stock_by_building: dict[models.Building, list[models.StockEntry]],
     totals: list[ResourceTotal],
@@ -264,10 +287,15 @@ def build_recommendation_block(
         return f"{title}\n{_t('recommendation_all_met', lang)}"
 
     preferred_recipes = material_chain.active_recipes_by_output(stock_by_building.keys())
+    farmable_keys, imported_keys = _resource_key_flags(all_resources)
     stock_pool = dict(stock_by_def_key)
     chain_targets = sorted(catalog_targets, key=lambda x: crud.resolve_resource_name(x[0], catalog_lang))
     result = material_chain.resolve_requirements(
-        [(r.resource_def_key, deficit) for r, _current, deficit in chain_targets], stock_pool, preferred_recipes
+        [(r.resource_def_key, deficit) for r, _current, deficit in chain_targets],
+        stock_pool,
+        preferred_recipes,
+        farmable_keys,
+        imported_keys,
     )
 
     lines = [title]
@@ -308,6 +336,13 @@ def build_recommendation_block(
                 )
             )
         lines.append(f"{_t('production_needed_title', lang)} " + " • ".join(prod_lines))
+
+    if result["imports"]:
+        import_lines = [
+            f"{foxhole_data.resource_display_name(key, catalog_lang)}: {format_qty(qty)}"
+            for key, qty in sorted(result["imports"].items(), key=lambda kv: -kv[1])
+        ]
+        lines.append(f"{_t('import_needed_title', lang)} " + " • ".join(import_lines))
 
     farm_lines = [
         f"{foxhole_data.resource_display_name(key, catalog_lang)}: {format_qty(qty)}"

@@ -40,6 +40,7 @@ _ADDED_COLUMNS = [
     ("buildings", "queue_count", "INTEGER DEFAULT 0"),
     ("buildings", "production_slots", "TEXT DEFAULT '[]'"),
     ("stock_entries", "storage", "VARCHAR(10) DEFAULT 'normal'"),
+    ("resources", "imported", "BOOLEAN DEFAULT 0"),
     ("reports", "discord_content", "TEXT DEFAULT ''"),
     ("reports", "lang", "VARCHAR(10) DEFAULT 'pt-BR'"),
 ]

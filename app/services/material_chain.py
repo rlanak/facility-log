@@ -63,19 +63,34 @@ def active_recipes_by_output(buildings) -> dict[str, tuple[str, dict]]:
 
 
 def resolve_requirements(
-    targets: list[tuple[str, float]], stock: dict[str, float], preferred_recipes: dict
+    targets: list[tuple[str, float]],
+    stock: dict[str, float],
+    preferred_recipes: dict,
+    farmable_keys: set = frozenset(),
+    imported_keys: set = frozenset(),
 ) -> dict:
     """targets: [(resource_key, deficit_qty), ...] to resolve, top to bottom.
     stock: current stock by Foxhole resource key — a shared pool that gets
     consumed as targets are resolved, so the same stock isn't credited
     toward two different Metas. Mutated in place.
 
+    farmable_keys / imported_keys stop the recursion early even when a
+    recipe for that resource exists: a resource the player farms (or
+    imports from an ally/coalition) is reported as-is instead of being
+    exploded into whatever recipe happens to also produce it — e.g.
+    Components has a "recycle Damaged Components" recipe, but if it's
+    marked farmable the player wants "go get more Components", not a
+    recycling chain they're not actually running. `imported` wins over
+    `farmable` when a resource is somehow marked both.
+
     Returns {"production": {(building_type_key, recipe_key): cycles},
-             "farm": {resource_key: qty}} — farm holds whatever has no known
-    recipe (raw/gathered resources, or unmapped catalog gaps).
+             "farm": {resource_key: qty}, "imports": {resource_key: qty}}.
+    "farm" also catches whatever has no known recipe at all (raw resources,
+    or unmapped catalog gaps).
     """
     production: dict[tuple[str, str], float] = {}
     farm: dict[str, float] = {}
+    imports: dict[str, float] = {}
 
     def resolve(resource_key: str, needed: float, depth: int) -> None:
         if needed <= 1e-9:
@@ -85,6 +100,12 @@ def resolve_requirements(
         stock[resource_key] = have - used
         deficit = needed - used
         if deficit <= 1e-9:
+            return
+        if resource_key in imported_keys:
+            imports[resource_key] = imports.get(resource_key, 0) + deficit
+            return
+        if resource_key in farmable_keys:
+            farm[resource_key] = farm.get(resource_key, 0) + deficit
             return
         if depth >= MAX_DEPTH:
             farm[resource_key] = farm.get(resource_key, 0) + deficit
@@ -109,4 +130,4 @@ def resolve_requirements(
     for resource_key, deficit in targets:
         resolve(resource_key, deficit, 0)
 
-    return {"production": production, "farm": farm}
+    return {"production": production, "farm": farm, "imports": imports}
