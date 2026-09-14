@@ -34,7 +34,7 @@ def estimate_production(
         return None
 
     cycles_per_input = [
-        current_stock.get(io["resource"], 0) // io.get("qty", 1) for io in tracked_inputs
+        current_stock.get(io["resource"], 0) // foxhole_data.recipe_io_qty(io) for io in tracked_inputs
     ]
     total_cycles = int(min(cycles_per_input))
 
@@ -48,7 +48,7 @@ def estimate_production(
             item = {
                 "resource": io["resource"],
                 "name": foxhole_data.resource_display_name(io["resource"], lang),
-                "qty": io.get("qty", 1) * qty_multiplier,
+                "qty": foxhole_data.recipe_io_qty(io) * qty_multiplier,
             }
             if with_available:
                 item["available"] = current_stock.get(io["resource"], 0)

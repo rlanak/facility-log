@@ -50,6 +50,23 @@ def liquid_tank_max_units(resource_key: str) -> float | None:
     return LIQUID_TANK_CAPACITY_LITERS / liters_per_unit
 
 
+def recipe_io_qty(io: dict) -> float:
+    """The true quantity, in Foxhole resource units, of one recipe input or
+    output entry. building_types.json's recipe data was transcribed straight
+    from the wiki's recipe tables — which state liquid amounts in Liters
+    directly (e.g. "66L of Heavy Oil"), never in units/gallons like solids
+    ("75 x Coke") — so every liquid `qty` in the catalog is actually a Liters
+    value. Divide by liters_per_unit here, once, so every caller (cycle math
+    in production.py/material_chain.py, display formatting) works in the same
+    unit currency regardless of whether the resource is a liquid or solid.
+    Confirmed against foxhole.wiki.gg (Metalworks/Materials Factory, Coal/Oil
+    Refinery) for every liquid-bearing recipe in the catalog.
+    """
+    qty = io.get("qty", 1)
+    liters_per_unit = liquid_liters_per_unit(io.get("resource"))
+    return qty / liters_per_unit if liters_per_unit else qty
+
+
 def active_liquid_keys(building_type_key: str, production_slots: list[dict]) -> list[str]:
     """Which liquids a building currently has a tank for — derived from the
     liquid resources used by whichever recipes are active in production, not

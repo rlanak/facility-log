@@ -49,6 +49,19 @@ views.facilityDetail = (() => {
     return def && def.icon ? `<img src="${ui.escapeHtml(def.icon)}" class="h-8 w-8 inline-block object-contain align-middle" />` : "";
   }
 
+  // Mirrors report_generator._display_qty(): a liquid's recipe qty is a real
+  // unit count (converted from the wiki's Liters value server-side, see
+  // foxhole_data.recipe_io_qty()), so show it back in Liters here too —
+  // otherwise a fractional unit count like "0.2 Heavy Oil" would show up on
+  // the building card instead of the "6L" a player actually recognizes.
+  function displayQty(qty, resourceKey) {
+    const def = resourceKey && foxholeResourceDefs[resourceKey];
+    if (def && def.is_liquid && def.liters_per_unit) {
+      return `${Math.round(qty * def.liters_per_unit)}L`;
+    }
+    return qty;
+  }
+
   function formatDuration(seconds) {
     seconds = Math.round(seconds);
     const hours = Math.floor(seconds / 3600);
@@ -406,12 +419,18 @@ views.facilityDetail = (() => {
     if (estimate.cycles <= 0) {
       const missing = estimate.inputs_per_cycle.filter((i) => (i.available ?? 0) < i.qty);
       const needed = missing
-        .map((i) => i18n.t("facilityDetail.production.missingItem", { qty: i.qty, name: i.name, available: i.available ?? 0 }))
+        .map((i) =>
+          i18n.t("facilityDetail.production.missingItem", {
+            qty: displayQty(i.qty, i.resource),
+            name: i.name,
+            available: displayQty(i.available ?? 0, i.resource),
+          })
+        )
         .join(", ");
       return i18n.t("facilityDetail.production.insufficient", { queue: estimate.queue_count, needed });
     }
     const eta = new Date(estimate.eta).toLocaleTimeString(i18n.getLang(), { hour: "2-digit", minute: "2-digit" });
-    const outputs = estimate.outputs.map((o) => `${o.qty} ${o.name}`).join(", ");
+    const outputs = estimate.outputs.map((o) => `${displayQty(o.qty, o.resource)} ${o.name}`).join(", ");
     let line = i18n.t("facilityDetail.production.line", {
       queue: estimate.queue_count,
       cycles: estimate.cycles,
@@ -421,7 +440,9 @@ views.facilityDetail = (() => {
     });
     const leftovers = estimate.leftovers.filter((l) => l.qty > 0);
     if (leftovers.length > 0) {
-      line += i18n.t("facilityDetail.production.leftover", { leftovers: leftovers.map((l) => `${l.qty} ${l.name}`).join(", ") });
+      line += i18n.t("facilityDetail.production.leftover", {
+        leftovers: leftovers.map((l) => `${displayQty(l.qty, l.resource)} ${l.name}`).join(", "),
+      });
     }
     return line;
   }

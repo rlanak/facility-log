@@ -122,7 +122,9 @@ def resolve_requirements(
             farm[resource_key] = farm.get(resource_key, 0) + deficit
             return
         bt_key, recipe = recipe_info
-        out_qty = next((o["qty"] for o in recipe["outputs"] if o.get("resource") == resource_key), None)
+        out_qty = next(
+            (foxhole_data.recipe_io_qty(o) for o in recipe["outputs"] if o.get("resource") == resource_key), None
+        )
         if not out_qty:
             farm[resource_key] = farm.get(resource_key, 0) + deficit
             return
@@ -132,7 +134,7 @@ def resolve_requirements(
         for io in recipe["inputs"]:
             if "resource" not in io:
                 continue
-            resolve(io["resource"], io["qty"] * cycles, depth + 1)
+            resolve(io["resource"], foxhole_data.recipe_io_qty(io) * cycles, depth + 1)
 
     for resource_key, deficit in targets:
         resolve(resource_key, deficit, 0)
