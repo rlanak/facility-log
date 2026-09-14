@@ -26,7 +26,8 @@ def _all_recipes():
 
 def _find_recipe_for_output(resource_key: str, preferred: dict) -> tuple[str, dict] | None:
     if resource_key in preferred:
-        return preferred[resource_key]
+        entry = preferred[resource_key]
+        return (entry["building_type_key"], entry["recipe"])
     candidates = []
     for bt_key, recipe in _all_recipes():
         if any(o.get("resource") == resource_key for o in recipe["outputs"]):
@@ -42,12 +43,14 @@ def _find_recipe_for_output(resource_key: str, preferred: dict) -> tuple[str, di
     return candidates[0]
 
 
-def active_recipes_by_output(buildings) -> dict[str, tuple[str, dict]]:
-    """resource_key -> (building_type_key, recipe) for whichever recipe the
-    facility already has actively configured in production to make it —
-    disambiguates resources more than one recipe can produce by preferring
-    what the player actually set up over a generic guess."""
-    result: dict[str, tuple[str, dict]] = {}
+def active_recipes_by_output(buildings) -> dict[str, dict]:
+    """resource_key -> {building_type_key, recipe, queue_count} for whichever
+    recipe the facility already has actively configured in production to
+    make it — disambiguates resources more than one recipe can produce by
+    preferring what the player actually set up over a generic guess, and
+    carries the actual queue_count along so time estimates can use the
+    player's real parallelism instead of assuming a single queue."""
+    result: dict[str, dict] = {}
     for building in buildings:
         if not building.building_type_key or not building.production_slots:
             continue
@@ -58,7 +61,11 @@ def active_recipes_by_output(buildings) -> dict[str, tuple[str, dict]]:
             for o in recipe["outputs"]:
                 key = o.get("resource")
                 if key and key not in result:
-                    result[key] = (building.building_type_key, recipe)
+                    result[key] = {
+                        "building_type_key": building.building_type_key,
+                        "recipe": recipe,
+                        "queue_count": slot["queue_count"],
+                    }
     return result
 
 
@@ -131,3 +138,62 @@ def resolve_requirements(
         resolve(resource_key, deficit, 0)
 
     return {"production": production, "farm": farm, "imports": imports}
+
+
+def compute_production_time(production: dict, preferred_recipes: dict) -> dict:
+    """Total wall-clock time to run every cycle in `production` (the
+    resolve_requirements() result) — not the per-cycle/per-queue unit time,
+    the whole thing. Each node's own duration divides its cycles across
+    whatever queue_count is actually configured for it (1 if the player
+    isn't already producing it anywhere, i.e. worst case serial). The
+    overall total is the longest dependency chain (an input has to exist
+    before its recipe can consume it), not a flat sum — independent chains
+    are assumed to run in parallel in different buildings.
+
+    Returns {"total_seconds": float, "any_assumed_single_queue": bool} —
+    the second flags whether the estimate leaned on the "assume 1 queue"
+    fallback anywhere, so callers can caveat the number appropriately.
+    """
+    queue_count_by_node = {
+        (entry["building_type_key"], entry["recipe"]["key"]): entry["queue_count"] for entry in preferred_recipes.values()
+    }
+
+    key_to_node: dict[str, tuple[str, str]] = {}
+    for bt_key, recipe_key in production:
+        recipe = foxhole_data.get_recipe(bt_key, recipe_key)
+        for o in recipe["outputs"]:
+            if o.get("resource"):
+                key_to_node[o["resource"]] = (bt_key, recipe_key)
+
+    any_assumed_single_queue = False
+    durations: dict[tuple[str, str], float] = {}
+    for node, cycles in production.items():
+        bt_key, recipe_key = node
+        recipe = foxhole_data.get_recipe(bt_key, recipe_key)
+        queue_count = queue_count_by_node.get(node)
+        if not queue_count:
+            queue_count = 1
+            any_assumed_single_queue = True
+        rounds = math.ceil(cycles / queue_count)
+        durations[node] = rounds * recipe["time_seconds"]
+
+    memo: dict[tuple[str, str], float] = {}
+
+    def critical_path(node: tuple[str, str], visiting: frozenset) -> float:
+        if node in memo:
+            return memo[node]
+        if node in visiting:
+            return 0  # defensive: catalog shouldn't have recipe cycles, but don't hang if it did
+        bt_key, recipe_key = node
+        recipe = foxhole_data.get_recipe(bt_key, recipe_key)
+        child_max = 0.0
+        for io in recipe["inputs"]:
+            child_node = key_to_node.get(io.get("resource"))
+            if child_node:
+                child_max = max(child_max, critical_path(child_node, visiting | {node}))
+        total = durations[node] + child_max
+        memo[node] = total
+        return total
+
+    total_seconds = max((critical_path(node, frozenset()) for node in production), default=0)
+    return {"total_seconds": total_seconds, "any_assumed_single_queue": any_assumed_single_queue}

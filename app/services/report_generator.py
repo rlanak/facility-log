@@ -21,6 +21,8 @@ _STRINGS = {
         "recommendation_no_targets": "Nenhuma Meta cadastrada ainda — defina uma meta de estoque num recurso do catálogo pra ver aqui o que falta produzir/farmar pra chegar nela.",
         "recommendation_all_met": "Todas as Metas cadastradas já estão em dia. ✅",
         "meta_line": "{icon}**{name}**: {current}/{target} — faltam {missing}",
+        "total_time_line": "⏱️ Tempo total estimado: {duration}",
+        "total_time_assumed_note": " _(assumindo 1 fila pras receitas ainda sem produção configurada — configure a fila pra um número mais preciso)_",
         "production_needed_title": "🏭 Produção necessária:",
         "production_needed_item": "{cycles} ciclos de {name} ({building})",
         "import_needed_title": "📦 Importar (produção externa):",
@@ -42,6 +44,8 @@ _STRINGS = {
         "recommendation_no_targets": "No Target registered yet — set a stock target on a catalog resource to see what's missing to reach it here.",
         "recommendation_all_met": "All registered Targets are already met. ✅",
         "meta_line": "{icon}**{name}**: {current}/{target} — {missing} short",
+        "total_time_line": "⏱️ Estimated total time: {duration}",
+        "total_time_assumed_note": " _(assuming 1 queue for recipes not yet configured in production — set one up for a more accurate number)_",
         "production_needed_title": "🏭 Production needed:",
         "production_needed_item": "{cycles} cycles of {name} ({building})",
         "import_needed_title": "📦 Import (outside production):",
@@ -101,8 +105,11 @@ def _trim(value: float) -> str:
 
 def format_duration(seconds: int) -> str:
     seconds = int(seconds)
-    hours, remainder = divmod(seconds, 3600)
+    days, remainder = divmod(seconds, 86400)
+    hours, remainder = divmod(remainder, 3600)
     minutes, secs = divmod(remainder, 60)
+    if days:
+        return f"{days}d{hours:02d}h"
     if hours:
         return f"{hours}h{minutes:02d}"
     if minutes:
@@ -326,6 +333,13 @@ def build_recommendation_block(
         )
     ]
     lines.append("\n".join(f"• {m}" if bulleted else m for m in meta_lines))
+
+    if result["production"]:
+        time_estimate = material_chain.compute_production_time(result["production"], preferred_recipes)
+        time_line = _t("total_time_line", lang, duration=format_duration(time_estimate["total_seconds"]))
+        if time_estimate["any_assumed_single_queue"]:
+            time_line += _t("total_time_assumed_note", lang)
+        lines.append(time_line)
 
     if result["production"]:
         prod_lines = []
