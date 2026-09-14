@@ -57,6 +57,8 @@ const api = (() => {
 
     getBuildingStock: (buildingId) => request("GET", `/api/buildings/${buildingId}/stock`),
     addBuildingStock: (buildingId, entries) => request("POST", `/api/buildings/${buildingId}/stock`, entries),
+    deleteBuildingStockItem: (buildingId, resourceId, storage) =>
+      request("DELETE", `/api/buildings/${buildingId}/stock/${resourceId}?storage=${encodeURIComponent(storage)}`),
 
     createReport: (facilityId) => request("POST", `/api/facilities/${facilityId}/reports`),
     listReports: (facilityId) => request("GET", `/api/facilities/${facilityId}/reports`),

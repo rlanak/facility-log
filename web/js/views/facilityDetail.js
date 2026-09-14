@@ -265,7 +265,9 @@ views.facilityDetail = (() => {
               : nonLiquidStock
                   .map(
                     (s) =>
-                      `<span class="mr-4 inline-flex items-center gap-1.5">${resourceThumb(s.resource_id) || ui.escapeHtml(s.resource_icon)} ${ui.escapeHtml(s.resource_name)}: <strong>${s.quantity}</strong></span>`
+                      `<span class="mr-4 inline-flex items-center gap-1.5">${resourceThumb(s.resource_id) || ui.escapeHtml(s.resource_icon)} ${ui.escapeHtml(s.resource_name)}: <strong>${s.quantity}</strong>
+                        <button class="delete-stock-item text-zinc-600 hover:text-red-400 px-0.5" data-resource-id="${s.resource_id}" data-storage="${s.storage}" data-name="${ui.escapeHtml(s.resource_name)}" title="${i18n.t("facilityDetail.deleteStockItem")}">✕</button>
+                      </span>`
                   )
                   .join("")
           }
@@ -290,6 +292,11 @@ views.facilityDetail = (() => {
                        </div>
                        <span class="text-xs text-zinc-500 w-24 text-right">${liters}L / 5000L</span>
                        <button class="add-liquid text-emerald-400 hover:text-emerald-300 px-1 font-bold" data-key="${key}" data-current="${units}">+</button>
+                       ${
+                         entry
+                           ? `<button class="delete-stock-item text-zinc-600 hover:text-red-400 px-1" data-resource-id="${resource.id}" data-storage="tank" data-name="${ui.escapeHtml(i18n.catalogName(def))}" title="${i18n.t("facilityDetail.deleteStockItem")}">✕</button>`
+                           : ""
+                       }
                      </div>`;
                    })
                    .join("")}
@@ -343,6 +350,18 @@ views.facilityDetail = (() => {
           await api.addBuildingStock(building.id, [
             { resource_name: def.name_en, quantity_raw: qty, resource_def_key: key, storage: "tank" },
           ]);
+          onChange();
+        } catch (err) {
+          ui.toast(err.message, true);
+        }
+      });
+    });
+
+    card.querySelectorAll(".delete-stock-item").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (!confirm(i18n.t("facilityDetail.deleteStockItemConfirm", { name: btn.dataset.name }))) return;
+        try {
+          await api.deleteBuildingStockItem(building.id, btn.dataset.resourceId, btn.dataset.storage);
           onChange();
         } catch (err) {
           ui.toast(err.message, true);

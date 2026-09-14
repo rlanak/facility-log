@@ -55,3 +55,16 @@ def add_building_stock(
         )
         for e in created
     ]
+
+
+@router.delete("/api/buildings/{building_id}/stock/{resource_id}", status_code=204)
+def delete_building_stock_item(
+    building_id: int,
+    resource_id: int,
+    storage: str = "normal",
+    lang: str = "pt-BR",
+    db: Session = Depends(get_db),
+):
+    if not crud.get_building(db, building_id):
+        raise HTTPException(status_code=404, detail=err("building_not_found", lang))
+    crud.delete_stock_entries(db, building_id, resource_id, storage)

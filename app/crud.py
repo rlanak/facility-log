@@ -215,6 +215,29 @@ def get_current_stock_by_resource_def(db: Session, building_id: int) -> dict[str
     return totals
 
 
+def delete_stock_entries(db: Session, building_id: int, resource_id: int, storage: str) -> int:
+    """Removes every logged entry for one resource+storage in a building —
+    not just the latest — so it drops out of "current stock" entirely
+    instead of reverting to whatever was logged before. The append-only log
+    is for tracking real changes over time, not for undoing a mistaken
+    launch (wrong resource, test data, wrong building); this is the
+    "I shouldn't have logged this at all" escape hatch. Returns how many
+    rows were deleted (0 means nothing to remove)."""
+    entries = list(
+        db.scalars(
+            select(models.StockEntry).where(
+                models.StockEntry.building_id == building_id,
+                models.StockEntry.resource_id == resource_id,
+                models.StockEntry.storage == storage,
+            )
+        )
+    )
+    for entry in entries:
+        db.delete(entry)
+    db.commit()
+    return len(entries)
+
+
 def add_stock_entries(
     db: Session,
     building_id: int,
