@@ -1,8 +1,9 @@
 import json
 from functools import lru_cache
-from pathlib import Path
 
-DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "foxhole"
+from app.paths import BUNDLE_DIR
+
+DATA_DIR = BUNDLE_DIR / "data" / "foxhole"
 
 
 @lru_cache(maxsize=1)

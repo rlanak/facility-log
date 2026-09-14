@@ -1,10 +1,9 @@
-from pathlib import Path
-
 from fastapi import FastAPI
 from starlette.staticfiles import StaticFiles
 from starlette.types import Scope
 
 from app.database import UPLOADS_DIR, Base, apply_migrations, engine
+from app.paths import BUNDLE_DIR
 from app.routers import buildings, facilities, foxhole, images, reports, resources, stock
 
 Base.metadata.create_all(bind=engine)
@@ -34,5 +33,5 @@ app.include_router(foxhole.router)
 
 app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 
-WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+WEB_DIR = BUNDLE_DIR / "web"
 app.mount("/", NoCacheStaticFiles(directory=WEB_DIR, html=True), name="web")

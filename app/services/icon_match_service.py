@@ -17,11 +17,11 @@ for the second, which is why results stay a *pre-fill*, not an auto-save.
 """
 
 from functools import lru_cache
-from pathlib import Path
 
+from app.paths import BUNDLE_DIR
 from app.services import foxhole_data, ocr_service
 
-WEB_DIR = Path(__file__).resolve().parent.parent.parent / "web"
+WEB_DIR = BUNDLE_DIR / "web"
 
 # Candidate rendered glyph sizes to search, in px. Real screenshots tested so
 # far rendered icons anywhere from ~44px (a hand-made low-res collage) to

@@ -1,3 +1,4 @@
+import os
 import re
 import shutil
 from functools import lru_cache
@@ -5,6 +6,8 @@ from pathlib import Path
 
 import pytesseract
 from PIL import Image, ImageOps
+
+from app.paths import BUNDLE_DIR
 
 _DIGITS_RE = re.compile(r"[0-9.,]+")
 
@@ -16,8 +19,15 @@ _COMMON_WINDOWS_PATHS = [
     r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
 ]
 
+# The packaged .exe bundles its own portable copy (see scripts/prepare_tesseract_vendor.py
+# + facility_log.spec) so end users don't have to install Tesseract separately.
+_BUNDLED_TESSERACT = BUNDLE_DIR / "tesseract" / "tesseract.exe"
+
 
 def _locate_tesseract() -> str | None:
+    if _BUNDLED_TESSERACT.is_file():
+        os.environ["TESSDATA_PREFIX"] = str(_BUNDLED_TESSERACT.parent / "tessdata")
+        return str(_BUNDLED_TESSERACT)
     found = shutil.which("tesseract")
     if found:
         return found
