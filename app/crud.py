@@ -203,8 +203,13 @@ def get_current_stock_by_resource_def(db: Session, building_id: int) -> dict[str
 
 
 def add_stock_entries(
-    db: Session, building_id: int, entries: list[schemas.StockEntryIn], lang: str = "pt-BR"
+    db: Session,
+    building_id: int,
+    entries: list[schemas.StockEntryIn],
+    lang: str = "pt-BR",
+    catalog_lang: str | None = None,
 ) -> list[models.StockEntry]:
+    catalog_lang = catalog_lang or lang
     parsed = [(entry, parse_quantity(entry.quantity_raw)) for entry in entries]
 
     created: list[models.StockEntry] = []
@@ -215,7 +220,7 @@ def add_stock_entries(
         if max_units is not None and quantity > max_units:
             raise ValueError(
                 errors_i18n.err("liquid_tank_exceeded", lang).format(
-                    name=resolve_resource_name(resource, lang), max=round(max_units, 1)
+                    name=resolve_resource_name(resource, catalog_lang), max=round(max_units, 1)
                 )
             )
         stock_entry = models.StockEntry(

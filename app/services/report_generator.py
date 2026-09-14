@@ -106,9 +106,14 @@ def build_header_block(facility: models.Facility, now: datetime, lang: str = "pt
 
 
 def build_building_paragraph(
-    building: models.Building, entries: list[models.StockEntry], now: datetime, lang: str = "pt-BR"
+    building: models.Building,
+    entries: list[models.StockEntry],
+    now: datetime,
+    lang: str = "pt-BR",
+    catalog_lang: str | None = None,
 ) -> str:
-    title = f"**\U0001f3ed {crud.resolve_building_name(building, lang)}**"
+    catalog_lang = catalog_lang or lang
+    title = f"**\U0001f3ed {crud.resolve_building_name(building, catalog_lang)}**"
     if building.role:
         title += f" _({building.role})_"
 
@@ -120,8 +125,8 @@ def build_building_paragraph(
     solid_entries = [e for e in entries if e.resource.resource_def_key not in liquid_keys]
 
     body = f"{title}\n{_t('no_entries', lang)}" if not solid_entries else f"{title}\n" + " • ".join(
-        f"{entry.resource.icon} {crud.resolve_resource_name(entry.resource, lang)}: {format_qty(entry.quantity)}".strip()
-        for entry in sorted(solid_entries, key=lambda e: crud.resolve_resource_name(e.resource, lang))
+        f"{entry.resource.icon} {crud.resolve_resource_name(entry.resource, catalog_lang)}: {format_qty(entry.quantity)}".strip()
+        for entry in sorted(solid_entries, key=lambda e: crud.resolve_resource_name(e.resource, catalog_lang))
     )
 
     if liquid_keys:
@@ -130,14 +135,14 @@ def build_building_paragraph(
         for key in liquid_keys:
             units = current_stock.get(key, 0)
             liters = round(units * foxhole_data.liquid_liters_per_unit(key))
-            name = foxhole_data.resource_display_name(key, lang)
+            name = foxhole_data.resource_display_name(key, catalog_lang)
             tank_lines.append(f"{name}: {liters}L/{foxhole_data.LIQUID_TANK_CAPACITY_LITERS}L")
         body += f"\n{_t('liquid_tank', lang)} " + " • ".join(tank_lines)
 
     if building.building_type_key and building.production_slots:
         current_stock = {e.resource.resource_def_key: e.quantity for e in entries if e.resource.resource_def_key}
         estimates = production_service.estimate_building_slots(
-            building.building_type_key, building.production_slots, current_stock, now, lang
+            building.building_type_key, building.production_slots, current_stock, now, catalog_lang
         )
         for estimate in estimates:
             body += f"\n{format_production_line(estimate['queue_count'], estimate, lang)}"
@@ -168,10 +173,14 @@ def format_production_line(queue_count: int, estimate: dict, lang: str = "pt-BR"
 
 
 def build_stock_block(
-    stock_by_building: dict[models.Building, list[models.StockEntry]], now: datetime, lang: str = "pt-BR"
+    stock_by_building: dict[models.Building, list[models.StockEntry]],
+    now: datetime,
+    lang: str = "pt-BR",
+    catalog_lang: str | None = None,
 ) -> str:
     paragraphs = [
-        build_building_paragraph(building, entries, now, lang) for building, entries in stock_by_building.items()
+        build_building_paragraph(building, entries, now, lang, catalog_lang)
+        for building, entries in stock_by_building.items()
     ]
     return "\n\n".join(paragraphs)
 
@@ -193,7 +202,8 @@ def compute_recommendations(totals: list[ResourceTotal], max_items: int = 3) -> 
     return (with_pct + without_pct)[:max_items]
 
 
-def build_recommendation_block(totals: list[ResourceTotal], lang: str = "pt-BR") -> str:
+def build_recommendation_block(totals: list[ResourceTotal], lang: str = "pt-BR", catalog_lang: str | None = None) -> str:
+    catalog_lang = catalog_lang or lang
     title = _t("recommendation_title", lang)
     if not totals:
         return f"{title}\n{_t('recommendation_no_data', lang)}"
@@ -216,7 +226,7 @@ def build_recommendation_block(totals: list[ResourceTotal], lang: str = "pt-BR")
         else:
             justification = _t("justification_no_target", lang, qty=qty_text)
         icon_prefix = f"{resource.icon} " if resource.icon else ""
-        display_name = crud.resolve_resource_name(resource, lang)
+        display_name = crud.resolve_resource_name(resource, catalog_lang)
         lines.append(f"{i}. {icon_prefix}**{display_name}** — {justification}")
     return f"{title}\n" + "\n".join(lines)
 
@@ -269,18 +279,21 @@ def generate_report(
     stock_by_building: dict[models.Building, list[models.StockEntry]],
     now: datetime | None = None,
     lang: str = "pt-BR",
+    catalog_lang: str | None = None,
 ) -> dict:
     now = now or datetime.now()
+    catalog_lang = catalog_lang or lang
     totals = _aggregate_resource_totals(stock_by_building)
 
     header_block = build_header_block(facility, now, lang)
-    stock_block = build_stock_block(stock_by_building, now, lang)
-    recommendation_block = build_recommendation_block(totals, lang)
+    stock_block = build_stock_block(stock_by_building, now, lang, catalog_lang)
+    recommendation_block = build_recommendation_block(totals, lang, catalog_lang)
 
     markdown_content = "\n\n".join([header_block, stock_block, recommendation_block])
 
     building_paragraphs = [
-        build_building_paragraph(building, entries, now, lang) for building, entries in stock_by_building.items()
+        build_building_paragraph(building, entries, now, lang, catalog_lang)
+        for building, entries in stock_by_building.items()
     ]
     paragraphs = [header_block, *building_paragraphs, recommendation_block]
     parts = split_for_discord(paragraphs, lang=lang)
@@ -294,7 +307,7 @@ def generate_report(
                 "role": building.role,
                 "entries": [
                     {
-                        "resource": crud.resolve_resource_name(entry.resource, lang),
+                        "resource": crud.resolve_resource_name(entry.resource, catalog_lang),
                         "icon": entry.resource.icon,
                         "quantity": entry.quantity,
                     }

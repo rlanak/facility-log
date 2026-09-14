@@ -274,6 +274,19 @@ const i18n = (() => {
     localStorage.setItem("lang", lang);
   }
 
+  // The Foxhole catalog (building/item names) can be shown in a different
+  // language than the UI chrome — e.g. interface in pt-BR but building/item
+  // names always in English, since that's how players actually talk about
+  // them in-game/on Discord regardless of their own UI language. Falls back
+  // to the UI language until the user explicitly picks a catalog language.
+  function getCatalogLang() {
+    return localStorage.getItem("catalogLang") || getLang();
+  }
+
+  function setCatalogLang(lang) {
+    localStorage.setItem("catalogLang", lang);
+  }
+
   function t(key, vars) {
     const table = STRINGS[getLang()] || STRINGS[DEFAULT_LANG];
     let str = table[key] ?? STRINGS[DEFAULT_LANG][key] ?? key;
@@ -303,7 +316,7 @@ const i18n = (() => {
   // name_en/name_pt directly — this just picks the right one.
   function catalogName(def) {
     if (!def) return "";
-    return (getLang() === "en-US" ? def.name_en : def.name_pt || def.name_en) || "";
+    return (getCatalogLang() === "en-US" ? def.name_en : def.name_pt || def.name_en) || "";
   }
 
   function resourceName(resource, foxholeResourceDefs) {
@@ -318,5 +331,5 @@ const i18n = (() => {
     return catalogName(foxholeType) || building.name;
   }
 
-  return { t, getLang, setLang, applyStaticText, catalogName, resourceName, buildingName };
+  return { t, getLang, setLang, getCatalogLang, setCatalogLang, applyStaticText, catalogName, resourceName, buildingName };
 })();

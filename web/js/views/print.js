@@ -277,6 +277,7 @@ views.print = (() => {
       );
 
       const existing = resources.find((r) => r.resource_def_key === item.resource_def_key);
+      const catalogName = i18n.getCatalogLang() === "en-US" ? item.name_en : item.name_pt || item.name_en;
 
       crops.push({
         localId: nextLocalId++,
@@ -286,7 +287,7 @@ views.print = (() => {
         displayH: box.height / scaleY,
         box,
         thumbDataUrl: thumbCanvas.toDataURL("image/png"),
-        resourceName: existing ? existing.name : item.name_en,
+        resourceName: existing ? existing.name : catalogName,
         resourceDefKey: item.resource_def_key,
         // quantity_guess strips non-digit characters, which also strips a
         // k/K/m/M magnitude suffix ("53k" -> "53") -- using it as the

@@ -68,7 +68,9 @@ def set_building_production(
 
 
 @router.get("/api/buildings/{building_id}/production-estimate", response_model=list[schemas.ProductionEstimateOut])
-def get_production_estimate(building_id: int, lang: str = "pt-BR", db: Session = Depends(get_db)):
+def get_production_estimate(
+    building_id: int, lang: str = "pt-BR", catalog_lang: str | None = None, db: Session = Depends(get_db)
+):
     building = crud.get_building(db, building_id)
     if not building:
         raise HTTPException(status_code=404, detail=err("building_not_found", lang))
@@ -76,5 +78,5 @@ def get_production_estimate(building_id: int, lang: str = "pt-BR", db: Session =
         return []
     current_stock = crud.get_current_stock_by_resource_def(db, building_id)
     return production.estimate_building_slots(
-        building.building_type_key, building.production_slots, current_stock, datetime.now(), lang
+        building.building_type_key, building.production_slots, current_stock, datetime.now(), catalog_lang or lang
     )

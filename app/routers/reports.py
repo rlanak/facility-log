@@ -24,13 +24,13 @@ def _to_report_out(report: models.Report) -> schemas.ReportOut:
 
 
 @router.post("/api/facilities/{facility_id}/reports", response_model=schemas.ReportOut, status_code=201)
-def create_report(facility_id: int, lang: str = "pt-BR", db: Session = Depends(get_db)):
+def create_report(facility_id: int, lang: str = "pt-BR", catalog_lang: str | None = None, db: Session = Depends(get_db)):
     facility = crud.get_facility(db, facility_id)
     if not facility:
         raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
 
     stock_by_building = crud.get_current_stock_for_facility(db, facility_id)
-    result = generate_report(facility, stock_by_building, lang=lang)
+    result = generate_report(facility, stock_by_building, lang=lang, catalog_lang=catalog_lang or lang)
 
     report = crud.create_report(
         db,

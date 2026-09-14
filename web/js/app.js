@@ -30,6 +30,13 @@
       i18n.setLang(select.value);
       location.reload();
     });
+
+    const catalogSelect = document.getElementById("catalog-lang-switcher");
+    catalogSelect.value = i18n.getCatalogLang();
+    catalogSelect.addEventListener("change", () => {
+      i18n.setCatalogLang(catalogSelect.value);
+      location.reload();
+    });
   }
 
   document.documentElement.lang = i18n.getLang();

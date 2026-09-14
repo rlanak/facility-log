@@ -43,7 +43,7 @@ def delete_facility(facility_id: int, lang: str = "pt-BR", db: Session = Depends
 
 
 @router.get("/{facility_id}/stock", response_model=list[schemas.BuildingStockOut])
-def get_facility_stock(facility_id: int, lang: str = "pt-BR", db: Session = Depends(get_db)):
+def get_facility_stock(facility_id: int, lang: str = "pt-BR", catalog_lang: str | None = None, db: Session = Depends(get_db)):
     facility = crud.get_facility(db, facility_id)
     if not facility:
         raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
@@ -55,7 +55,7 @@ def get_facility_stock(facility_id: int, lang: str = "pt-BR", db: Session = Depe
                 schemas.StockEntryOut(
                     id=e.id,
                     resource_id=e.resource_id,
-                    resource_name=crud.resolve_resource_name(e.resource, lang),
+                    resource_name=crud.resolve_resource_name(e.resource, catalog_lang or lang),
                     resource_icon=e.resource.icon,
                     quantity=e.quantity,
                     source=e.source,
