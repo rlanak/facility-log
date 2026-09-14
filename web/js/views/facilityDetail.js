@@ -303,8 +303,23 @@ views.facilityDetail = (() => {
           btn.dataset.current || ""
         );
         if (raw === null) return;
-        const qty = raw.trim();
+        let qty = raw.trim();
         if (!qty) return;
+
+        // Tanks are shown/thought of in liters, but stock is tracked in
+        // resource units (galões) — accept a trailing L and convert so the
+        // user doesn't have to do that math by hand (e.g. "5000L" for a
+        // full 50L/unit tank instead of typing "100").
+        const litersMatch = qty.match(/^([\d.,]+)\s*[lL]$/);
+        if (litersMatch) {
+          const liters = parseFloat(litersMatch[1].replace(",", "."));
+          if (isNaN(liters)) {
+            ui.toast(i18n.t("resources.invalidNumber"), true);
+            return;
+          }
+          qty = String(Math.round((liters / def.liters_per_unit) * 100) / 100);
+        }
+
         try {
           await api.addBuildingStock(building.id, [
             { resource_name: def.name_en, quantity_raw: qty, resource_def_key: key },
