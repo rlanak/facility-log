@@ -141,7 +141,7 @@
         "time_seconds": 270
       }
     ],
-    "icon": "/assets/foxhole/structures/FacilityRefinery2Icon.png",
+    "icon": "/assets/foxhole/structures/CoalRefinery.png",
     "name_pt": "Refinaria de Carvão"
   },
   "materials_factory": {
@@ -358,7 +358,7 @@
         "time_seconds": 25
       }
     ],
-    "icon": "/assets/foxhole/structures/MetalworksFactoryBase.png",
+    "icon": "/assets/foxhole/structures/MaterialsFactory.png",
     "name_pt": "Fábrica de Materiais"
   },
   "metalworks_factory": {
@@ -683,7 +683,7 @@
         "time_seconds": 90
       }
     ],
-    "icon": "/assets/foxhole/structures/MetalworksFactoryBase.png",
+    "icon": "/assets/foxhole/structures/MetalworksFactory.png",
     "name_pt": "Metalúrgica"
   },
   "oil_refinery": {
@@ -781,7 +781,7 @@
         "note": "only one upgrade module can be installed at a time"
       }
     ],
-    "icon": "/assets/foxhole/structures/OilRefineryMod2Icon.png",
+    "icon": "/assets/foxhole/structures/OilRefinery.png",
     "name_pt": "Refinaria de Petróleo"
   },
   "ammunition_factory": {
@@ -1472,7 +1472,7 @@
         "time_seconds": 25
       }
     ],
-    "icon": "/assets/foxhole/structures/FacilitySmallArmsFactoryIcon.png",
+    "icon": "/assets/foxhole/structures/AmmunitionFactory.png",
     "name_pt": "Fábrica de Munição"
   },
   "infantry_kit_factory": {
@@ -2261,7 +2261,7 @@
         "time_seconds": 7200
       }
     ],
-    "icon": "/assets/foxhole/structures/FacilitySmallArmsFactoryIcon.png",
+    "icon": "/assets/foxhole/structures/InfantryKitFactory.png",
     "name_pt": "Fábrica de Kits de Infantaria"
   },
   "aircraft_maintenance_factory": {
@@ -2462,7 +2462,7 @@
         "time_seconds": 300
       }
     ],
-    "icon": "/assets/foxhole/structures/FacilityFactoryAircraftIcon.png",
+    "icon": "/assets/foxhole/structures/AircraftMaintenanceFactory.png",
     "name_pt": "Fábrica de Manutenção de Aeronaves"
   },
   "concrete_mixer": {

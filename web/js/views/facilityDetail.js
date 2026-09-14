@@ -278,17 +278,14 @@ views.facilityDetail = (() => {
             : ""
         }
         <div class="flex gap-2 mt-3 flex-wrap">
-          <button class="toggle-stock-form text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.launchStock")}</button>
-          <button class="toggle-print-form text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.sendPrint")}</button>
+          <button class="open-stock-modal text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.launchStock")}</button>
+          <button class="open-print-modal text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.sendPrint")}</button>
           ${
             foxholeType
-              ? `<button class="toggle-production-form text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.production")}</button>`
+              ? `<button class="open-production-modal text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.production")}</button>`
               : ""
           }
         </div>
-        <div class="stock-form-container hidden mt-3"></div>
-        <div class="print-form-container hidden mt-3"></div>
-        <div class="production-form-container hidden mt-3"></div>
       </div>
     `;
 
@@ -333,32 +330,37 @@ views.facilityDetail = (() => {
       onChange();
     });
 
-    const toggleBtn = card.querySelector(".toggle-stock-form");
-    const formContainer = card.querySelector(".stock-form-container");
-    toggleBtn.addEventListener("click", () => {
-      formContainer.classList.toggle("hidden");
-      if (!formContainer.classList.contains("hidden") && formContainer.children.length === 0) {
-        buildStockForm(formContainer, building, foxholeType, onChange);
-      }
+    card.querySelector(".open-stock-modal").addEventListener("click", () => {
+      ui.openModal(`${i18n.t("facilityDetail.launchStock")} — ${buildingDisplayName}`, (body, close) => {
+        buildStockForm(body, building, foxholeType, () => {
+          onChange();
+          close();
+        });
+      });
     });
 
-    const togglePrintBtn = card.querySelector(".toggle-print-form");
-    const printContainer = card.querySelector(".print-form-container");
-    togglePrintBtn.addEventListener("click", () => {
-      printContainer.classList.toggle("hidden");
-      if (!printContainer.classList.contains("hidden")) {
-        views.print.renderCaptureUI(printContainer, building, onChange);
-      }
+    card.querySelector(".open-print-modal").addEventListener("click", () => {
+      ui.openModal(
+        `${i18n.t("facilityDetail.sendPrint")} — ${buildingDisplayName}`,
+        (body, close) => {
+          views.print.renderCaptureUI(body, building, () => {
+            onChange();
+            close();
+          });
+        },
+        { maxWidth: "max-w-3xl" }
+      );
     });
 
-    const toggleProductionBtn = card.querySelector(".toggle-production-form");
-    if (toggleProductionBtn) {
-      const productionContainer = card.querySelector(".production-form-container");
-      toggleProductionBtn.addEventListener("click", () => {
-        productionContainer.classList.toggle("hidden");
-        if (!productionContainer.classList.contains("hidden")) {
-          buildProductionForm(productionContainer, building, foxholeType, onChange);
-        }
+    const productionBtn = card.querySelector(".open-production-modal");
+    if (productionBtn) {
+      productionBtn.addEventListener("click", () => {
+        ui.openModal(`${i18n.t("facilityDetail.production")} — ${buildingDisplayName}`, (body, close) => {
+          buildProductionForm(body, building, foxholeType, () => {
+            onChange();
+            close();
+          });
+        });
       });
     }
 
