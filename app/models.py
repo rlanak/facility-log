@@ -87,6 +87,12 @@ class StockEntry(Base):
     building_id: Mapped[int] = mapped_column(ForeignKey("buildings.id"))
     resource_id: Mapped[int] = mapped_column(ForeignKey("resources.id"))
     quantity: Mapped[float] = mapped_column()
+    # "normal" (crate/warehouse stock, unlimited — the default, used for every
+    # resource) or "tank" (a liquid's 5000L building tank, capped). The same
+    # liquid resource can have a current value in both at once — once the
+    # tank is full, the game starts stacking the overflow as ordinary crates
+    # instead. See memory/liquid_tank_system.md.
+    storage: Mapped[str] = mapped_column(String(10), default="normal")
     source: Mapped[str] = mapped_column(String(20), default="manual")
     source_image_id: Mapped[int | None] = mapped_column(ForeignKey("upload_images.id"), default=None)
     recorded_at: Mapped[datetime] = mapped_column(default=utcnow, index=True)
@@ -114,5 +120,12 @@ class Report(Base):
     generated_at: Mapped[datetime] = mapped_column(default=utcnow, index=True)
     markdown_content: Mapped[str] = mapped_column(Text)
     stock_snapshot: Mapped[str] = mapped_column(Text)
+    # Paragraphs used to (re)build the Discord parts — kept separate from
+    # markdown_content because the Discord version is a consolidated
+    # facility-wide total, not the per-building breakdown shown in the
+    # "Estoque Atual" block/tab. lang is stored too so history reopens the
+    # "Parte X/Y" labels in whatever language the report was generated in.
+    discord_content: Mapped[str] = mapped_column(Text, default="")
+    lang: Mapped[str] = mapped_column(String(10), default="pt-BR")
 
     facility: Mapped["Facility"] = relationship(back_populates="reports")

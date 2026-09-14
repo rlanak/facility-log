@@ -16,7 +16,10 @@ views.facilityDetail = (() => {
       for (const io of [...recipe.inputs, ...recipe.outputs]) {
         if (!io.resource || seen.has(io.resource)) continue;
         const def = foxholeResourceDefs[io.resource];
-        if (def && def.is_liquid) continue; // liquids get their own Tanque de Líquido section, not the crate form
+        // Liquids get BOTH the Tanque de Líquido section (tank storage, capped
+        // at 5000L) AND a normal-form row here (crate storage, unlimited) —
+        // once a liquid's tank is full, further production stacks as crates
+        // on the shelf just like any other resource. See memory/liquid_tank_system.md.
         seen.set(io.resource, { key: io.resource, name: def ? i18n.catalogName(def) : io.resource, icon: def ? def.icon : null });
       }
     }
@@ -214,7 +217,10 @@ views.facilityDetail = (() => {
         .map(([key]) => allResources.find((r) => r.resource_def_key === key)?.id)
         .filter((id) => id != null)
     );
-    const nonLiquidStock = stock.filter((s) => !liquidResourceIds.has(s.resource_id));
+    // Only the tank row is pulled into its own section below — a liquid's
+    // crate/"normal" stock (overflow once the tank's full) shows here like
+    // any other resource.
+    const nonLiquidStock = stock.filter((s) => !(liquidResourceIds.has(s.resource_id) && s.storage === "tank"));
 
     const iconPanel =
       foxholeType && foxholeType.icon
@@ -259,7 +265,7 @@ views.facilityDetail = (() => {
                  ${liquidKeys
                    .map(([key, def]) => {
                      const resource = allResources.find((r) => r.resource_def_key === key);
-                     const entry = resource ? stock.find((s) => s.resource_id === resource.id) : null;
+                     const entry = resource ? stock.find((s) => s.resource_id === resource.id && s.storage === "tank") : null;
                      const units = entry ? entry.quantity : 0;
                      const liters = Math.round(units * def.liters_per_unit);
                      const pct = Math.min(100, (liters / 5000) * 100);
@@ -322,7 +328,7 @@ views.facilityDetail = (() => {
 
         try {
           await api.addBuildingStock(building.id, [
-            { resource_name: def.name_en, quantity_raw: qty, resource_def_key: key },
+            { resource_name: def.name_en, quantity_raw: qty, resource_def_key: key, storage: "tank" },
           ]);
           onChange();
         } catch (err) {
@@ -398,7 +404,10 @@ views.facilityDetail = (() => {
 
   function formatProductionLine(estimate) {
     if (estimate.cycles <= 0) {
-      const needed = estimate.inputs_per_cycle.map((i) => `${i.qty} ${i.name}`).join(", ");
+      const missing = estimate.inputs_per_cycle.filter((i) => (i.available ?? 0) < i.qty);
+      const needed = missing
+        .map((i) => i18n.t("facilityDetail.production.missingItem", { qty: i.qty, name: i.name, available: i.available ?? 0 }))
+        .join(", ");
       return i18n.t("facilityDetail.production.insufficient", { queue: estimate.queue_count, needed });
     }
     const eta = new Date(estimate.eta).toLocaleTimeString(i18n.getLang(), { hour: "2-digit", minute: "2-digit" });
@@ -572,6 +581,7 @@ views.facilityDetail = (() => {
           resource_name: current ? current.name : def.name_en,
           quantity_raw: qty,
           resource_def_key: input.dataset.key,
+          storage: "normal",
         });
       });
       if (entries.length === 0) {

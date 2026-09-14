@@ -39,6 +39,9 @@ _ADDED_COLUMNS = [
     ("buildings", "active_recipe_key", "VARCHAR(80)"),
     ("buildings", "queue_count", "INTEGER DEFAULT 0"),
     ("buildings", "production_slots", "TEXT DEFAULT '[]'"),
+    ("stock_entries", "storage", "VARCHAR(10) DEFAULT 'normal'"),
+    ("reports", "discord_content", "TEXT DEFAULT ''"),
+    ("reports", "lang", "VARCHAR(10) DEFAULT 'pt-BR'"),
 ]
 
 

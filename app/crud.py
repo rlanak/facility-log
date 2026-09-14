@@ -171,13 +171,18 @@ def update_building_production(
 
 
 def get_current_stock_for_building(db: Session, building_id: int) -> list[models.StockEntry]:
+    # Grouped by (resource_id, storage), not just resource_id: a liquid can
+    # have a current value in both its tank and its crate stock at once (see
+    # StockEntry.storage), and each needs its own "latest entry" independent
+    # of the other.
     latest_ids_subq = (
         select(
             models.StockEntry.resource_id,
+            models.StockEntry.storage,
             func.max(models.StockEntry.id).label("max_id"),
         )
         .where(models.StockEntry.building_id == building_id)
-        .group_by(models.StockEntry.resource_id)
+        .group_by(models.StockEntry.resource_id, models.StockEntry.storage)
         .subquery()
     )
     entries = db.scalars(
@@ -198,8 +203,16 @@ def get_current_stock_for_facility(db: Session, facility_id: int) -> dict[models
 
 
 def get_current_stock_by_resource_def(db: Session, building_id: int) -> dict[str, float]:
+    """Current stock per Foxhole resource key, for production math — tank and
+    crate quantities of the same liquid are summed, since a recipe can draw
+    on both (this app doesn't model the tank/crate distinction at the
+    production-input level, just at the stock-keeping level)."""
     entries = get_current_stock_for_building(db, building_id)
-    return {e.resource.resource_def_key: e.quantity for e in entries if e.resource.resource_def_key}
+    totals: dict[str, float] = {}
+    for e in entries:
+        if e.resource.resource_def_key:
+            totals[e.resource.resource_def_key] = totals.get(e.resource.resource_def_key, 0) + e.quantity
+    return totals
 
 
 def add_stock_entries(
@@ -216,8 +229,14 @@ def add_stock_entries(
     for entry, quantity in parsed:
         resource = get_or_create_resource(db, entry.resource_name, entry.resource_def_key)
         def_key = entry.resource_def_key or resource.resource_def_key
-        max_units = foxhole_data.liquid_tank_max_units(def_key) if def_key else None
-        if max_units is not None and quantity > max_units:
+        # Cap only applies to the tank itself — crate/"normal" stock of the
+        # same liquid has no limit, same as any other resource.
+        max_units = foxhole_data.liquid_tank_max_units(def_key) if def_key and entry.storage == "tank" else None
+        # Rounded to 2 decimals on both sides: the frontend's "5000L" ->
+        # units conversion rounds to 2 decimals before submitting, which can
+        # land a hair above the backend's full-precision max (e.g. 166.67 vs
+        # 166.666...) and falsely trip this check for an exact full tank.
+        if max_units is not None and round(quantity, 2) > round(max_units, 2):
             raise ValueError(
                 errors_i18n.err("liquid_tank_exceeded", lang).format(
                     name=resolve_resource_name(resource, catalog_lang), max=round(max_units, 1)
@@ -227,6 +246,7 @@ def add_stock_entries(
             building_id=building_id,
             resource_id=resource.id,
             quantity=quantity,
+            storage=entry.storage,
             source=entry.source,
             source_image_id=entry.source_image_id,
         )
@@ -260,9 +280,20 @@ def get_building_images(db: Session, building_id: int) -> list[models.UploadImag
     )
 
 
-def create_report(db: Session, facility_id: int, markdown_content: str, stock_snapshot: str) -> models.Report:
+def create_report(
+    db: Session,
+    facility_id: int,
+    markdown_content: str,
+    stock_snapshot: str,
+    discord_content: str = "",
+    lang: str = "pt-BR",
+) -> models.Report:
     report = models.Report(
-        facility_id=facility_id, markdown_content=markdown_content, stock_snapshot=stock_snapshot
+        facility_id=facility_id,
+        markdown_content=markdown_content,
+        stock_snapshot=stock_snapshot,
+        discord_content=discord_content,
+        lang=lang,
     )
     db.add(report)
     db.commit()

@@ -86,7 +86,8 @@ const i18n = (() => {
       "facilityDetail.qtyPlaceholder": "Qtd (ex: 25.7k)",
       "facilityDetail.freeformHint": "Aceita formatos como {ex1}, {ex2} ou {ex3}.",
       "facilityDetail.fillOneRow": "Preencha pelo menos uma linha.",
-      "facilityDetail.production.insufficient": "⚙️ {queue}x em produção configurada — estoque insuficiente pra 1 ciclo (precisa de {needed} por ciclo).",
+      "facilityDetail.production.insufficient": "⚙️ {queue}x em produção configurada — estoque insuficiente pra 1 ciclo. Faltando: {needed}.",
+      "facilityDetail.production.missingItem": "{qty} {name} (tem {available})",
       "facilityDetail.production.line": "⚙️ {queue}x em produção — {cycles} ciclos com o estoque atual, pronto em {duration} (~{eta}): {outputs}",
       "facilityDetail.production.leftover": ". Sobra: {leftovers}",
 
@@ -217,7 +218,8 @@ const i18n = (() => {
       "facilityDetail.qtyPlaceholder": "Qty (e.g. 25.7k)",
       "facilityDetail.freeformHint": "Accepts formats like {ex1}, {ex2}, or {ex3}.",
       "facilityDetail.fillOneRow": "Fill in at least one row.",
-      "facilityDetail.production.insufficient": "⚙️ {queue}x production set up — not enough stock for 1 cycle (needs {needed} per cycle).",
+      "facilityDetail.production.insufficient": "⚙️ {queue}x production set up — not enough stock for 1 cycle. Missing: {needed}.",
+      "facilityDetail.production.missingItem": "{qty} {name} (have {available})",
       "facilityDetail.production.line": "⚙️ {queue}x in production — {cycles} cycles with current stock, ready in {duration} (~{eta}): {outputs}",
       "facilityDetail.production.leftover": ". Leftover: {leftovers}",
 

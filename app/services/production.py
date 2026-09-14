@@ -42,15 +42,18 @@ def estimate_production(
     total_time_seconds = rounds * recipe["time_seconds"]
     eta = now + timedelta(seconds=total_time_seconds)
 
-    def items(io_list, qty_multiplier):
-        return [
-            {
+    def items(io_list, qty_multiplier, with_available=False):
+        result = []
+        for io in io_list:
+            item = {
                 "resource": io["resource"],
                 "name": foxhole_data.resource_display_name(io["resource"], lang),
                 "qty": io.get("qty", 1) * qty_multiplier,
             }
-            for io in io_list
-        ]
+            if with_available:
+                item["available"] = current_stock.get(io["resource"], 0)
+            result.append(item)
+        return result
 
     outputs = items(recipe["outputs"], total_cycles)
     inputs_consumed = items(tracked_inputs, total_cycles)
@@ -71,7 +74,9 @@ def estimate_production(
         # Unmultiplied per-cycle requirement (inputs_consumed is total_cycles * qty,
         # which is all zero when total_cycles is 0 — callers need this one instead
         # to report how much is actually needed when stock can't sustain a cycle).
-        "inputs_per_cycle": items(tracked_inputs, 1),
+        # Carries "available" too, so callers can point out exactly which
+        # input(s) are the actual bottleneck instead of listing all of them.
+        "inputs_per_cycle": items(tracked_inputs, 1, with_available=True),
         "leftovers": leftovers,
     }
 

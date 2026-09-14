@@ -85,6 +85,7 @@ class ProductionEstimateItem(BaseModel):
     resource: str
     name: str
     qty: float
+    available: float | None = None
 
 
 class ProductionEstimateOut(BaseModel):
@@ -108,6 +109,7 @@ class StockEntryIn(BaseModel):
     source: str = "manual"
     source_image_id: int | None = None
     resource_def_key: str | None = None
+    storage: str = "normal"
 
 
 class StockEntryOut(BaseModel):
@@ -117,6 +119,7 @@ class StockEntryOut(BaseModel):
     resource_name: str
     resource_icon: str
     quantity: float
+    storage: str
     source: str
     recorded_at: datetime
 

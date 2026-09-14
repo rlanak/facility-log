@@ -12,14 +12,14 @@ router = APIRouter(tags=["reports"])
 
 
 def _to_report_out(report: models.Report) -> schemas.ReportOut:
-    paragraphs = report.markdown_content.split("\n\n")
+    discord_paragraphs = (report.discord_content or report.markdown_content).split("\n\n")
     return schemas.ReportOut(
         id=report.id,
         facility_id=report.facility_id,
         generated_at=report.generated_at,
         markdown_content=report.markdown_content,
         blocks=extract_blocks(report.markdown_content),
-        parts=split_for_discord(paragraphs),
+        parts=split_for_discord(discord_paragraphs, lang=report.lang),
     )
 
 
@@ -30,13 +30,16 @@ def create_report(facility_id: int, lang: str = "pt-BR", catalog_lang: str | Non
         raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
 
     stock_by_building = crud.get_current_stock_for_facility(db, facility_id)
-    result = generate_report(facility, stock_by_building, lang=lang, catalog_lang=catalog_lang or lang)
+    all_resources = crud.get_resources(db)
+    result = generate_report(facility, stock_by_building, all_resources, lang=lang, catalog_lang=catalog_lang or lang)
 
     report = crud.create_report(
         db,
         facility_id=facility_id,
         markdown_content=result["markdown_content"],
         stock_snapshot=json.dumps(result["snapshot"], ensure_ascii=False),
+        discord_content=result["discord_content"],
+        lang=lang,
     )
     return schemas.ReportOut(
         id=report.id,
