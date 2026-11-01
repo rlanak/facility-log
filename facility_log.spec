@@ -5,6 +5,8 @@
 # vendor/tesseract/ and vendor/msupps-parser/ to already exist.
 from pathlib import Path
 
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+
 ROOT = Path(SPECPATH)
 
 datas = [
@@ -12,6 +14,9 @@ datas = [
     (str(ROOT / "data" / "foxhole"), "data/foxhole"),
     (str(ROOT / "vendor" / "tesseract"), "tesseract"),
     (str(ROOT / "vendor" / "msupps-parser"), "msupps-parser"),
+    # RapidOCR's ONNX models + yaml configs ship inside the package; without
+    # them it would try to download models on first use.
+    *collect_data_files("rapidocr"),
 ]
 
 hiddenimports = [
@@ -27,6 +32,8 @@ hiddenimports = [
     "uvicorn.lifespan",
     "uvicorn.lifespan.on",
     "python_multipart",
+    # Loaded by name from its config, invisible to static analysis.
+    *collect_submodules("rapidocr"),
 ]
 
 a = Analysis(

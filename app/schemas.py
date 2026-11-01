@@ -220,3 +220,32 @@ class SavePinLink(BaseModel):
 class CodenameAliasIn(BaseModel):
     codename: str
     resource_def_key: str
+
+
+class CaptureProviderStatus(BaseModel):
+    available: bool
+    detail: str
+
+
+class CaptureSettingsIn(BaseModel):
+    capture_provider: str | None = None
+    ollama_url: str | None = None
+    ollama_model: str | None = None
+    api_kind: str | None = None
+    api_base_url: str | None = None
+    api_model: str | None = None
+    api_key: str | None = None
+    clear_api_key: bool = False
+
+
+class CaptureSettingsOut(BaseModel):
+    capture_provider: str
+    ollama_url: str
+    ollama_model: str
+    api_kind: str
+    api_base_url: str
+    api_model: str
+    api_key_set: bool
+    api_key_hint: str
+    providers: dict[str, CaptureProviderStatus]
+    ollama_vision_models: list[str]

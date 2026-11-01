@@ -85,9 +85,28 @@ def _composite_icon(icon_rgba, size: int, bg_value: float):
     return cv2.cvtColor(composite.astype(np.uint8), cv2.COLOR_BGR2GRAY)
 
 
-def detect_items(image_path: Path, box: tuple[int, int, int, int]) -> list[dict]:
+# Share of near-white pixels in a slot's number box. Measured on 12 real
+# screenshots: every slot showing a quantity had >= 0.03, every greyed-out
+# slot ~0.0 — the quantity is the only bright white thing in that corner.
+WHITE_LEVEL = 225
+MIN_WHITE_FRACTION = 0.02
+
+
+def _has_white_text(img_bgr, box: tuple[int, int, int, int]) -> bool:
+    import cv2
+
+    x0, y0, x1, y1 = box
+    crop = img_bgr[max(0, y0):y1, max(0, x0):x1]
+    if crop.size == 0:
+        return False
+    gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+    return float((gray > WHITE_LEVEL).mean()) >= MIN_WHITE_FRACTION
+
+
+def detect_items(image_path: Path, box: tuple[int, int, int, int], read_number=None) -> list[dict]:
     """box is (x0, y0, x1, y1) in the full screenshot's own pixel space,
-    covering the STOCKPILE > ITEMS panel the user selected. Returns one dict
+    covering the STOCKPILE > ITEMS panel the user selected. `read_number(path,
+    box)` reads one quantity (defaults to Tesseract). Returns one dict
     per confidently-identified slot, sorted top-to-bottom/left-to-right."""
     import cv2
 
@@ -160,7 +179,17 @@ def detect_items(image_path: Path, box: tuple[int, int, int, int]) -> list[dict]
         # returns nothing, where psm 11 just picks the digit cluster out and
         # ignores the rest. Confirmed against a real screenshot: psm 7 came
         # back empty, psm 11 read "5.1K" correctly.
-        ocr = ocr_service.read_crop(image_path, number_box, psm=11)
+        # read_number: the user's chosen engine (services/capture) — icon
+        # matching only decides *which* item; reading the digits is pluggable.
+        if not _has_white_text(img, number_box):
+            # Greyed-out/empty slot: skip the read entirely. A vision model
+            # asked about an empty crop happily answers "1" (seen on real
+            # screenshots), and OCR returns junk — and it's a wasted call.
+            ocr = {"available": True, "raw_text": "", "guess": ""}
+        elif read_number:
+            ocr = read_number(image_path, number_box)
+        else:
+            ocr = ocr_service.read_crop(image_path, number_box, psm=11)
 
         detected.append(
             {

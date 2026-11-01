@@ -6,12 +6,20 @@ from sqlalchemy.orm import Session
 
 from app import crud, schemas
 from app.database import UPLOADS_DIR, get_db
-from app.services import icon_match_service, ocr_service
+from app.services import capture, icon_match_service
 from app.services.errors_i18n import err
 
 router = APIRouter(tags=["images"])
 
 ALLOWED_CONTENT_TYPES = {"image/png", "image/jpeg", "image/webp"}
+
+
+def _image_path(image) -> Path:
+    # file_path is stored absolute; if the app folder moved since upload
+    # (it did once), fall back to the same
+    # file name under the current uploads folder.
+    path = Path(image.file_path)
+    return path if path.is_file() else UPLOADS_DIR / path.name
 
 
 def _image_to_out(image) -> schemas.UploadImageOut:
@@ -49,9 +57,14 @@ async def upload_building_image(building_id: int, file: UploadFile, lang: str = 
 
 
 @router.get("/api/ocr/status")
-def ocr_status():
+def ocr_status(db: Session = Depends(get_db)):
+    chosen, effective, _reader = capture.resolve_reader(db)
     return {
-        "available": ocr_service.is_available(),
+        "available": bool(effective),
+        # The engine picked in Configurações vs the one that will actually
+        # read (differs when the chosen one is unavailable, e.g. Ollama off).
+        "provider": chosen,
+        "effective_provider": effective,
         "stockpile_detect_available": icon_match_service.is_available(),
     }
 
@@ -62,9 +75,8 @@ def read_image_crop(image_id: int, box: schemas.OcrCropRequest, lang: str = "pt-
     if not image:
         raise HTTPException(status_code=404, detail=err("image_not_found", lang))
 
-    result = ocr_service.read_crop(
-        Path(image.file_path), (box.x, box.y, box.x + box.width, box.y + box.height)
-    )
+    _chosen, _effective, reader = capture.resolve_reader(db)
+    result = capture.read_number(reader, _image_path(image), (box.x, box.y, box.x + box.width, box.y + box.height))
     return schemas.OcrResult(**result)
 
 
@@ -76,7 +88,10 @@ def detect_stockpile(image_id: int, box: schemas.OcrCropRequest, lang: str = "pt
     if not icon_match_service.is_available():
         return schemas.StockpileDetectionOut(available=False, items=[])
 
+    _chosen, _effective, reader = capture.resolve_reader(db)
     items = icon_match_service.detect_items(
-        Path(image.file_path), (box.x, box.y, box.x + box.width, box.y + box.height)
+        _image_path(image),
+        (box.x, box.y, box.x + box.width, box.y + box.height),
+        read_number=lambda path, number_box: capture.read_number(reader, path, number_box),
     )
     return schemas.StockpileDetectionOut(available=True, items=[schemas.DetectedStockItem(**i) for i in items])

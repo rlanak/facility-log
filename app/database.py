@@ -45,6 +45,8 @@ _ADDED_COLUMNS = [
     ("reports", "discord_content", "TEXT DEFAULT ''"),
     ("reports", "lang", "VARCHAR(10) DEFAULT 'pt-BR'"),
     ("buildings", "save_pin_key", "VARCHAR(160)"),
+    ("stock_entries", "created_by_id", "INTEGER REFERENCES users(id)"),
+    ("reports", "created_by_id", "INTEGER REFERENCES users(id)"),
 ]
 
 

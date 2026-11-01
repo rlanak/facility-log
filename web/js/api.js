@@ -76,6 +76,9 @@ const api = (() => {
     setBuildingProduction: (buildingId, data) => request("PUT", `/api/buildings/${buildingId}/production`, data),
     getProductionEstimate: (buildingId) => request("GET", `/api/buildings/${buildingId}/production-estimate`),
 
+    getCaptureSettings: () => request("GET", "/api/settings/capture"),
+    updateCaptureSettings: (data) => request("PUT", "/api/settings/capture", data),
+
     saveStatus: () => request("GET", "/api/save/status"),
     // No file = read this PC's own save (local mode); a file = an uploaded .sav (web mode).
     listSavePins: (file) => (file ? upload("/api/save/pins", file) : request("POST", "/api/save/pins")),

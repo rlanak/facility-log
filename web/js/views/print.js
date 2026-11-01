@@ -8,10 +8,18 @@ views.print = (() => {
   async function renderCaptureUI(container, building, onSaved) {
     let ocrAvailable = false;
     let detectAvailable = false;
+    let engineMessage = i18n.t("print.engineNone");
     try {
       const status = await api.ocrStatus();
       ocrAvailable = status.available;
       detectAvailable = status.stockpile_detect_available;
+      // Which engine reads the numbers is picked in Configurações; say which
+      // one is actually in use (it falls back when the chosen one is down).
+      const name = (key) => i18n.t(`settings.provider.${key}`);
+      if (!status.effective_provider) engineMessage = i18n.t("print.engineNone");
+      else if (status.effective_provider !== status.provider)
+        engineMessage = i18n.t("print.engineFallback", { chosen: name(status.provider), engine: name(status.effective_provider) });
+      else engineMessage = i18n.t("print.engine", { engine: name(status.effective_provider) });
     } catch (_) {}
 
     const resources = await api.listResources();
@@ -25,9 +33,7 @@ views.print = (() => {
 
     container.innerHTML = "";
     container.appendChild(
-      el("p", { class: "text-xs mb-2 " + (ocrAvailable ? "text-emerald-400" : "text-amber-400") },
-        ocrAvailable ? i18n.t("print.ocrAvailable") : i18n.t("print.ocrUnavailable")
-      )
+      el("p", { class: "text-xs mb-2 " + (engineMessage.startsWith("✓") ? "text-emerald-400" : "text-amber-400") }, engineMessage)
     );
 
     const dropzone = el("div", {

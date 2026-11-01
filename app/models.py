@@ -107,9 +107,46 @@ class StockEntry(Base):
     source: Mapped[str] = mapped_column(String(20), default="manual")
     source_image_id: Mapped[int | None] = mapped_column(ForeignKey("upload_images.id"), default=None)
     recorded_at: Mapped[datetime] = mapped_column(default=utcnow, index=True)
+    # Who logged it (web mode). NULL for local mode / entries from before login existed.
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), default=None)
 
     building: Mapped["Building"] = relationship(back_populates="stock_entries")
     resource: Mapped["Resource"] = relationship()
+    created_by: Mapped["User | None"] = relationship()
+
+
+class User(Base):
+    """A Discord account that logged in (web mode only — see app/auth.py).
+    Tokens are kept server-side so roles can be re-checked without asking
+    the user to log in again; they never reach the browser."""
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    discord_id: Mapped[str] = mapped_column(String(32), unique=True, index=True)
+    username: Mapped[str] = mapped_column(String(100), default="")
+    display_name: Mapped[str] = mapped_column(String(100), default="")
+    avatar_url: Mapped[str | None] = mapped_column(String(300), default=None)
+    access_token: Mapped[str] = mapped_column(String(200), default="")
+    refresh_token: Mapped[str] = mapped_column(String(200), default="")
+    token_expires_at: Mapped[int] = mapped_column(default=0)
+    roles_checked_at: Mapped[int] = mapped_column(default=0)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    last_login_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+    @property
+    def name(self) -> str:
+        return self.display_name or self.username
+
+
+class AppSetting(Base):
+    """Plain key/value app settings (capture engine choice, Ollama/API
+    config) — see services/capture. Server-wide, not per user."""
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(80), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, default="")
 
 
 class CodenameAlias(Base):
@@ -149,5 +186,7 @@ class Report(Base):
     # "Parte X/Y" labels in whatever language the report was generated in.
     discord_content: Mapped[str] = mapped_column(Text, default="")
     lang: Mapped[str] = mapped_column(String(10), default="pt-BR")
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), default=None)
 
     facility: Mapped["Facility"] = relationship(back_populates="reports")
+    created_by: Mapped["User | None"] = relationship()

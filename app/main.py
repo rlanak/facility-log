@@ -4,7 +4,7 @@ from starlette.types import Scope
 
 from app.database import UPLOADS_DIR, Base, apply_migrations, engine
 from app.paths import BUNDLE_DIR
-from app.routers import buildings, facilities, foxhole, images, reports, resources, save, stock
+from app.routers import buildings, facilities, foxhole, images, reports, resources, save, settings, stock
 
 Base.metadata.create_all(bind=engine)
 apply_migrations()
@@ -31,6 +31,7 @@ app.include_router(reports.router)
 app.include_router(images.router)
 app.include_router(foxhole.router)
 app.include_router(save.router)
+app.include_router(settings.router)
 
 app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 
