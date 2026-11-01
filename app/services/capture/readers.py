@@ -5,10 +5,11 @@ ocr_service.read_crop(): {"available", "raw_text", "guess"}.
 Which item a slot holds is always decided by icon template matching
 (icon_match_service) — that part is good (~0.85-0.97 confidence). What
 varies here is only *reading the number*, which is where Tesseract fails
-most (dropped decimal points, "1.4k" -> "14k"). Measured on 12 real
-screenshots / 30 user-confirmed values (Oct 2026, see CLAUDE.md "Captura"):
-Tesseract 5/30, RapidOCR 19/30 (before sanitizing), qwen3.5:9b on the crop
-23/30 — the misses left were icon-detection misses, not misreads.
+most (dropped decimal points, "1.4k" -> "14k"). Measured Nov 2026 on 32 real
+screenshots / 106 confirmed values (with and without an icon mod — see
+CLAUDE.md "Captura"): Tesseract 18, RapidOCR 91, glm-ocr 97, qwen3.5:9b 98,
+qwen3-vl:4b 98 (3x-9x slower than glm-ocr). glm-ocr is the recommended local
+model: as accurate in practice, by far the fastest, ~2.7GB of VRAM.
 
 A vision model asked to identify the items itself from the whole panel did
 far worse (5/30: it can't tell the stylized icons apart), which is why
@@ -29,6 +30,9 @@ from PIL import Image
 from app.services import ocr_service
 
 _KEEP_RE = re.compile(r"[0-9.,kKmM]")
+# A quantity is digits (with . or ,) and at most a trailing k/M — a stray
+# letter before the digits is noise (RapidOCR read "1" as "M1").
+_QUANTITY_RE = re.compile(r"\d[\d.,]*[kKmM]?")
 # Glyphs OCR engines/vision models commonly swap for digits in this font.
 _CONFUSABLES = str.maketrans({"O": "0", "o": "0", "I": "1", "l": "1", "|": "1", "T": "1", "S": "5", "B": "8"})
 
@@ -46,8 +50,12 @@ def sanitize(raw: str) -> dict:
     """Raw engine text -> the read_crop() result shape. Keeps only what a
     quantity can contain, after mapping look-alike letters to digits (a real
     RapidOCR read: "3T.9k" for "31.9k", '"5.1k' for "5.1k")."""
-    text = "".join(_KEEP_RE.findall((raw or "").translate(_CONFUSABLES)))
-    has_digit = any(c.isdigit() for c in text)
+    if "NONE" in (raw or "").upper():  # the vision model's "no digits" answer, not "N0NE" -> 0
+        return {"available": True, "raw_text": "", "guess": ""}
+    kept = "".join(_KEEP_RE.findall((raw or "").translate(_CONFUSABLES)))
+    match = _QUANTITY_RE.search(kept)
+    text = match.group(0) if match else ""
+    has_digit = bool(text)
     return {"available": True, "raw_text": text if has_digit else (raw or ""), "guess": text if has_digit else ""}
 
 
@@ -125,7 +133,10 @@ def read_ollama(image_path: Path, box: tuple[int, int, int, int], base_url: str,
         "stream": False,
         "think": False,
         "format": _QUANTITY_SCHEMA,
-        "options": {"temperature": 0},
+        # num_predict: a quantity never needs more than a few tokens; without a
+        # cap, glm-ocr looped on non-number crops until Ollama aborted with
+        # HTTP 500 "token repeat limit reached" (4 of 78 reads).
+        "options": {"temperature": 0, "num_predict": 32},
         "messages": [
             {"role": "user", "content": VLM_PROMPT, "images": [base64.b64encode(_crop_png(image_path, box)).decode()]}
         ],

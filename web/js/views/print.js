@@ -23,6 +23,10 @@ views.print = (() => {
     } catch (_) {}
 
     const resources = await api.listResources();
+    // The whole Foxhole catalog too, so an unrecognized slot can be named as
+    // any catalog item (and get its catalog link) — not only resources the
+    // user already has.
+    const catalog = await api.listFoxholeResources().catch(() => []);
 
     let image = null; // {id, url, naturalWidth, naturalHeight}
     let crops = []; // {localId, x,y,w,h, thumbDataUrl, resourceName, resourceDefKey, quantityRaw, ambiguous, rivalNameEn}
@@ -282,10 +286,15 @@ views.print = (() => {
         imgEl, box.x, box.y, box.width, box.height, 0, 0, box.width, box.height
       );
 
-      const existing = resources.find((r) => r.resource_def_key === item.resource_def_key);
+      // resource_def_key null = a slot with a quantity whose item wasn't
+      // recognized (e.g. a mod-redrawn icon): the user names it.
+      const existing = item.resource_def_key && resources.find((r) => r.resource_def_key === item.resource_def_key);
       const catalogName = i18n.getCatalogLang() === "en-US" ? item.name_en : item.name_pt || item.name_en;
+      const detectedName = existing ? existing.name : catalogName || "";
 
       crops.push({
+        detectedName,
+        iconBox: box,
         localId: nextLocalId++,
         displayX: box.x / scaleX,
         displayY: box.y / scaleY,
@@ -293,7 +302,7 @@ views.print = (() => {
         displayH: box.height / scaleY,
         box,
         thumbDataUrl: thumbCanvas.toDataURL("image/png"),
-        resourceName: existing ? existing.name : catalogName,
+        resourceName: detectedName,
         resourceDefKey: item.resource_def_key,
         // quantity_guess strips non-digit characters, which also strips a
         // k/K/m/M magnitude suffix ("53k" -> "53") -- using it as the
@@ -303,6 +312,7 @@ views.print = (() => {
         // (see ocr_service.read_crop), so this never shows raw garbage.
         quantityRaw: item.quantity_guess ? item.quantity_raw : "",
         ambiguous: item.ambiguous,
+        unknown: !item.resource_def_key,
         rivalNameEn: item.rival_name_en,
       });
     }
@@ -345,10 +355,13 @@ views.print = (() => {
         row.appendChild(qtyInput);
         row.appendChild(removeBtn);
         wrap.appendChild(row);
-        if (crop.ambiguous) {
-          wrap.appendChild(
-            el("p", { class: "text-[11px] text-amber-400 mt-1 ml-6" }, i18n.t("print.ambiguousNote", { rival: crop.rivalNameEn }))
-          );
+        if (crop.unknown || crop.ambiguous) {
+          const note = crop.unknown
+            ? i18n.t("print.unknownNote")
+            : crop.rivalNameEn
+              ? i18n.t("print.ambiguousNote", { rival: crop.rivalNameEn })
+              : i18n.t("print.checkNote");
+          wrap.appendChild(el("p", { class: "text-[11px] text-amber-400 mt-1 ml-6" }, note));
         }
         cropsListEl.appendChild(wrap);
       });
@@ -357,7 +370,10 @@ views.print = (() => {
         const datalist = el(
           "datalist",
           { id: "print-resources-datalist" },
-          resources.map((r) => el("option", { value: r.name }))
+          resources
+            .map((r) => r.name)
+            .concat(catalog.map((d) => i18n.catalogName(d)).filter((n) => !resources.some((r) => r.name === n)))
+            .map((n) => el("option", { value: n }))
         );
         container.appendChild(datalist);
       }
@@ -365,22 +381,48 @@ views.print = (() => {
       saveBtn.classList.toggle("hidden", crops.length === 0);
     }
 
+    // The catalog key for what the user finally confirmed: the detected key
+    // only if they kept the detected name — if they corrected it (e.g. picked
+    // the right Assembly Materials tier), the key must follow the new name,
+    // or the entry would be logged under the detector's wrong guess.
+    function confirmedDefKey(c) {
+      const name = c.resourceName.trim();
+      if (c.resourceDefKey && name === c.detectedName) return c.resourceDefKey;
+      const lower = name.toLowerCase();
+      const match = resources.find((r) => r.name.toLowerCase() === lower);
+      if (match && match.resource_def_key) return match.resource_def_key;
+      const def = catalog.find((d) => [d.name_en, d.name_pt].some((n) => n && n.toLowerCase() === lower));
+      return def ? def.key : match ? match.resource_def_key : null;
+    }
+
     saveBtn.addEventListener("click", async () => {
-      const entries = crops
-        .filter((c) => c.resourceName.trim() && c.quantityRaw.trim())
-        .map((c) => ({
-          resource_name: c.resourceName.trim(),
-          quantity_raw: c.quantityRaw.trim(),
-          source: "ocr",
-          source_image_id: image.id,
-          resource_def_key: c.resourceDefKey || null,
-        }));
+      const kept = crops.filter((c) => c.resourceName.trim() && c.quantityRaw.trim());
+      const entries = kept.map((c) => ({
+        resource_name: c.resourceName.trim(),
+        quantity_raw: c.quantityRaw.trim(),
+        source: "ocr",
+        source_image_id: image.id,
+        resource_def_key: confirmedDefKey(c),
+      }));
       if (entries.length === 0) {
         ui.toast(i18n.t("print.fillOneCrop"), true);
         return;
       }
       try {
         await api.addBuildingStock(building.id, entries);
+        // Teach the detector: each confirmed auto-detected slot becomes a
+        // real exemplar of that item (how it tells Assembly Materials tiers
+        // apart). Best effort — a failure here never blocks the save.
+        const exemplars = kept
+          .filter((c) => c.iconBox && confirmedDefKey(c))
+          .map((c) => ({
+            resource_def_key: confirmedDefKey(c),
+            box_x: c.iconBox.x,
+            box_y: c.iconBox.y,
+            box_width: c.iconBox.width,
+            box_height: c.iconBox.height,
+          }));
+        if (exemplars.length) api.saveIconExemplars(image.id, exemplars).catch(() => {});
         ui.toast(i18n.t("print.saved", { n: entries.length }));
         crops = [];
         redrawCanvas();

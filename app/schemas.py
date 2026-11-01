@@ -152,8 +152,10 @@ class OcrResult(BaseModel):
 
 
 class DetectedStockItem(BaseModel):
-    resource_def_key: str
-    name_en: str
+    # None = a slot with a quantity whose item wasn't recognized (the user
+    # picks it; see icon_match_service grid fallback).
+    resource_def_key: str | None
+    name_en: str | None
     name_pt: str | None = None
     confidence: float
     ambiguous: bool = False
@@ -261,3 +263,11 @@ class UserOut(BaseModel):
 class MeOut(BaseModel):
     auth_enabled: bool
     user: UserOut | None
+
+
+class IconExemplarIn(BaseModel):
+    resource_def_key: str
+    box_x: int
+    box_y: int
+    box_width: int
+    box_height: int

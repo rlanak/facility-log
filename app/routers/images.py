@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app import crud, schemas
 from app.database import UPLOADS_DIR, get_db
-from app.services import capture, icon_match_service
+from app.services import capture, foxhole_data, icon_match_service
 from app.services.errors_i18n import err
 
 router = APIRouter(tags=["images"])
@@ -95,3 +95,20 @@ def detect_stockpile(image_id: int, box: schemas.OcrCropRequest, lang: str = "pt
         read_number=lambda path, number_box: capture.read_number(reader, path, number_box),
     )
     return schemas.StockpileDetectionOut(available=True, items=[schemas.DetectedStockItem(**i) for i in items])
+
+
+@router.post("/api/images/{image_id}/exemplars", status_code=204)
+def save_icon_exemplars(image_id: int, items: list[schemas.IconExemplarIn], lang: str = "pt-BR", db: Session = Depends(get_db)):
+    """Slots the user confirmed after auto-detection become real exemplars of
+    their item — how the detector learns to tell near-identical icons apart
+    (Assembly Materials tiers). See icon_match_service.add_exemplar."""
+    image = crud.get_upload_image(db, image_id)
+    if not image:
+        raise HTTPException(status_code=404, detail=err("image_not_found", lang))
+    path = _image_path(image)
+    for item in items:
+        if not foxhole_data.get_resource_def(item.resource_def_key) or item.box_width < 8 or item.box_height < 8:
+            continue
+        icon_match_service.add_exemplar(
+            path, (item.box_x, item.box_y, item.box_x + item.box_width, item.box_y + item.box_height), item.resource_def_key
+        )
