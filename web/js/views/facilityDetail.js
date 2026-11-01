@@ -62,6 +62,12 @@ views.facilityDetail = (() => {
     return qty;
   }
 
+  // Stock quantities with thousands separators ("21.900" / "21,900") — the
+  // card's value column is right-aligned, so equal-width digits line up.
+  function formatQty(qty) {
+    return Number(qty).toLocaleString(i18n.getLang(), { maximumFractionDigits: 2 });
+  }
+
   function formatDuration(seconds) {
     seconds = Math.round(seconds);
     const hours = Math.floor(seconds / 3600);
@@ -149,7 +155,7 @@ views.facilityDetail = (() => {
       <datalist id="resources-datalist">
         ${allResources.map((r) => `<option value="${ui.escapeHtml(r.name)}"></option>`).join("")}
       </datalist>
-      <form id="new-building-form" class="grid grid-cols-[220px_1fr_auto] gap-2 mb-6">
+      <form id="new-building-form" class="grid grid-cols-1 sm:grid-cols-[220px_1fr_auto] gap-2 mb-6">
         <select id="b-type" class="bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
           <option value="">${i18n.t("facilityDetail.freeBuilding")}</option>
           ${foxholeBuildingTypes.map((t) => `<option value="${t.key}">📖 ${ui.escapeHtml(i18n.catalogName(t))}</option>`).join("")}
@@ -158,7 +164,7 @@ views.facilityDetail = (() => {
           class="bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
         <button class="bg-emerald-700 hover:bg-emerald-600 px-4 py-2 rounded text-sm font-semibold whitespace-nowrap">${i18n.t("facilityDetail.addBuilding")}</button>
       </form>
-      <div id="buildings-list" class="grid gap-3 grid-cols-[repeat(auto-fit,minmax(320px,1fr))] items-start"></div>
+      <div id="buildings-list" class="space-y-6"></div>
     `;
 
     const typeSelect = document.getElementById("b-type");
@@ -181,6 +187,11 @@ views.facilityDetail = (() => {
       }
     });
 
+    // Buildings are grouped by type (Materials Factory, Coal Refinery, ...),
+    // each group its own grid with a header — same-type buildings hold
+    // similar items, so a group's rows come out even, and the page reads
+    // like the facility itself. Groups follow the order of their first
+    // building; inside a group, the user's drag order (`position`) holds.
     async function renderBuildingsList() {
       allResources = await api.listResources();
       const listEl = document.getElementById("buildings-list");
@@ -189,38 +200,78 @@ views.facilityDetail = (() => {
         listEl.innerHTML = `<p class="text-zinc-500 text-sm">${i18n.t("facilityDetail.noBuildings")}</p>`;
         return;
       }
+      const groups = new Map();
+      for (const building of [...buildings].sort((a, b) => a.position - b.position)) {
+        const key = building.building_type_key || "";
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(building);
+      }
+      const cards = await Promise.all(buildings.map((b) => buildingCard(b, renderBuildingsList)));
+      const cardById = new Map(buildings.map((b, i) => [b.id, cards[i]]));
+
       listEl.innerHTML = "";
-      for (const building of buildings) {
-        const card = await buildingCard(building, renderBuildingsList);
-        makeCardDraggable(listEl, card, building.id);
-        listEl.appendChild(card);
+      for (const [typeKey, members] of groups) {
+        const type = typeKey ? getFoxholeType(typeKey) : null;
+        const section = ui.el("section", {});
+        section.appendChild(
+          ui.el("div", { class: "flex items-center gap-2 mb-2" }, [
+            type && type.icon ? ui.el("img", { src: type.icon, class: "w-7 h-7 object-contain opacity-80" }) : null,
+            ui.el("h2", { class: "text-sm font-semibold text-zinc-300" }, type ? i18n.catalogName(type) : i18n.t("facilityDetail.groupOther")),
+            ui.el("span", { class: "text-xs text-zinc-600" }, `(${members.length})`),
+          ])
+        );
+        const grid = ui.el("div", { class: "grid gap-3 grid-cols-[repeat(auto-fill,minmax(280px,1fr))]" });
+        for (const building of members) {
+          const card = cardById.get(building.id);
+          makeCardDraggable(listEl, grid, card, building.id);
+          grid.appendChild(card);
+        }
+        section.appendChild(grid);
+        listEl.appendChild(section);
       }
     }
 
-    function makeCardDraggable(listEl, card, buildingId) {
+    // Drag a card by its ⠿ handle onto another card of the same group: it
+    // lands before or after it depending on which half (left/right — the
+    // grid flows left to right) the pointer is over, with a highlight on the
+    // target meanwhile. Positions are saved for every building, in page order.
+    let draggingId = null;
+    function makeCardDraggable(listEl, grid, card, buildingId) {
       card.dataset.buildingId = buildingId;
       const handle = card.querySelector(".drag-handle");
-      if (handle) {
-        handle.draggable = true;
-        handle.addEventListener("dragstart", (e) => {
-          e.dataTransfer.setData("text/plain", String(buildingId));
-          e.dataTransfer.effectAllowed = "move";
-          card.classList.add("opacity-40");
-        });
-        handle.addEventListener("dragend", () => card.classList.remove("opacity-40"));
-      }
-      card.addEventListener("dragover", (e) => e.preventDefault());
-      card.addEventListener("drop", async (e) => {
+      handle.draggable = true;
+      handle.addEventListener("dragstart", (e) => {
+        draggingId = String(buildingId);
+        e.dataTransfer.setData("text/plain", draggingId);
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setDragImage(card, 20, 20);
+        card.classList.add("opacity-40");
+      });
+      handle.addEventListener("dragend", () => {
+        draggingId = null;
+        card.classList.remove("opacity-40");
+        listEl.querySelectorAll(".building-card").forEach((c) => c.classList.remove("ring-2", "ring-emerald-500"));
+      });
+      const sameGroup = () => {
+        const dragged = draggingId && listEl.querySelector(`[data-building-id="${draggingId}"]`);
+        return dragged && dragged !== card && dragged.parentElement === grid ? dragged : null;
+      };
+      card.addEventListener("dragover", (e) => {
+        if (!sameGroup()) return;
         e.preventDefault();
-        const draggedId = e.dataTransfer.getData("text/plain");
-        if (!draggedId || draggedId === String(buildingId)) return;
-        const draggedEl = listEl.querySelector(`[data-building-id="${draggedId}"]`);
-        if (!draggedEl) return;
+        card.classList.add("ring-2", "ring-emerald-500");
+      });
+      card.addEventListener("dragleave", () => card.classList.remove("ring-2", "ring-emerald-500"));
+      card.addEventListener("drop", async (e) => {
+        const dragged = sameGroup();
+        card.classList.remove("ring-2", "ring-emerald-500");
+        if (!dragged) return;
+        e.preventDefault();
         const rect = card.getBoundingClientRect();
-        const insertBefore = e.clientY - rect.top < rect.height / 2;
-        listEl.insertBefore(draggedEl, insertBefore ? card : card.nextSibling);
-        const cards = [...listEl.children];
-        await Promise.all(cards.map((el, idx) => api.updateBuilding(el.dataset.buildingId, { position: idx })));
+        const before = e.clientX - rect.left < rect.width / 2;
+        grid.insertBefore(dragged, before ? card : card.nextSibling);
+        const ordered = [...listEl.querySelectorAll("[data-building-id]")];
+        await Promise.all(ordered.map((el, idx) => api.updateBuilding(el.dataset.buildingId, { position: idx })));
       });
     }
 
@@ -228,12 +279,13 @@ views.facilityDetail = (() => {
   }
 
   async function buildingCard(building, onChange) {
-    // No overflow-hidden here: it used to silently clip the header buttons
-    // and stock-form rows whenever the card ended up narrower than their
-    // content (any grid with 2+ cards) instead of letting them wrap. The
-    // icon panel gets its own rounded-l-lg + overflow-hidden below so the
-    // card's rounded corners still look right without relying on this.
-    const card = ui.el("div", { class: "bg-zinc-900 border border-zinc-800 rounded-lg flex flex-wrap" });
+    // Layout (reworked Nov 2026 — the old one never lined up): no side icon
+    // panel (the group header shows the type icon), one fixed-height row per
+    // stock item with the name truncated instead of wrapping word by word,
+    // and the action buttons pinned to the bottom (mt-auto) — the grid
+    // stretches every card in a row to the same height, so rows line up.
+    // Still no overflow-hidden on the card: it used to silently clip content.
+    const card = ui.el("div", { class: "building-card bg-zinc-900 border border-zinc-800 rounded-lg flex flex-col min-w-0 h-full transition" });
     const stock = await api.getBuildingStock(building.id);
     const foxholeType = building.building_type_key ? getFoxholeType(building.building_type_key) : null;
     const liquidKeys = activeLiquidKeys(building, foxholeType);
@@ -246,49 +298,41 @@ views.facilityDetail = (() => {
     // crate/"normal" stock (overflow once the tank's full) shows here like
     // any other resource.
     const nonLiquidStock = stock.filter((s) => !(liquidResourceIds.has(s.resource_id) && s.storage === "tank"));
-
-    const iconPanel =
-      foxholeType && foxholeType.icon
-        ? `<div class="w-28 shrink-0 rounded-l-lg overflow-hidden bg-zinc-950 border-r border-zinc-800 flex items-center justify-center p-3">
-             <img src="${ui.escapeHtml(foxholeType.icon)}" class="w-full h-auto max-h-24 object-contain" />
-           </div>`
-        : "";
-    const showTypeBadge = foxholeType && building.name !== foxholeType.name_en;
     const buildingDisplayName = i18n.buildingName(building, foxholeType);
+    const iconBtn = "p-1 rounded text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800";
+    // One line, each button as wide as its label and then stretched to fill
+    // (flex-auto): a flex-wrap row broke into two lines at ~300px cards, and
+    // equal columns cut "⚙️ Produção" to "Produ…".
+    const actionBtn =
+      "flex-auto min-w-0 text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-900 hover:border-emerald-600 rounded px-1.5 py-1 whitespace-nowrap truncate";
 
     card.innerHTML = `
-      ${iconPanel}
-      <div class="flex-1 min-w-0 p-4">
-        <div class="flex items-start justify-between gap-2 flex-wrap">
-          <div class="flex items-center flex-wrap min-w-0">
-            <span class="font-semibold break-words">${ui.escapeHtml(buildingDisplayName)}</span>
-            ${showTypeBadge ? `<span class="text-xs text-zinc-600 ml-2" title="${i18n.t("facilityDetail.foxholeType")}">📖 ${ui.escapeHtml(i18n.catalogName(foxholeType))}</span>` : ""}
-          </div>
-          <div class="flex items-center gap-2 flex-wrap shrink-0">
-            <span class="drag-handle cursor-move text-zinc-600 hover:text-zinc-400 px-1" title="${i18n.t("facilityDetail.dragToReorder")}">⠿</span>
-            <button class="edit-building text-xs text-zinc-300 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded px-2 py-1">${i18n.t("common.edit")}</button>
-            <button class="delete-building text-xs text-red-400 hover:text-red-300 border border-red-900 hover:border-red-600 rounded px-2 py-1">${i18n.t("common.delete")}</button>
-          </div>
-        </div>
-        <div class="text-sm text-zinc-300 mt-2">
-          ${
-            nonLiquidStock.length === 0
-              ? `<span class="text-zinc-600">${i18n.t("facilityDetail.noEntries")}</span>`
-              : nonLiquidStock
-                  .map(
-                    (s) =>
-                      `<span class="mr-4 inline-flex items-center gap-1.5"${s.created_by_name ? ` title="${ui.escapeHtml(i18n.t("facilityDetail.loggedBy", { name: s.created_by_name }))}"` : ""}>${resourceThumb(s.resource_id) || ui.escapeHtml(s.resource_icon)} ${ui.escapeHtml(s.resource_name)}: <strong>${s.quantity}</strong>
-                        <button class="delete-stock-item text-zinc-600 hover:text-red-400 px-0.5" data-resource-id="${s.resource_id}" data-storage="${s.storage}" data-name="${ui.escapeHtml(s.resource_name)}" title="${i18n.t("facilityDetail.deleteStockItem")}">✕</button>
-                      </span>`
-                  )
-                  .join("")
-          }
-        </div>
-        <div class="production-status text-sm text-zinc-400 mt-2"></div>
+      <div class="flex items-center gap-2 px-3 pt-3 pb-2 border-b border-zinc-800">
+        <span class="drag-handle cursor-grab active:cursor-grabbing text-zinc-600 hover:text-zinc-300 select-none" title="${i18n.t("facilityDetail.dragToReorder")}">⠿</span>
+        <span class="font-semibold truncate flex-1 min-w-0" title="${ui.escapeHtml(buildingDisplayName)}">${ui.escapeHtml(buildingDisplayName)}</span>
+        <button class="edit-building ${iconBtn}" title="${i18n.t("common.edit")}">✎</button>
+        <button class="delete-building ${iconBtn} hover:!text-red-400" title="${i18n.t("common.delete")}">🗑</button>
+      </div>
+      <div class="px-3 py-2 flex-1 min-w-0">
+        ${
+          nonLiquidStock.length === 0
+            ? `<p class="text-sm text-zinc-600 py-1">${i18n.t("facilityDetail.noEntries")}</p>`
+            : `<ul class="text-sm divide-y divide-zinc-800/70">${nonLiquidStock
+                .map(
+                  (s) => `
+              <li class="group flex items-center gap-2 py-1 min-w-0"${s.created_by_name ? ` title="${ui.escapeHtml(i18n.t("facilityDetail.loggedBy", { name: s.created_by_name }))}"` : ""}>
+                <span class="w-5 h-5 shrink-0 flex items-center justify-center">${resourceThumb(s.resource_id) || ui.escapeHtml(s.resource_icon)}</span>
+                <span class="truncate flex-1 min-w-0 text-zinc-300" title="${ui.escapeHtml(s.resource_name)}">${ui.escapeHtml(s.resource_name)}</span>
+                <span class="tabular-nums font-semibold">${formatQty(s.quantity)}</span>
+                <button class="delete-stock-item text-zinc-600 hover:text-red-400 px-0.5 opacity-0 group-hover:opacity-100 focus:opacity-100" data-resource-id="${s.resource_id}" data-storage="${s.storage}" data-name="${ui.escapeHtml(s.resource_name)}" title="${i18n.t("facilityDetail.deleteStockItem")}">✕</button>
+              </li>`
+                )
+                .join("")}</ul>`
+        }
         ${
           liquidKeys.length > 0
-            ? `<div class="liquid-tank-section border border-zinc-800 rounded p-2 mt-2">
-                 <p class="text-xs text-zinc-500 mb-1.5">${i18n.t("facilityDetail.liquidTankTitle")}</p>
+            ? `<div class="liquid-tank-section mt-2 rounded bg-zinc-950/60 border border-zinc-800 px-2 py-1.5">
+                 <p class="text-[11px] text-zinc-500 mb-1">${i18n.t("facilityDetail.liquidTankTitle")}</p>
                  ${liquidKeys
                    .map(([key, def]) => {
                      const resource = allResources.find((r) => r.resource_def_key === key);
@@ -297,17 +341,17 @@ views.facilityDetail = (() => {
                      const liters = Math.round(units * def.liters_per_unit);
                      const pct = Math.min(100, (liters / 5000) * 100);
                      return `
-                     <div class="flex items-center gap-2 mb-1 text-sm">
-                       <span class="w-28 truncate">${ui.escapeHtml(i18n.catalogName(def))}</span>
-                       <div class="flex-1 bg-zinc-800 rounded h-3 overflow-hidden">
+                     <div class="group flex items-center gap-2 text-xs py-0.5 min-w-0">
+                       <span class="w-20 truncate text-zinc-300" title="${ui.escapeHtml(i18n.catalogName(def))}">${ui.escapeHtml(i18n.catalogName(def))}</span>
+                       <div class="flex-1 min-w-[3rem] bg-zinc-800 rounded h-2 overflow-hidden">
                          <div class="bg-sky-600 h-full" style="width:${pct}%"></div>
                        </div>
-                       <span class="text-xs text-zinc-500 w-24 text-right">${liters}L / 5000L</span>
-                       <button class="add-liquid text-emerald-400 hover:text-emerald-300 px-1 font-bold" data-key="${key}" data-current="${units}">+</button>
+                       <span class="tabular-nums text-zinc-500 whitespace-nowrap">${formatQty(liters)}/5000L</span>
+                       <button class="add-liquid text-emerald-400 hover:text-emerald-300 font-bold px-0.5" data-key="${key}" data-current="${units}" title="${i18n.t("facilityDetail.liquidAdd")}">+</button>
                        ${
                          entry
-                           ? `<button class="delete-stock-item text-zinc-600 hover:text-red-400 px-1" data-resource-id="${resource.id}" data-storage="tank" data-name="${ui.escapeHtml(i18n.catalogName(def))}" title="${i18n.t("facilityDetail.deleteStockItem")}">✕</button>`
-                           : ""
+                           ? `<button class="delete-stock-item text-zinc-600 hover:text-red-400 px-0.5 opacity-0 group-hover:opacity-100 focus:opacity-100" data-resource-id="${resource.id}" data-storage="tank" data-name="${ui.escapeHtml(i18n.catalogName(def))}" title="${i18n.t("facilityDetail.deleteStockItem")}">✕</button>`
+                           : `<span class="w-3"></span>`
                        }
                      </div>`;
                    })
@@ -315,16 +359,17 @@ views.facilityDetail = (() => {
                </div>`
             : ""
         }
-        <div class="flex gap-2 mt-3 flex-wrap">
-          <button class="open-stock-modal text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.launchStock")}</button>
-          <button class="open-print-modal text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.sendPrint")}</button>
-          <button class="open-save-import-modal text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.importSave")}</button>
-          ${
-            foxholeType && foxholeType.recipes.length > 0
-              ? `<button class="open-production-modal text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.production")}</button>`
-              : ""
-          }
-        </div>
+        <div class="production-status text-xs leading-snug text-zinc-400 mt-2 space-y-1"></div>
+      </div>
+      <div class="flex gap-1 px-3 py-2 border-t border-zinc-800 mt-auto">
+        <button class="open-stock-modal ${actionBtn}" title="${i18n.t("facilityDetail.launchStock")}">${i18n.t("facilityDetail.btnStock")}</button>
+        <button class="open-print-modal ${actionBtn}" title="${i18n.t("facilityDetail.sendPrint")}">${i18n.t("facilityDetail.btnPrint")}</button>
+        <button class="open-save-import-modal ${actionBtn}" title="${i18n.t("facilityDetail.importSave")}">${i18n.t("facilityDetail.btnSave")}</button>
+        ${
+          foxholeType && foxholeType.recipes.length > 0
+            ? `<button class="open-production-modal ${actionBtn}" title="${i18n.t("facilityDetail.production")}">${i18n.t("facilityDetail.btnProduction")}</button>`
+            : ""
+        }
       </div>
     `;
 
