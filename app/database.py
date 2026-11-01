@@ -52,6 +52,7 @@ _ADDED_COLUMNS = [
     ("buildings", "save_pin_key", "VARCHAR(160)"),
     ("stock_entries", "created_by_id", "INTEGER REFERENCES users(id)"),
     ("reports", "created_by_id", "INTEGER REFERENCES users(id)"),
+    ("resources", "unlimited", "BOOLEAN DEFAULT 0"),
 ]
 
 
@@ -61,6 +62,14 @@ def apply_migrations() -> None:
             existing = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")}
             if column not in existing:
                 conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+                if (table, column) == ("resources", "unlimited"):
+                    # Existing resources get the catalog's default once
+                    # (Water), same default a newly created one gets.
+                    from app.services import foxhole_data
+
+                    keys = [k for k, d in foxhole_data.get_resource_defs().items() if d.get("unlimited")]
+                    for key in keys:
+                        conn.exec_driver_sql("UPDATE resources SET unlimited = 1 WHERE resource_def_key = ?", (key,))
         # One-time backfill: buildings still on the old single-recipe fields
         # (production_slots never written) get migrated into the new
         # multi-queue shape. Naturally idempotent — once backfilled,

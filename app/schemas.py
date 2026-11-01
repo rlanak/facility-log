@@ -9,6 +9,7 @@ class ResourceBase(BaseModel):
     target_max: float | None = None
     farmable: bool = True
     imported: bool = False
+    unlimited: bool = False
     resource_def_key: str | None = None
     nickname: str | None = None
 
@@ -23,6 +24,7 @@ class ResourceUpdate(BaseModel):
     target_max: float | None = None
     farmable: bool | None = None
     imported: bool | None = None
+    unlimited: bool | None = None
     nickname: str | None = None
 
 

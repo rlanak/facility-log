@@ -103,6 +103,7 @@ views.resources = (() => {
               name: def.name_en,
               icon: "",
               farmable: def.farmable,
+              unlimited: def.unlimited,
               resource_def_key: def.key,
             });
             ui.toast(i18n.t("resources.imported", { name: i18n.catalogName(def) }));
@@ -151,7 +152,11 @@ views.resources = (() => {
               <input type="checkbox" data-id="${r.id}" class="toggle-imported accent-emerald-600" ${r.imported ? "checked" : ""} />
               ${i18n.t("resources.imported")}
             </label>
-            ${r.imported ? `<span class="text-xs text-zinc-600">${i18n.t("resources.importedBadge")}</span>` : !r.farmable ? `<span class="text-xs text-zinc-600">${i18n.t("resources.producedIntermediate")}</span>` : ""}
+            <label class="flex items-center gap-1 text-xs text-zinc-400" title="${i18n.t("resources.unlimitedHint")}">
+              <input type="checkbox" data-id="${r.id}" class="toggle-unlimited accent-sky-600" ${r.unlimited ? "checked" : ""} />
+              ${i18n.t("resources.unlimited")}
+            </label>
+            ${r.unlimited ? `<span class="text-xs text-sky-600">${i18n.t("resources.unlimitedBadge")}</span>` : r.imported ? `<span class="text-xs text-zinc-600">${i18n.t("resources.importedBadge")}</span>` : !r.farmable ? `<span class="text-xs text-zinc-600">${i18n.t("resources.producedIntermediate")}</span>` : ""}
           </div>
           <div class="flex items-center gap-2 flex-wrap">
             <button data-id="${r.id}" class="edit-nickname text-xs text-zinc-300 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded px-2 py-1">${i18n.t("resources.nicknameBtn")}</button>
@@ -179,6 +184,18 @@ views.resources = (() => {
         checkbox.addEventListener("change", async () => {
           try {
             await api.updateResource(checkbox.dataset.id, { farmable: checkbox.checked });
+            renderList();
+          } catch (err) {
+            ui.toast(err.message, true);
+            checkbox.checked = !checkbox.checked;
+          }
+        });
+      });
+
+      listEl.querySelectorAll(".toggle-unlimited").forEach((checkbox) => {
+        checkbox.addEventListener("change", async () => {
+          try {
+            await api.updateResource(checkbox.dataset.id, { unlimited: checkbox.checked });
             renderList();
           } catch (err) {
             ui.toast(err.message, true);

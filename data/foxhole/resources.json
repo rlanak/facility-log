@@ -26,7 +26,8 @@
     "icon": "/assets/foxhole/items/WaterIcon.png",
     "is_liquid": true,
     "liters_per_unit": 50,
-    "codename": "Water"
+    "codename": "Water",
+    "unlimited": true
   },
   "oil": {
     "name": {

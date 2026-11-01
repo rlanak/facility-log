@@ -78,5 +78,10 @@ def get_production_estimate(
         return []
     current_stock = crud.get_current_stock_by_resource_def(db, building_id)
     return production.estimate_building_slots(
-        building.building_type_key, building.production_slots, current_stock, datetime.now(), catalog_lang or lang
+        building.building_type_key,
+        building.production_slots,
+        current_stock,
+        datetime.now(),
+        catalog_lang or lang,
+        crud.unlimited_resource_keys(crud.get_resources(db)),
     )

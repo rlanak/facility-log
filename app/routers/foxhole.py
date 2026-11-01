@@ -15,6 +15,7 @@ def list_foxhole_resources():
             "farmable": data["farmable"],
             "icon": data.get("icon"),
             "is_liquid": data.get("is_liquid", False),
+            "unlimited": data.get("unlimited", False),
             "liters_per_unit": data.get("liters_per_unit"),
         }
         for key, data in foxhole_data.get_resource_defs().items()

@@ -26,6 +26,11 @@ class Resource(Base):
     # resource is reported as "go get this from outside" regardless of
     # whether it's also technically gatherable or producible.
     imported: Mapped[bool] = mapped_column(default=False)
+    # Abundant in the facility (e.g. Water: a couple of pump queues already
+    # overfill it): treated as always available — never limits a production
+    # estimate, never needs producing/farming in the Meta chain, and is left
+    # out of the report's stock lists. Takes priority over farmable/imported.
+    unlimited: Mapped[bool] = mapped_column(default=False)
     resource_def_key: Mapped[str | None] = mapped_column(String(80), default=None)
     nickname: Mapped[str | None] = mapped_column(String(120), default=None)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)

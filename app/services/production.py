@@ -11,6 +11,7 @@ def estimate_production(
     current_stock: dict[str, float],
     now: datetime,
     lang: str = "pt-BR",
+    unlimited_keys: frozenset | set = frozenset(),
 ) -> dict | None:
     """Estimates how long it'll take `queue_count` parallel production lines to
     burn through the *currently logged stock* of this recipe's inputs, and how
@@ -29,7 +30,9 @@ def estimate_production(
     if not recipe:
         return None
 
-    tracked_inputs = [io for io in recipe["inputs"] if "resource" in io]
+    # Unlimited inputs (Resource.unlimited, e.g. Water) are always there —
+    # they never cap the cycle count nor show up as "missing".
+    tracked_inputs = [io for io in recipe["inputs"] if "resource" in io and io["resource"] not in unlimited_keys]
     if not tracked_inputs:
         return None
 
@@ -92,6 +95,7 @@ def estimate_building_slots(
     current_stock: dict[str, float],
     now: datetime,
     lang: str = "pt-BR",
+    unlimited_keys: frozenset | set = frozenset(),
 ) -> list[dict]:
     """One estimate per distinct recipe among the active production slots (a
     building can run several different recipes at once, up to its
@@ -114,7 +118,7 @@ def estimate_building_slots(
 
     estimates = []
     for recipe_key, queue_count in merged_queue_counts.items():
-        estimate = estimate_production(building_type_key, recipe_key, queue_count, current_stock, now, lang)
+        estimate = estimate_production(building_type_key, recipe_key, queue_count, current_stock, now, lang, unlimited_keys)
         if estimate:
             estimates.append(estimate)
     return estimates

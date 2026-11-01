@@ -37,10 +37,16 @@ views.facilityDetail = (() => {
       if (!activeRecipeKeys.has(recipe.key)) continue;
       for (const io of [...recipe.inputs, ...recipe.outputs]) {
         const def = io.resource && foxholeResourceDefs[io.resource];
-        if (def && def.is_liquid && !keys.has(io.resource)) keys.set(io.resource, def);
+        if (def && def.is_liquid && !keys.has(io.resource) && !isUnlimited(io.resource)) keys.set(io.resource, def);
       }
     }
     return [...keys.entries()];
+  }
+
+  // Resource.unlimited (e.g. Water): always available, so no tank to track.
+  function isUnlimited(key) {
+    const resource = allResources.find((r) => r.resource_def_key === key);
+    return resource ? resource.unlimited : Boolean(foxholeResourceDefs[key] && foxholeResourceDefs[key].unlimited);
   }
 
   function resourceThumb(resourceId) {

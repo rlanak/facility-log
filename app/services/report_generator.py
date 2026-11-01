@@ -165,6 +165,7 @@ def build_building_paragraph(
     now: datetime,
     lang: str = "pt-BR",
     catalog_lang: str | None = None,
+    unlimited_keys: set = frozenset(),
 ) -> str:
     catalog_lang = catalog_lang or lang
     title = f"**\U0001f3ed {crud.resolve_building_name(building, catalog_lang)}**"
@@ -172,7 +173,7 @@ def build_building_paragraph(
         title += f" _({building.role})_"
 
     liquid_keys = (
-        set(foxhole_data.active_liquid_keys(building.building_type_key, building.production_slots))
+        set(foxhole_data.active_liquid_keys(building.building_type_key, building.production_slots)) - set(unlimited_keys)
         if building.building_type_key
         else set()
     )
@@ -205,7 +206,7 @@ def build_building_paragraph(
 
     if building.building_type_key and building.production_slots:
         estimates = production_service.estimate_building_slots(
-            building.building_type_key, building.production_slots, combined_stock, now, catalog_lang
+            building.building_type_key, building.production_slots, combined_stock, now, catalog_lang, unlimited_keys
         )
         for estimate in estimates:
             body += f"\n{format_production_line(estimate['queue_count'], estimate, lang)}"
@@ -279,9 +280,10 @@ def build_stock_block(
     now: datetime,
     lang: str = "pt-BR",
     catalog_lang: str | None = None,
+    unlimited_keys: set = frozenset(),
 ) -> str:
     paragraphs = [
-        build_building_paragraph(building, entries, now, lang, catalog_lang)
+        build_building_paragraph(building, entries, now, lang, catalog_lang, unlimited_keys)
         for building, entries in stock_by_building.items()
     ]
     return "\n\n".join(paragraphs)
@@ -346,10 +348,11 @@ def build_recommendation_block(
     stock_by_def_key = _totals_by_def_key(totals)
     totals_by_resource_id = {t.resource.id: t.quantity for t in totals}
 
+    unlimited_keys = crud.unlimited_resource_keys(all_resources)
     catalog_targets: list[tuple[models.Resource, float, float]] = []
     freeform_targets: list[tuple[models.Resource, float, float]] = []
     for resource in all_resources:
-        if not resource.target_max or resource.target_max <= 0:
+        if not resource.target_max or resource.target_max <= 0 or resource.resource_def_key in unlimited_keys:
             continue
         current = (
             stock_by_def_key.get(resource.resource_def_key, 0)
@@ -380,6 +383,7 @@ def build_recommendation_block(
         preferred_recipes,
         farmable_keys,
         imported_keys,
+        unlimited_keys,
     )
 
     lines = [title]
@@ -564,10 +568,18 @@ def generate_report(
 ) -> dict:
     now = now or datetime.now()
     catalog_lang = catalog_lang or lang
+    # Unlimited resources (Resource.unlimited, e.g. Water) are left out of the
+    # report entirely: no stock line, no tank line, no total, no Meta — they
+    # only matter as "always available" to the production math below.
+    unlimited_keys = crud.unlimited_resource_keys(all_resources)
+    stock_by_building = {
+        building: [e for e in entries if e.resource.resource_def_key not in unlimited_keys]
+        for building, entries in stock_by_building.items()
+    }
     totals = _aggregate_resource_totals(stock_by_building)
 
     header_block = build_header_block(facility, now, lang)
-    stock_block = build_stock_block(stock_by_building, now, lang, catalog_lang)
+    stock_block = build_stock_block(stock_by_building, now, lang, catalog_lang, unlimited_keys)
     recommendation_block = build_recommendation_block(stock_by_building, totals, all_resources, lang, catalog_lang)
 
     markdown_content = "\n\n".join([header_block, stock_block, recommendation_block])

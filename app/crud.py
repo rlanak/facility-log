@@ -41,12 +41,16 @@ def get_or_create_resource(db: Session, name: str, resource_def_key: str | None 
     if resource:
         return resource
     farmable = True
+    unlimited = False
     icon = ""
     if resource_def_key:
         res_def = foxhole_data.get_resource_def(resource_def_key)
         if res_def:
             farmable = res_def["farmable"]
-    resource = models.Resource(name=name.strip(), resource_def_key=resource_def_key, farmable=farmable, icon=icon)
+            unlimited = res_def.get("unlimited", False)
+    resource = models.Resource(
+        name=name.strip(), resource_def_key=resource_def_key, farmable=farmable, unlimited=unlimited, icon=icon
+    )
     db.add(resource)
     db.commit()
     db.refresh(resource)
@@ -59,6 +63,18 @@ def update_resource(db: Session, resource: models.Resource, data: schemas.Resour
     db.commit()
     db.refresh(resource)
     return resource
+
+
+def unlimited_resource_keys(resources: list[models.Resource]) -> set[str]:
+    """Catalog keys treated as always available in a facility (Resource.unlimited)
+    — the player's own Resource row wins, else the catalog default (Water)."""
+    by_key = {r.resource_def_key: r for r in resources if r.resource_def_key}
+    keys = set()
+    for key, res_def in foxhole_data.get_resource_defs().items():
+        resource = by_key.get(key)
+        if (resource.unlimited if resource else res_def.get("unlimited", False)):
+            keys.add(key)
+    return keys
 
 
 def resolve_resource_name(resource: models.Resource, lang: str = "pt-BR") -> str:

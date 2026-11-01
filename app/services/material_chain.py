@@ -75,6 +75,7 @@ def resolve_requirements(
     preferred_recipes: dict,
     farmable_keys: set = frozenset(),
     imported_keys: set = frozenset(),
+    unlimited_keys: set = frozenset(),
 ) -> dict:
     """targets: [(resource_key, deficit_qty), ...] to resolve, top to bottom.
     stock: current stock by Foxhole resource key — a shared pool that gets
@@ -100,7 +101,8 @@ def resolve_requirements(
     imports: dict[str, float] = {}
 
     def resolve(resource_key: str, needed: float, depth: int) -> None:
-        if needed <= 1e-9:
+        # Unlimited (e.g. Water): always available, nothing to produce or farm.
+        if needed <= 1e-9 or resource_key in unlimited_keys:
             return
         have = stock.get(resource_key, 0)
         used = min(have, needed)
