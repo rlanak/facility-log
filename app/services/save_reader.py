@@ -1,32 +1,36 @@
-"""Reads Maintenance Tunnel mSupps straight from the game's local map save
-(`%LOCALAPPDATA%\\Foxhole\\Saved\\SaveGames\\<steamid>_MapData.sav`) — no
-screenshot/OCR involved.
+"""Reads the stockpiles the game caches for map pins, straight from Foxhole's
+local map save (`%LOCALAPPDATA%\\Foxhole\\Saved\\SaveGames\\<steamid>_MapData.sav`)
+— exact numbers, no screenshot/OCR involved.
 
 The save is a binary UE4 GVAS file. Parsing it is delegated to the Rust CLI
 from the sibling repo `foxhole-msupps-parser` (`--json` mode), which was
 validated end to end against real saves — reimplementing GVAS here would just
 be a second, untested copy. The packaged .exe bundles that CLI the same way it
 bundles Tesseract (see scripts/prepare_msupps_parser_vendor.py +
-facility_log.spec).
+facility_log.spec); the Docker image builds it for Linux.
 
-What the save does and doesn't have (learned the hard way in the tray app,
-see that repo's CLAUDE.md): only locations the player *pinned* on the map
+What the save does and doesn't have (learned in the retired tray app, see
+that repo's CLAUDE.md): only locations the player *pinned* on the map
 (Ctrl+A in game, max 25 per faction) appear, each with the stockpile the game
-last cached for it and the game's own `LastUpdated` time. The in-game
-"Maintenance Settings" consumption rate is NOT saved anywhere — it's computed
-live by the client, so consumption here can only come from comparing two
-readings over time (see services/msupps.py) or a rate typed in by hand.
+last cached for it and the game's own `LastUpdated` time — the cache only
+refreshes when the player opens that pin's tooltip in game.
+
+Two ways in: running locally, the save on this PC is found automatically;
+on the web, the server can't see the player's PC, so the browser uploads the
+.sav file and its bytes are parsed instead.
 """
 
 import json
 import os
 import re
 import subprocess
+import sys
+import tempfile
 from pathlib import Path
 
 from app.paths import APP_DIR, BUNDLE_DIR
 
-_EXE_NAME = "foxhole-msupps-parser.exe"
+_EXE_NAME = "foxhole-msupps-parser.exe" if sys.platform == "win32" else "foxhole-msupps-parser"
 
 # Order matters: the bundled copy wins inside the frozen .exe; in dev, the
 # vendored copy (what the .exe will ship) wins over a sibling-repo build.
@@ -36,8 +40,8 @@ _PARSER_CANDIDATES = [
     APP_DIR.parent / "foxhole-msupps-parser" / "target" / "release" / _EXE_NAME,
 ]
 
-MAINTENANCE_TUNNEL_CODE_NAME = "MaintenanceTunnel"
-MSUPPS_CODE_NAME = "MaintenanceSupplies"
+# A real save is ~10KB; anything far bigger isn't one.
+MAX_SAVE_BYTES = 5 * 1024 * 1024
 
 
 class SaveReadError(Exception):
@@ -51,6 +55,9 @@ class SaveReadError(Exception):
 
 
 def locate_parser() -> Path | None:
+    override = os.environ.get("FOXHOLE_SAVE_PARSER")
+    if override and Path(override).is_file():
+        return Path(override)
     for path in _PARSER_CANDIDATES:
         if path.is_file():
             return path
@@ -74,53 +81,59 @@ def locate_save() -> Path | None:
     return saves[0] if saves else None
 
 
-def read_pinned_locations() -> list[dict]:
+def _run_parser(save_path: Path) -> list[dict]:
     parser = locate_parser()
     if not parser:
-        raise SaveReadError("msupps_parser_missing")
-    save = locate_save()
-    if not save:
-        raise SaveReadError("msupps_save_missing")
-
+        raise SaveReadError("save_parser_missing")
     # CREATE_NO_WINDOW: the packaged app is a console .exe already; without
-    # this every sync would flash a second console window on Windows.
+    # this every read would flash a second console window on Windows.
     creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     try:
         result = subprocess.run(
-            [str(parser), "--json", str(save)],
+            [str(parser), "--json", str(save_path)],
             capture_output=True,
             timeout=15,
             creationflags=creationflags,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
-        raise SaveReadError("msupps_parse_failed", str(exc))
+        raise SaveReadError("save_parse_failed", str(exc))
     if result.returncode != 0:
-        raise SaveReadError("msupps_parse_failed", result.stderr.decode("utf-8", "replace").strip())
+        raise SaveReadError("save_parse_failed", result.stderr.decode("utf-8", "replace").strip())
     try:
         return json.loads(result.stdout.decode("utf-8"))
     except ValueError as exc:
-        raise SaveReadError("msupps_parse_failed", str(exc))
+        raise SaveReadError("save_parse_failed", str(exc))
 
 
-def maintenance_tunnels(locations: list[dict]) -> list[dict]:
-    """Same filter as the parser's `maintenance_tunnels_with_msupps()`: only
-    tunnel pins that actually have a cached mSupps count."""
-    tunnels = []
-    for loc in locations:
-        if loc.get("code_name") != MAINTENANCE_TUNNEL_CODE_NAME:
-            continue
-        msupps = next((i["quantity"] for i in loc.get("stockpile", []) if i.get("code_name") == MSUPPS_CODE_NAME), None)
-        if msupps is None:
-            continue
-        tunnels.append({**loc, "msupps": msupps})
-    return tunnels
+def read_pinned_locations(save_bytes: bytes | None = None) -> list[dict]:
+    """Every pinned location in the save, as the parser's `--json` prints it
+    (map_id, code_name, coords_normalized, grid_coordinate,
+    last_updated_unix, stockpile=[{code_name, quantity}], ...). With
+    `save_bytes`, parses an uploaded file; otherwise the local save."""
+    if save_bytes is None:
+        save = locate_save()
+        if not save:
+            raise SaveReadError("save_missing")
+        return _run_parser(save)
+
+    if len(save_bytes) > MAX_SAVE_BYTES or not save_bytes.startswith(b"GVAS"):
+        raise SaveReadError("save_invalid_file")
+    # The CLI reads a path, so spill the upload to a temp file just for the call.
+    fd, tmp_name = tempfile.mkstemp(suffix=".sav")
+    try:
+        with os.fdopen(fd, "wb") as tmp:
+            tmp.write(save_bytes)
+        return _run_parser(Path(tmp_name))
+    finally:
+        os.unlink(tmp_name)
 
 
-def tunnel_key(map_id: str, coords: list[float]) -> str:
+def pin_key(location: dict) -> str:
     """The game gives a pin no name or ID — only hex + normalized position,
-    which doesn't move between readings. Same format as the tray app's
-    `tunnel_key.rs` (rounded to tolerate float noise between parses)."""
-    return f"{map_id}:{coords[0]:.4f}:{coords[1]:.4f}"
+    which doesn't move between readings. Rounded to tolerate float noise
+    between parses (same format the tray app's `tunnel_key.rs` used)."""
+    x, y = location["coords_normalized"]
+    return f"{location['map_id']}:{x:.4f}:{y:.4f}"
 
 
 def hex_display_name(map_id: str) -> str:

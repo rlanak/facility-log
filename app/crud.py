@@ -111,10 +111,6 @@ def update_facility(db: Session, facility: models.Facility, data: schemas.Facili
 
 
 def delete_facility(db: Session, facility: models.Facility) -> None:
-    # SQLite doesn't enforce ON DELETE SET NULL unless foreign_keys is on, so
-    # unlink this facility's tunnels by hand — they keep being tracked.
-    for tunnel in db.scalars(select(models.MaintenanceTunnel).where(models.MaintenanceTunnel.facility_id == facility.id)):
-        tunnel.facility_id = None
     db.delete(facility)
     db.commit()
 
@@ -345,69 +341,3 @@ def get_report(db: Session, report_id: int) -> models.Report | None:
 def delete_report(db: Session, report: models.Report) -> None:
     db.delete(report)
     db.commit()
-
-
-def get_tunnels(db: Session, facility_id: int | None = None) -> list[models.MaintenanceTunnel]:
-    query = select(models.MaintenanceTunnel).order_by(models.MaintenanceTunnel.map_id, models.MaintenanceTunnel.grid)
-    if facility_id is not None:
-        query = query.where(models.MaintenanceTunnel.facility_id == facility_id)
-    return list(db.scalars(query))
-
-
-def get_tunnel(db: Session, tunnel_id: int) -> models.MaintenanceTunnel | None:
-    return db.get(models.MaintenanceTunnel, tunnel_id)
-
-
-def update_tunnel(db: Session, tunnel: models.MaintenanceTunnel, data: schemas.TunnelUpdate) -> models.MaintenanceTunnel:
-    for field, value in data.model_dump(exclude_unset=True).items():
-        if field == "label" and value is not None:
-            value = value.strip() or None
-        if field == "manual_rate_per_hour" and value is not None and value <= 0:
-            value = None
-        setattr(tunnel, field, value)
-    db.commit()
-    db.refresh(tunnel)
-    return tunnel
-
-
-def delete_tunnel(db: Session, tunnel: models.MaintenanceTunnel) -> None:
-    db.delete(tunnel)
-    db.commit()
-
-
-def sync_tunnels(db: Session, save_tunnels: list[dict]) -> dict:
-    """Upserts every tunnel found in the save and appends a reading only when
-    the game's own LastUpdated moved past the last one we have — re-syncing
-    an unchanged save is a no-op. Tunnels missing from the save are kept
-    (with their history) but flagged as no longer pinned."""
-    from app.services.msupps_save import tunnel_key
-
-    existing = {t.key: t for t in db.scalars(select(models.MaintenanceTunnel))}
-    seen_keys = set()
-    new_readings = 0
-    for entry in save_tunnels:
-        key = tunnel_key(entry["map_id"], entry["coords_normalized"])
-        seen_keys.add(key)
-        tunnel = existing.get(key)
-        if not tunnel:
-            tunnel = models.MaintenanceTunnel(
-                key=key,
-                map_id=entry["map_id"],
-                coord_x=entry["coords_normalized"][0],
-                coord_y=entry["coords_normalized"][1],
-                grid=entry.get("grid_coordinate", ""),
-            )
-            db.add(tunnel)
-            existing[key] = tunnel
-        tunnel.pinned = True
-        latest = tunnel.readings[-1] if tunnel.readings else None
-        if latest is None or entry["last_updated_unix"] > latest.game_updated_unix:
-            tunnel.readings.append(
-                models.TunnelReading(quantity=entry["msupps"], game_updated_unix=entry["last_updated_unix"])
-            )
-            new_readings += 1
-    for key, tunnel in existing.items():
-        if key not in seen_keys:
-            tunnel.pinned = False
-    db.commit()
-    return {"tunnels_in_save": len(seen_keys), "new_readings": new_readings}

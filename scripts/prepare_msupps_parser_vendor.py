@@ -1,8 +1,8 @@
 """Builds the Rust save reader from the sibling repo foxhole-msupps-parser and
 copies it into vendor/msupps-parser/ so facility_log.spec can bundle it into
-the standalone .exe — end users then read their Maintenance Tunnel mSupps
-straight from the game save without installing Rust (see CLAUDE.md,
-"Túneis de Manutenção").
+the standalone .exe — end users can import pinned stockpiles
+(e.g. MTS) from the game save without installing Rust (see CLAUDE.md,
+"Leitura do save do jogo").
 
 Run before building the .exe (re-run whenever the parser changes):
 

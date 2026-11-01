@@ -10,8 +10,6 @@
         await views.facilities.render(app);
       } else if (parts[0] === "resources") {
         await views.resources.render(app);
-      } else if (parts[0] === "tunnels") {
-        await views.tunnels.render(app);
       } else if (parts[0] === "facilities" && parts[1]) {
         const facilityId = parts[1];
         const tab = parts[2] || "buildings";
