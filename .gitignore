@@ -12,3 +12,4 @@ build/
 dist/
 exe_test/
 data-docker/
+tools/save-parser/target/

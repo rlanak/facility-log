@@ -1,0 +1,11 @@
+.git
+.venv
+**/__pycache__
+data/facility_log.db
+data/uploads
+data-docker
+vendor
+build
+dist
+tools/save-parser/target
+.env

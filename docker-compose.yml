@@ -1,11 +1,8 @@
 # Web mode: `docker compose up -d --build` from this folder, with a filled-in
-# .env next to this file (copy .env.example). The sibling repo
-# ../foxhole-msupps-parser must be checked out next to this one.
+# .env next to this file (copy .env.example).
 services:
   facility-log:
-    build:
-      context: ..
-      dockerfile: facility-log/Dockerfile
+    build: .
     env_file: .env
     environment:
       FACILITY_LOG_DATA_DIR: /data

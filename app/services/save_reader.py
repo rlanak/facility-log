@@ -3,10 +3,11 @@ local map save (`%LOCALAPPDATA%\\Foxhole\\Saved\\SaveGames\\<steamid>_MapData.sa
 — exact numbers, no screenshot/OCR involved.
 
 The save is a binary UE4 GVAS file. Parsing it is delegated to the Rust CLI
-from the sibling repo `foxhole-msupps-parser` (`--json` mode), which was
+in tools/save-parser/ (`--json` mode; originally the foxhole-msupps-parser
+repo, moved in here when that repo was retired), which was
 validated end to end against real saves — reimplementing GVAS here would just
 be a second, untested copy. The packaged .exe bundles that CLI the same way it
-bundles Tesseract (see scripts/prepare_msupps_parser_vendor.py +
+bundles Tesseract (see scripts/prepare_save_parser_vendor.py +
 facility_log.spec); the Docker image builds it for Linux.
 
 What the save does and doesn't have (learned in the retired tray app, see
@@ -30,14 +31,14 @@ from pathlib import Path
 
 from app.paths import APP_DIR, BUNDLE_DIR
 
-_EXE_NAME = "foxhole-msupps-parser.exe" if sys.platform == "win32" else "foxhole-msupps-parser"
+_EXE_NAME = "foxhole-save-parser.exe" if sys.platform == "win32" else "foxhole-save-parser"
 
 # Order matters: the bundled copy wins inside the frozen .exe; in dev, the
-# vendored copy (what the .exe will ship) wins over a sibling-repo build.
+# vendored copy (what the .exe will ship) wins over a plain cargo build.
 _PARSER_CANDIDATES = [
-    BUNDLE_DIR / "msupps-parser" / _EXE_NAME,
-    APP_DIR / "vendor" / "msupps-parser" / _EXE_NAME,
-    APP_DIR.parent / "foxhole-msupps-parser" / "target" / "release" / _EXE_NAME,
+    BUNDLE_DIR / "save-parser" / _EXE_NAME,
+    APP_DIR / "vendor" / "save-parser" / _EXE_NAME,
+    APP_DIR / "tools" / "save-parser" / "target" / "release" / _EXE_NAME,
 ]
 
 # A real save is ~10KB; anything far bigger isn't one.

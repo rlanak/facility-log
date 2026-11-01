@@ -1,16 +1,12 @@
-# Web-mode image for facility-log. Build context is the PARENT folder, because
-# the game-save reader lives in the sibling repo ../foxhole-msupps-parser:
+# Web-mode image for facility-log:
 #
-#   docker compose up -d --build        (from this folder; see docker-compose.yml)
-#
-# or by hand, from E:\projetos\foxhole:
-#   docker build -f facility-log/Dockerfile -t facility-log .
+#   docker compose up -d --build        (see docker-compose.yml)
 
-# --- 1. Build the Rust save reader for Linux ---------------------------------
+# --- 1. Build the Rust save reader (tools/save-parser) for Linux -------------
 FROM rust:1-slim AS parser
 WORKDIR /src
-COPY foxhole-msupps-parser/Cargo.toml foxhole-msupps-parser/Cargo.lock ./
-COPY foxhole-msupps-parser/src ./src
+COPY tools/save-parser/Cargo.toml tools/save-parser/Cargo.lock ./
+COPY tools/save-parser/src ./src
 RUN cargo build --release
 
 # --- 2. The app ----------------------------------------------------------------
@@ -22,15 +18,15 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY facility-log/requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY facility-log/app ./app
-COPY facility-log/web ./web
-COPY facility-log/data/foxhole ./data/foxhole
-COPY facility-log/run.py .
-COPY --from=parser /src/target/release/foxhole-msupps-parser /usr/local/bin/foxhole-msupps-parser
-ENV FOXHOLE_SAVE_PARSER=/usr/local/bin/foxhole-msupps-parser
+COPY app ./app
+COPY web ./web
+COPY data/foxhole ./data/foxhole
+COPY run.py .
+COPY --from=parser /src/target/release/foxhole-save-parser /usr/local/bin/foxhole-save-parser
+ENV FOXHOLE_SAVE_PARSER=/usr/local/bin/foxhole-save-parser
 
 # The user's data (SQLite + uploads) goes to a volume, not /app/data (that
 # would hide the bundled catalog) — see docker-compose.yml.

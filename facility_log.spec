@@ -1,8 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
 # Builds the standalone FacilityLog.exe. See CLAUDE.md ("Empacotamento") for
 # the full build procedure. Run scripts/prepare_tesseract_vendor.py and
-# scripts/prepare_msupps_parser_vendor.py first — this spec expects
-# vendor/tesseract/ and vendor/msupps-parser/ to already exist.
+# scripts/prepare_save_parser_vendor.py first — this spec expects
+# vendor/tesseract/ and vendor/save-parser/ to already exist.
 from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
@@ -13,7 +13,7 @@ datas = [
     (str(ROOT / "web"), "web"),
     (str(ROOT / "data" / "foxhole"), "data/foxhole"),
     (str(ROOT / "vendor" / "tesseract"), "tesseract"),
-    (str(ROOT / "vendor" / "msupps-parser"), "msupps-parser"),
+    (str(ROOT / "vendor" / "save-parser"), "save-parser"),
     # RapidOCR's ONNX models + yaml configs ship inside the package; without
     # them it would try to download models on first use.
     *collect_data_files("rapidocr"),

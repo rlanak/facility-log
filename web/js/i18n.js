@@ -115,7 +115,7 @@ const i18n = (() => {
       "facilityDetail.importSave": "📌 Importar do save",
 
       "saveImport.intro": "Lê o estoque de um local pinado no mapa direto do save do jogo — número exato, sem OCR. No jogo: pine a estrutura (ex: a MTS) no mapa e abra o tooltip dela pra atualizar o cache; depois leia o save aqui. Você confere os valores antes de salvar.",
-      "saveImport.noParser": "Leitor do save não encontrado — rode scripts/prepare_msupps_parser_vendor.py.",
+      "saveImport.noParser": "Leitor do save não encontrado — rode scripts/prepare_save_parser_vendor.py.",
       "saveImport.readLocal": "🔄 Ler o save deste PC",
       "saveImport.upload": "📤 Enviar arquivo .sav",
       "saveImport.whereIsSave": "O arquivo fica em %LOCALAPPDATA%\\Foxhole\\Saved\\SaveGames\\<seu id>_MapData.sav",
@@ -320,7 +320,7 @@ const i18n = (() => {
       "facilityDetail.importSave": "📌 Import from save",
 
       "saveImport.intro": "Reads the stockpile of a pinned map location straight from the game save — exact numbers, no OCR. In game: pin the structure (e.g. the MTS) on the map and open its tooltip to refresh the cache; then read the save here. You review the values before saving.",
-      "saveImport.noParser": "Save reader not found — run scripts/prepare_msupps_parser_vendor.py.",
+      "saveImport.noParser": "Save reader not found — run scripts/prepare_save_parser_vendor.py.",
       "saveImport.readLocal": "🔄 Read this PC's save",
       "saveImport.upload": "📤 Upload .sav file",
       "saveImport.whereIsSave": "The file is at %LOCALAPPDATA%\\Foxhole\\Saved\\SaveGames\\<your id>_MapData.sav",
