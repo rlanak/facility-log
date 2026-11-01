@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app import crud, models, schemas
 from app.database import get_db
+from app.services import msupps_save
 from app.services.errors_i18n import err
 from app.services.report_generator import extract_blocks, generate_report, split_for_discord
 
@@ -31,7 +32,19 @@ def create_report(facility_id: int, lang: str = "pt-BR", catalog_lang: str | Non
 
     stock_by_building = crud.get_current_stock_for_facility(db, facility_id)
     all_resources = crud.get_resources(db)
-    result = generate_report(facility, stock_by_building, all_resources, lang=lang, catalog_lang=catalog_lang or lang)
+    tunnels = crud.get_tunnels(db, facility_id)
+    if tunnels:
+        # Best effort: pull the freshest mSupps from the save right before
+        # reporting. No save/parser on this PC just means the report uses the
+        # last readings already stored — never a reason to fail the report.
+        try:
+            crud.sync_tunnels(db, msupps_save.maintenance_tunnels(msupps_save.read_pinned_locations()))
+            tunnels = crud.get_tunnels(db, facility_id)
+        except msupps_save.SaveReadError:
+            pass
+    result = generate_report(
+        facility, stock_by_building, all_resources, lang=lang, catalog_lang=catalog_lang or lang, tunnels=tunnels
+    )
 
     report = crud.create_report(
         db,

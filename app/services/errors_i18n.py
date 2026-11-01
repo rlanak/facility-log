@@ -17,6 +17,10 @@ _STRINGS = {
         "resource_name_exists": "Já existe um recurso com esse nome.",
         "resource_in_use": "Não é possível excluir: há lançamentos de estoque usando esse recurso. Apague os lançamentos primeiro.",
         "invalid_image_type": "Envie uma imagem PNG, JPEG ou WEBP.",
+        "tunnel_not_found": "Túnel não encontrado.",
+        "msupps_parser_missing": "Leitor do save não encontrado (foxhole-msupps-parser.exe). Rode scripts/prepare_msupps_parser_vendor.py.",
+        "msupps_save_missing": "Save do Foxhole não encontrado em %LOCALAPPDATA%/Foxhole/Saved/SaveGames — abra o jogo pelo menos uma vez neste PC.",
+        "msupps_parse_failed": "Não consegui ler o save do Foxhole (o formato pode ter mudado numa atualização do jogo).",
     },
     "en-US": {
         "facility_not_found": "Facility not found.",
@@ -31,6 +35,10 @@ _STRINGS = {
         "resource_name_exists": "A resource with that name already exists.",
         "resource_in_use": "Can't delete: there are stock entries using this resource. Delete those entries first.",
         "invalid_image_type": "Upload a PNG, JPEG, or WEBP image.",
+        "tunnel_not_found": "Tunnel not found.",
+        "msupps_parser_missing": "Save reader not found (foxhole-msupps-parser.exe). Run scripts/prepare_msupps_parser_vendor.py.",
+        "msupps_save_missing": "Foxhole save not found in %LOCALAPPDATA%/Foxhole/Saved/SaveGames — launch the game at least once on this PC.",
+        "msupps_parse_failed": "Couldn't read the Foxhole save (the format may have changed in a game update).",
     },
 }
 

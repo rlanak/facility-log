@@ -4,6 +4,8 @@ from datetime import datetime
 from app import crud, models
 from app.services import foxhole_data
 from app.services import material_chain
+from app.services import msupps
+from app.services.msupps_save import hex_display_name
 from app.services import production as production_service
 
 DISCORD_LIMIT = 2000
@@ -31,6 +33,10 @@ _STRINGS = {
         "totals_production_title": "⚙️ Produção ativa (total):",
         "totals_production_item": "{queue} filas de {outputs} ({building})",
         "discord_part": "**Parte {i}/{n}**",
+        "msupps_title": "**🛠️ Túneis de Manutenção (mSupps)**",
+        "msupps_line": "{dot} **{name}**: ~{qty} mSupps — {rate}/h, acaba em {duration} ({pct}%)",
+        "msupps_line_no_rate": "⚪ **{name}**: {qty} mSupps (lido há {ago}) — consumo ainda desconhecido",
+        "msupps_unpinned": " _(fora dos pins do mapa — dado antigo)_",
     },
     "en-US": {
         "header": "**\U0001f4cb Stock Report — {name}**\n\U0001f552 {date}",
@@ -54,6 +60,10 @@ _STRINGS = {
         "totals_production_title": "⚙️ Active production (total):",
         "totals_production_item": "{queue} queues of {outputs} ({building})",
         "discord_part": "**Part {i}/{n}**",
+        "msupps_title": "**🛠️ Maintenance Tunnels (mSupps)**",
+        "msupps_line": "{dot} **{name}**: ~{qty} mSupps — {rate}/h, runs out in {duration} ({pct}%)",
+        "msupps_line_no_rate": "⚪ **{name}**: {qty} mSupps (read {ago} ago) — consumption not known yet",
+        "msupps_unpinned": " _(no longer pinned on the map — stale data)_",
     },
 }
 
@@ -459,6 +469,55 @@ def build_totals_block(
     return body
 
 
+def _health_dot(pct: int) -> str:
+    # Same tiers as the tray app's status dot.
+    if pct < 15:
+        return "🔴"
+    if pct < 35:
+        return "🟠"
+    if pct < 70:
+        return "🟡"
+    return "🟢"
+
+
+def build_msupps_block(tunnels: list[models.MaintenanceTunnel], now: datetime, lang: str = "pt-BR") -> str:
+    """mSupps of the Maintenance Tunnels linked to this facility, read from
+    the game's save (not typed in). The quantity is projected to `now` from
+    the last in-game reading, so it reads "~N" — see services/msupps.py."""
+    now_unix = now.timestamp()
+    lines = []
+    for tunnel in tunnels:
+        status = msupps.tunnel_status(tunnel, now_unix)
+        if status["quantity"] is None:
+            continue
+        name = tunnel.label or f"{hex_display_name(tunnel.map_id)} {tunnel.grid}".strip()
+        if status["rate_per_hour"]:
+            line = _t(
+                "msupps_line",
+                lang,
+                dot=_health_dot(status["health_pct"]),
+                name=name,
+                qty=format_qty(round(status["estimated_now"])),
+                rate=_trim(round(status["rate_per_hour"])),
+                duration=format_duration(status["seconds_left"]),
+                pct=status["health_pct"],
+            )
+        else:
+            line = _t(
+                "msupps_line_no_rate",
+                lang,
+                name=name,
+                qty=format_qty(status["quantity"]),
+                ago=format_duration(max(0, int(now_unix - status["game_updated_unix"]))),
+            )
+        if not tunnel.pinned:
+            line += _t("msupps_unpinned", lang)
+        lines.append(line)
+    if not lines:
+        return ""
+    return _t("msupps_title", lang) + "\n" + "\n".join(lines)
+
+
 def _pack_paragraphs(paragraphs: list[str], limit: int) -> list[str]:
     parts: list[str] = []
     current: list[str] = []
@@ -509,16 +568,21 @@ def generate_report(
     now: datetime | None = None,
     lang: str = "pt-BR",
     catalog_lang: str | None = None,
+    tunnels: list[models.MaintenanceTunnel] | None = None,
 ) -> dict:
     now = now or datetime.now()
     catalog_lang = catalog_lang or lang
     totals = _aggregate_resource_totals(stock_by_building)
 
     header_block = build_header_block(facility, now, lang)
+    msupps_block = build_msupps_block(tunnels or [], now, lang)
     stock_block = build_stock_block(stock_by_building, now, lang, catalog_lang)
     recommendation_block = build_recommendation_block(stock_by_building, totals, all_resources, lang, catalog_lang)
 
-    markdown_content = "\n\n".join([header_block, stock_block, recommendation_block])
+    # extract_blocks() treats everything between the header and the last
+    # paragraph as "stock", so the mSupps block lands at the top of the
+    # in-app "Estoque Atual" block without needing a block of its own.
+    markdown_content = "\n\n".join(p for p in [header_block, msupps_block, stock_block, recommendation_block] if p)
 
     # The Discord version consolidates every building into one facility-wide
     # total instead of repeating the per-building breakdown already shown in
@@ -531,7 +595,7 @@ def generate_report(
     discord_recommendation_block = build_recommendation_block(
         stock_by_building, totals, all_resources, lang, catalog_lang, bulleted=True
     )
-    discord_paragraphs = [header_block, totals_block, discord_recommendation_block]
+    discord_paragraphs = [p for p in [header_block, msupps_block, totals_block, discord_recommendation_block] if p]
     parts = split_for_discord(discord_paragraphs, lang=lang)
 
     snapshot = {
@@ -559,7 +623,9 @@ def generate_report(
         "discord_content": "\n\n".join(discord_paragraphs),
         "blocks": {
             "header": header_block,
-            "stock": stock_block,
+            # Same shape extract_blocks() rebuilds from markdown_content when
+            # the report is reopened from history.
+            "stock": "\n\n".join(p for p in [msupps_block, stock_block] if p),
             "recommendation": recommendation_block,
         },
         "parts": parts,

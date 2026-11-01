@@ -1,7 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
 # Builds the standalone FacilityLog.exe. See CLAUDE.md ("Empacotamento") for
-# the full build procedure. Run scripts/prepare_tesseract_vendor.py first —
-# this spec expects vendor/tesseract/ to already exist.
+# the full build procedure. Run scripts/prepare_tesseract_vendor.py and
+# scripts/prepare_msupps_parser_vendor.py first — this spec expects
+# vendor/tesseract/ and vendor/msupps-parser/ to already exist.
 from pathlib import Path
 
 ROOT = Path(SPECPATH)
@@ -10,6 +11,7 @@ datas = [
     (str(ROOT / "web"), "web"),
     (str(ROOT / "data" / "foxhole"), "data/foxhole"),
     (str(ROOT / "vendor" / "tesseract"), "tesseract"),
+    (str(ROOT / "vendor" / "msupps-parser"), "msupps-parser"),
 ]
 
 hiddenimports = [

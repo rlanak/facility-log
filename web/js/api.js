@@ -75,5 +75,11 @@ const api = (() => {
     listFoxholeBuildingTypes: () => request("GET", "/api/foxhole/building-types"),
     setBuildingProduction: (buildingId, data) => request("PUT", `/api/buildings/${buildingId}/production`, data),
     getProductionEstimate: (buildingId) => request("GET", `/api/buildings/${buildingId}/production-estimate`),
+
+    tunnelStatus: () => request("GET", "/api/tunnels/status"),
+    syncTunnels: () => request("POST", "/api/tunnels/sync"),
+    listTunnels: () => request("GET", "/api/tunnels"),
+    updateTunnel: (id, data) => request("PUT", `/api/tunnels/${id}`, data),
+    deleteTunnel: (id) => request("DELETE", `/api/tunnels/${id}`),
   };
 })();
