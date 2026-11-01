@@ -152,9 +152,13 @@ def compute_production_time(production: dict, preferred_recipes: dict) -> dict:
     before its recipe can consume it), not a flat sum — independent chains
     are assumed to run in parallel in different buildings.
 
-    Returns {"total_seconds": float, "any_assumed_single_queue": bool} —
-    the second flags whether the estimate leaned on the "assume 1 queue"
-    fallback anywhere, so callers can caveat the number appropriately.
+    Returns {"total_seconds", "any_assumed_single_queue", "nodes",
+    "critical_path"}: the flag says whether the estimate leaned on the
+    "assume 1 queue" fallback anywhere, so callers can caveat the number;
+    "nodes" has each node's own breakdown ({queue_count, assumed, rounds,
+    cycle_seconds, seconds}) so the report can show the math per line
+    instead of a bare total; "critical_path" is the longest chain, ordered
+    from the first input to the final product.
     """
     queue_count_by_node = {
         (entry["building_type_key"], entry["recipe"]["key"]): entry["queue_count"] for entry in preferred_recipes.values()
@@ -168,34 +172,49 @@ def compute_production_time(production: dict, preferred_recipes: dict) -> dict:
                 key_to_node[o["resource"]] = (bt_key, recipe_key)
 
     any_assumed_single_queue = False
-    durations: dict[tuple[str, str], float] = {}
+    nodes: dict[tuple[str, str], dict] = {}
     for node, cycles in production.items():
         bt_key, recipe_key = node
         recipe = foxhole_data.get_recipe(bt_key, recipe_key)
         queue_count = queue_count_by_node.get(node)
-        if not queue_count:
+        assumed = not queue_count
+        if assumed:
             queue_count = 1
             any_assumed_single_queue = True
         rounds = math.ceil(cycles / queue_count)
-        durations[node] = rounds * recipe["time_seconds"]
+        nodes[node] = {
+            "queue_count": queue_count,
+            "assumed": assumed,
+            "rounds": rounds,
+            "cycle_seconds": recipe["time_seconds"],
+            "seconds": rounds * recipe["time_seconds"],
+        }
 
-    memo: dict[tuple[str, str], float] = {}
+    # node -> (longest chain duration ending at node, the chain itself)
+    memo: dict[tuple[str, str], tuple[float, list]] = {}
 
-    def critical_path(node: tuple[str, str], visiting: frozenset) -> float:
+    def critical_path(node: tuple[str, str], visiting: frozenset) -> tuple[float, list]:
         if node in memo:
             return memo[node]
         if node in visiting:
-            return 0  # defensive: catalog shouldn't have recipe cycles, but don't hang if it did
+            return 0, []  # defensive: catalog shouldn't have recipe cycles, but don't hang if it did
         bt_key, recipe_key = node
         recipe = foxhole_data.get_recipe(bt_key, recipe_key)
-        child_max = 0.0
+        best_child: tuple[float, list] = (0.0, [])
         for io in recipe["inputs"]:
             child_node = key_to_node.get(io.get("resource"))
             if child_node:
-                child_max = max(child_max, critical_path(child_node, visiting | {node}))
-        total = durations[node] + child_max
-        memo[node] = total
-        return total
+                child = critical_path(child_node, visiting | {node})
+                if child[0] > best_child[0]:
+                    best_child = child
+        result = (nodes[node]["seconds"] + best_child[0], best_child[1] + [node])
+        memo[node] = result
+        return result
 
-    total_seconds = max((critical_path(node, frozenset()) for node in production), default=0)
-    return {"total_seconds": total_seconds, "any_assumed_single_queue": any_assumed_single_queue}
+    total_seconds, path = max((critical_path(node, frozenset()) for node in production), default=(0, []))
+    return {
+        "total_seconds": total_seconds,
+        "any_assumed_single_queue": any_assumed_single_queue,
+        "nodes": nodes,
+        "critical_path": path,
+    }

@@ -12,19 +12,24 @@ _STRINGS = {
     "pt-BR": {
         "header": "**\U0001f4cb Relatório de Estoque — {name}**\n\U0001f552 {date}",
         "no_entries": "_sem lançamentos_",
-        "production_insufficient": "⚙️ {queue}x em produção configurada — estoque insuficiente pra 1 ciclo. Faltando: {needed}.",
+        "production_insufficient": "⚙️ {queues} em produção — estoque insuficiente pra 1 ciclo. Faltando: {needed}.",
         "production_missing_item": "{qty} {name} (tem {available})",
-        "production_line": "⚙️ {queue}x em produção — {cycles} ciclos com o estoque atual, pronto em {duration} (~{eta}): {outputs}",
+        "production_line": "⚙️ {queues} → {cycles} ciclos com o estoque atual ({per_queue} × {cycle}) = {duration}, pronto ~{eta}: {outputs}",
+        "queues_one": "{n} fila",
+        "queues_many": "{n} filas",
+        "per_queue_exact": "{rounds} por fila",
+        "per_queue_upto": "até {rounds} por fila",
         "production_leftover": ". Sobra: {leftovers}",
         "liquid_tank": "🧪 Tanque:",
         "recommendation_title": "**\U0001f3af Foco de Produção** _(o que falta pra bater as Metas cadastradas)_",
         "recommendation_no_targets": "Nenhuma Meta cadastrada ainda — defina uma meta de estoque num recurso do catálogo pra ver aqui o que falta produzir/farmar pra chegar nela.",
         "recommendation_all_met": "Todas as Metas cadastradas já estão em dia. ✅",
         "meta_line": "{icon}**{name}**: {current}/{target} — faltam {missing}",
-        "total_time_line": "⏱️ Tempo total estimado: {duration}",
-        "total_time_assumed_note": " _(assumindo 1 fila pras receitas ainda sem produção configurada — configure a fila pra um número mais preciso)_",
+        "total_time_line": "⏱️ Tempo total estimado: **{duration}** — caminho mais longo: {path} _(o resto roda em paralelo)_",
+        "total_time_assumed_note": "_* fila ainda não configurada — contei 1 fila; configure a produção pra um tempo mais preciso_",
         "production_needed_title": "🏭 Produção necessária:",
-        "production_needed_item": "{cycles} ciclos de {name} ({building})",
+        "production_needed_item": "{name}: {cycles} ciclos em {building} — {queues}{assumed} → {per_queue} × {cycle} = {duration}",
+        "cycles_legend": "_ℹ️ 1 ciclo = 1 execução da receita (consome os insumos, entrega o produto). Filas do mesmo prédio rodam em paralelo: tempo = ciclos ÷ filas × tempo de 1 ciclo._",
         "import_needed_title": "📦 Importar (produção externa):",
         "farm_needed_title": "🌾 Farm necessário:",
         "totals_title": "Total da Facility",
@@ -35,19 +40,24 @@ _STRINGS = {
     "en-US": {
         "header": "**\U0001f4cb Stock Report — {name}**\n\U0001f552 {date}",
         "no_entries": "_no entries_",
-        "production_insufficient": "⚙️ {queue}x production set up — not enough stock for 1 cycle. Missing: {needed}.",
+        "production_insufficient": "⚙️ {queues} set up — not enough stock for 1 cycle. Missing: {needed}.",
         "production_missing_item": "{qty} {name} (have {available})",
-        "production_line": "⚙️ {queue}x in production — {cycles} cycles with current stock, ready in {duration} (~{eta}): {outputs}",
+        "production_line": "⚙️ {queues} → {cycles} cycles with current stock ({per_queue} × {cycle}) = {duration}, ready ~{eta}: {outputs}",
+        "queues_one": "{n} queue",
+        "queues_many": "{n} queues",
+        "per_queue_exact": "{rounds} per queue",
+        "per_queue_upto": "up to {rounds} per queue",
         "production_leftover": ". Leftover: {leftovers}",
         "liquid_tank": "🧪 Tank:",
         "recommendation_title": "**\U0001f3af Production Focus** _(what's missing to hit your registered Targets)_",
         "recommendation_no_targets": "No Target registered yet — set a stock target on a catalog resource to see what's missing to reach it here.",
         "recommendation_all_met": "All registered Targets are already met. ✅",
         "meta_line": "{icon}**{name}**: {current}/{target} — {missing} short",
-        "total_time_line": "⏱️ Estimated total time: {duration}",
-        "total_time_assumed_note": " _(assuming 1 queue for recipes not yet configured in production — set one up for a more accurate number)_",
+        "total_time_line": "⏱️ Estimated total time: **{duration}** — longest chain: {path} _(everything else runs in parallel)_",
+        "total_time_assumed_note": "_* queue not configured yet — counted 1 queue; set up production for a more accurate time_",
         "production_needed_title": "🏭 Production needed:",
-        "production_needed_item": "{cycles} cycles of {name} ({building})",
+        "production_needed_item": "{name}: {cycles} cycles at {building} — {queues}{assumed} → {per_queue} × {cycle} = {duration}",
+        "cycles_legend": "_ℹ️ 1 cycle = 1 run of the recipe (uses up the inputs, delivers the output). Queues in the same building run in parallel: time = cycles ÷ queues × time of 1 cycle._",
         "import_needed_title": "📦 Import (outside production):",
         "farm_needed_title": "🌾 Farming needed:",
         "totals_title": "Facility Total",
@@ -203,6 +213,33 @@ def build_building_paragraph(
     return body
 
 
+def _queues_text(n: int, lang: str) -> str:
+    return _t("queues_one" if n == 1 else "queues_many", lang, n=n)
+
+
+def _per_queue_text(cycles: float, queue_count: int, rounds: int, lang: str) -> str:
+    # Cycles that don't split evenly leave some queues one cycle short —
+    # "up to N per queue" keeps "N × cycle time = total" honest.
+    if queue_count == 1:
+        return str(rounds)
+    exact = cycles == rounds * queue_count
+    return _t("per_queue_exact" if exact else "per_queue_upto", lang, rounds=rounds)
+
+
+def format_cycle_time(seconds: int) -> str:
+    """One recipe cycle's time, with its seconds kept (a 90s recipe is
+    "1min30", not format_duration's rounded "1min") — it's the multiplier in
+    the "N × cycle = total" math shown to the user, so it has to be exact."""
+    minutes, secs = divmod(int(seconds), 60)
+    if minutes >= 60:
+        return format_duration(seconds)
+    if minutes and secs:
+        return f"{minutes}min{secs:02d}"
+    if minutes:
+        return f"{minutes}min"
+    return f"{secs}s"
+
+
 def format_production_line(queue_count: int, estimate: dict, lang: str = "pt-BR") -> str:
     if estimate["cycles"] <= 0:
         missing_items = [i for i in estimate["inputs_per_cycle"] if i.get("available", 0) < i["qty"]]
@@ -216,14 +253,16 @@ def format_production_line(queue_count: int, estimate: dict, lang: str = "pt-BR"
             )
             for i in missing_items
         )
-        return _t("production_insufficient", lang, queue=queue_count, needed=needed)
+        return _t("production_insufficient", lang, queues=_queues_text(queue_count, lang), needed=needed)
 
     outputs_text = ", ".join(f"{_display_qty(o['qty'], o.get('resource'))} {o['name']}" for o in estimate["outputs"])
     line = _t(
         "production_line",
         lang,
-        queue=queue_count,
+        queues=_queues_text(queue_count, lang),
         cycles=estimate["cycles"],
+        per_queue=_per_queue_text(estimate["cycles"], queue_count, estimate["rounds"], lang),
+        cycle=format_cycle_time(estimate["cycle_seconds"]),
         duration=format_duration(estimate["time_seconds"]),
         eta=_format_time(estimate["eta"], lang),
         outputs=outputs_text,
@@ -296,10 +335,13 @@ def build_recommendation_block(
     """
     catalog_lang = catalog_lang or lang
     title = _t("recommendation_title", lang)
+    # Explained once, at the end of this block, since both it and the
+    # per-building production lines talk in "cycles" and "queues".
+    legend = f"\n{_t('cycles_legend', lang)}" if any(b.production_slots for b in stock_by_building) else ""
 
     any_target = any(r.target_max and r.target_max > 0 for r in all_resources)
     if not any_target:
-        return f"{title}\n{_t('recommendation_no_targets', lang)}"
+        return f"{title}\n{_t('recommendation_no_targets', lang)}{legend}"
 
     stock_by_def_key = _totals_by_def_key(totals)
     totals_by_resource_id = {t.resource.id: t.quantity for t in totals}
@@ -320,7 +362,7 @@ def build_recommendation_block(
         (catalog_targets if resource.resource_def_key else freeform_targets).append((resource, current, deficit))
 
     if not catalog_targets and not freeform_targets:
-        return f"{title}\n{_t('recommendation_all_met', lang)}"
+        return f"{title}\n{_t('recommendation_all_met', lang)}{legend}"
 
     preferred_recipes = material_chain.active_recipes_by_output(stock_by_building.keys())
     farmable_keys, imported_keys = _resource_key_flags(all_resources)
@@ -358,33 +400,41 @@ def build_recommendation_block(
     ]
     lines.append("\n".join(f"• {m}" if bulleted else m for m in meta_lines))
 
-    if result["production"]:
-        time_estimate = material_chain.compute_production_time(result["production"], preferred_recipes)
-        time_line = _t("total_time_line", lang, duration=format_duration(time_estimate["total_seconds"]))
-        if time_estimate["any_assumed_single_queue"]:
-            time_line += _t("total_time_assumed_note", lang)
-        lines.append(time_line)
+    def output_name(bt_key: str, recipe_key: str) -> str:
+        recipe = foxhole_data.get_recipe(bt_key, recipe_key)
+        output_keys = [o["resource"] for o in recipe["outputs"] if o.get("resource")] if recipe else []
+        if not output_keys:
+            return recipe_key
+        return ", ".join(foxhole_data.resource_display_name(k, catalog_lang) for k in output_keys)
 
     if result["production"]:
+        time_estimate = material_chain.compute_production_time(result["production"], preferred_recipes)
+        path_text = " → ".join(output_name(bt, rk) for bt, rk in time_estimate["critical_path"])
+        lines.append(
+            _t("total_time_line", lang, duration=format_duration(time_estimate["total_seconds"]), path=path_text)
+        )
+
         prod_lines = []
-        for (bt_key, recipe_key), cycles in sorted(result["production"].items(), key=lambda kv: -kv[1]):
-            recipe = foxhole_data.get_recipe(bt_key, recipe_key)
-            output_keys = [o["resource"] for o in recipe["outputs"] if o.get("resource")] if recipe else []
-            output_name = (
-                ", ".join(foxhole_data.resource_display_name(k, catalog_lang) for k in output_keys)
-                if output_keys
-                else recipe_key
-            )
+        for node, cycles in sorted(result["production"].items(), key=lambda kv: -kv[1]):
+            bt_key, recipe_key = node
+            info = time_estimate["nodes"][node]
             prod_lines.append(
                 _t(
                     "production_needed_item",
                     lang,
+                    name=output_name(bt_key, recipe_key),
                     cycles=format_qty(cycles),
-                    name=output_name,
                     building=foxhole_data.building_display_name(bt_key, catalog_lang),
+                    queues=_queues_text(info["queue_count"], lang),
+                    assumed="*" if info["assumed"] else "",
+                    per_queue=_per_queue_text(cycles, info["queue_count"], info["rounds"], lang),
+                    cycle=format_cycle_time(info["cycle_seconds"]),
+                    duration=format_duration(info["seconds"]),
                 )
             )
         lines.append(_format_list(_t("production_needed_title", lang), prod_lines, bulleted))
+        if time_estimate["any_assumed_single_queue"]:
+            lines.append(_t("total_time_assumed_note", lang))
 
     if result["imports"]:
         import_lines = [
@@ -404,7 +454,9 @@ def build_recommendation_block(
     if farm_lines:
         lines.append(_format_list(_t("farm_needed_title", lang), farm_lines, bulleted))
 
-    return "\n".join(lines)
+    if result["production"] and not legend:
+        legend = f"\n{_t('cycles_legend', lang)}"
+    return "\n".join(lines) + legend
 
 
 def build_totals_block(

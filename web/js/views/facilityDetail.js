@@ -72,6 +72,18 @@ views.facilityDetail = (() => {
     return `${secs}s`;
   }
 
+  // Mirrors report_generator.format_cycle_time: keeps the seconds of one
+  // cycle ("1min30"), since it's the multiplier in the math shown.
+  function formatCycleTime(seconds) {
+    seconds = Math.round(seconds);
+    if (seconds >= 3600) return formatDuration(seconds);
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (minutes && secs) return `${minutes}min${String(secs).padStart(2, "0")}`;
+    if (minutes) return `${minutes}min`;
+    return `${secs}s`;
+  }
+
   function tabLink(tab, label, activeTab) {
     const isActive = tab === activeTab;
     const href = tab === "buildings" ? `#/facilities/${facilityId}` : `#/facilities/${facilityId}/${tab}`;
@@ -435,6 +447,8 @@ views.facilityDetail = (() => {
   }
 
   function formatProductionLine(estimate) {
+    const n = estimate.queue_count;
+    const queues = i18n.t(n === 1 ? "facilityDetail.production.queuesOne" : "facilityDetail.production.queuesMany", { n });
     if (estimate.cycles <= 0) {
       const missing = estimate.inputs_per_cycle.filter((i) => (i.available ?? 0) < i.qty);
       const needed = missing
@@ -446,13 +460,24 @@ views.facilityDetail = (() => {
           })
         )
         .join(", ");
-      return i18n.t("facilityDetail.production.insufficient", { queue: estimate.queue_count, needed });
+      return i18n.t("facilityDetail.production.insufficient", { queues, needed });
     }
     const eta = new Date(estimate.eta).toLocaleTimeString(i18n.getLang(), { hour: "2-digit", minute: "2-digit" });
     const outputs = estimate.outputs.map((o) => `${displayQty(o.qty, o.resource)} ${o.name}`).join(", ");
+    // Same wording as report_generator.format_production_line: show the
+    // math (cycles split across parallel queues × time per cycle), not just
+    // a bare "N cycles, ready in X".
+    const exact = estimate.cycles === estimate.rounds * n;
     let line = i18n.t("facilityDetail.production.line", {
-      queue: estimate.queue_count,
+      queues,
       cycles: estimate.cycles,
+      per_queue:
+        n === 1
+          ? String(estimate.rounds)
+          : i18n.t(exact ? "facilityDetail.production.perQueueExact" : "facilityDetail.production.perQueueUpto", {
+              rounds: estimate.rounds,
+            }),
+      cycle: formatCycleTime(estimate.cycle_seconds),
       duration: formatDuration(estimate.time_seconds),
       eta,
       outputs,

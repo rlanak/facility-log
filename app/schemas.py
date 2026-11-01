@@ -95,6 +95,8 @@ class ProductionEstimateOut(BaseModel):
     module: str | None = None
     queue_count: int
     cycles: int
+    rounds: int
+    cycle_seconds: int
     time_seconds: int
     eta: datetime
     outputs: list[ProductionEstimateItem]

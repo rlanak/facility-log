@@ -67,6 +67,11 @@ def estimate_production(
         "module": recipe.get("module"),
         "queue_count": queue_count,
         "cycles": total_cycles,
+        # The math behind time_seconds, so the UI/report can show it instead
+        # of a bare "N cycles, ready in X": queues run in parallel, so each
+        # one runs `rounds` cycles of `cycle_seconds` back to back.
+        "rounds": rounds,
+        "cycle_seconds": recipe["time_seconds"],
         "time_seconds": total_time_seconds,
         "eta": eta,
         "outputs": outputs,
