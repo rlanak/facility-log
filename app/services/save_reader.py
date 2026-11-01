@@ -6,12 +6,11 @@ The save is a binary UE4 GVAS file. Parsing it is delegated to the Rust CLI
 in tools/save-parser/ (`--json` mode; originally the foxhole-msupps-parser
 repo, moved in here when that repo was retired), which was
 validated end to end against real saves — reimplementing GVAS here would just
-be a second, untested copy. The packaged .exe bundles that CLI the same way it
-bundles Tesseract (see scripts/prepare_save_parser_vendor.py +
-facility_log.spec); the Docker image builds it for Linux.
+be a second, untested copy. Build it once with scripts/build_save_parser.py;
+the Docker image builds it for Linux.
 
-What the save does and doesn't have (learned in the retired tray app, see
-that repo's CLAUDE.md): only locations the player *pinned* on the map
+What the save does and doesn't have (learned in the retired tray app — see
+tools/save-parser/CLAUDE.md): only locations the player *pinned* on the map
 (Ctrl+A in game, max 25 per faction) appear, each with the stockpile the game
 last cached for it and the game's own `LastUpdated` time — the cache only
 refreshes when the player opens that pin's tooltip in game.
@@ -29,17 +28,13 @@ import sys
 import tempfile
 from pathlib import Path
 
-from app.paths import APP_DIR, BUNDLE_DIR
+from app.paths import APP_DIR
 
 _EXE_NAME = "foxhole-save-parser.exe" if sys.platform == "win32" else "foxhole-save-parser"
 
-# Order matters: the bundled copy wins inside the frozen .exe; in dev, the
-# vendored copy (what the .exe will ship) wins over a plain cargo build.
-_PARSER_CANDIDATES = [
-    BUNDLE_DIR / "save-parser" / _EXE_NAME,
-    APP_DIR / "vendor" / "save-parser" / _EXE_NAME,
-    APP_DIR / "tools" / "save-parser" / "target" / "release" / _EXE_NAME,
-]
+# Built by scripts/build_save_parser.py (cargo build --release). Docker sets
+# FOXHOLE_SAVE_PARSER instead.
+_PARSER_PATH = APP_DIR / "tools" / "save-parser" / "target" / "release" / _EXE_NAME
 
 # A real save is ~10KB; anything far bigger isn't one.
 MAX_SAVE_BYTES = 5 * 1024 * 1024
@@ -59,10 +54,7 @@ def locate_parser() -> Path | None:
     override = os.environ.get("FOXHOLE_SAVE_PARSER")
     if override and Path(override).is_file():
         return Path(override)
-    for path in _PARSER_CANDIDATES:
-        if path.is_file():
-            return path
-    return None
+    return _PARSER_PATH if _PARSER_PATH.is_file() else None
 
 
 def save_games_dir() -> Path | None:

@@ -1,9 +1,9 @@
 import json
 from functools import lru_cache
 
-from app.paths import BUNDLE_DIR
+from app.paths import APP_DIR
 
-DATA_DIR = BUNDLE_DIR / "data" / "foxhole"
+DATA_DIR = APP_DIR / "data" / "foxhole"
 
 
 @lru_cache(maxsize=1)

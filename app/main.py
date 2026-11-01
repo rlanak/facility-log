@@ -7,7 +7,7 @@ from starlette.types import Scope
 
 from app import auth
 from app.database import UPLOADS_DIR, Base, apply_migrations, engine
-from app.paths import BUNDLE_DIR
+from app.paths import APP_DIR
 from app.routers import auth as auth_routes
 from app.routers import buildings, facilities, foxhole, images, reports, resources, save, settings, stock
 
@@ -59,5 +59,5 @@ app.include_router(settings.router)
 
 app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 
-WEB_DIR = BUNDLE_DIR / "web"
+WEB_DIR = APP_DIR / "web"
 app.mount("/", NoCacheStaticFiles(directory=WEB_DIR, html=True), name="web")
