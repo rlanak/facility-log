@@ -1,12 +1,17 @@
 import json
+import os
+from pathlib import Path
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from app.paths import APP_DIR
 
-DATA_DIR = APP_DIR / "data"
-DATA_DIR.mkdir(exist_ok=True)
+# FACILITY_LOG_DATA_DIR: Docker puts the user's data on a volume outside the
+# image — mounting it over /app/data would hide the bundled catalog in
+# data/foxhole. Locally (and in the .exe) it stays APP_DIR/data.
+DATA_DIR = Path(os.environ.get("FACILITY_LOG_DATA_DIR") or APP_DIR / "data")
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 UPLOADS_DIR = DATA_DIR / "uploads"
 UPLOADS_DIR.mkdir(exist_ok=True)
 

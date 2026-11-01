@@ -254,6 +254,7 @@ def add_stock_entries(
     entries: list[schemas.StockEntryIn],
     lang: str = "pt-BR",
     catalog_lang: str | None = None,
+    created_by_id: int | None = None,
 ) -> list[models.StockEntry]:
     catalog_lang = catalog_lang or lang
     parsed = [(entry, parse_quantity(entry.quantity_raw)) for entry in entries]
@@ -282,6 +283,7 @@ def add_stock_entries(
             storage=entry.storage,
             source=entry.source,
             source_image_id=entry.source_image_id,
+            created_by_id=created_by_id,
         )
         db.add(stock_entry)
         created.append(stock_entry)
@@ -320,8 +322,10 @@ def create_report(
     stock_snapshot: str,
     discord_content: str = "",
     lang: str = "pt-BR",
+    created_by_id: int | None = None,
 ) -> models.Report:
     report = models.Report(
+        created_by_id=created_by_id,
         facility_id=facility_id,
         markdown_content=markdown_content,
         stock_snapshot=stock_snapshot,

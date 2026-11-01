@@ -1,0 +1,246 @@
+"""Optional Discord login for running facility-log on the web.
+
+Off by default: with no DISCORD_CLIENT_ID in the environment the app behaves
+exactly as before — local, no login, no account (a hard project rule; see
+CLAUDE.md). With it set, every /api/* and /uploads/* request needs a session
+from Discord OAuth2, and only members of one Discord server (guild) holding
+one of the allowed roles get in.
+
+No bot is needed: the `guilds.members.read` scope lets the logged-in user's
+own token read their membership/roles in that one guild
+(GET /users/@me/guilds/{guild_id}/member). Roles are re-checked every
+ROLE_RECHECK_SECONDS with the stored token, so losing the role in Discord
+logs the person out here too.
+
+Environment:
+    DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET   — from the Discord Developer Portal app
+    DISCORD_REDIRECT_URI                       — e.g. https://logi.example.com/auth/callback
+                                                 (must be registered in the portal)
+    DISCORD_GUILD_ID                           — the regiment's server
+    DISCORD_ALLOWED_ROLE_IDS                   — comma-separated role IDs
+    SESSION_SECRET                             — long random string signing the cookie
+"""
+
+import json
+import os
+import secrets
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from dataclasses import dataclass
+
+from fastapi.responses import JSONResponse
+
+DISCORD_API = "https://discord.com/api/v10"
+DISCORD_AUTHORIZE_URL = "https://discord.com/oauth2/authorize"
+SCOPES = "identify guilds.members.read"
+ROLE_RECHECK_SECONDS = 6 * 3600
+
+
+class Config:
+    def __init__(self) -> None:
+        self.client_id = os.environ.get("DISCORD_CLIENT_ID", "").strip()
+        self.client_secret = os.environ.get("DISCORD_CLIENT_SECRET", "").strip()
+        self.redirect_uri = os.environ.get("DISCORD_REDIRECT_URI", "").strip()
+        self.guild_id = os.environ.get("DISCORD_GUILD_ID", "").strip()
+        self.allowed_role_ids = {
+            r.strip() for r in os.environ.get("DISCORD_ALLOWED_ROLE_IDS", "").split(",") if r.strip()
+        }
+        self.session_secret = os.environ.get("SESSION_SECRET", "").strip()
+
+    @property
+    def enabled(self) -> bool:
+        return bool(self.client_id)
+
+    def missing(self) -> list[str]:
+        """Settings that must be there once login is on — refusing to start
+        half-configured beats silently letting everyone in."""
+        required = {
+            "DISCORD_CLIENT_SECRET": self.client_secret,
+            "DISCORD_REDIRECT_URI": self.redirect_uri,
+            "DISCORD_GUILD_ID": self.guild_id,
+            "DISCORD_ALLOWED_ROLE_IDS": self.allowed_role_ids,
+            "SESSION_SECRET": self.session_secret,
+        }
+        return [name for name, value in required.items() if not value]
+
+
+config = Config()
+
+
+class DiscordError(Exception):
+    pass
+
+
+def _request(method: str, url: str, *, data: dict | None = None, token: str | None = None) -> dict:
+    headers = {"User-Agent": "facility-log (personal Foxhole tool)"}
+    body = None
+    if data is not None:
+        body = urllib.parse.urlencode(data).encode()
+        headers["Content-Type"] = "application/x-www-form-urlencoded"
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(url, data=body, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as exc:
+        raise DiscordError(f"{exc.code} {exc.read()[:200]!r}") from exc
+    except (OSError, ValueError) as exc:
+        raise DiscordError(str(exc)) from exc
+
+
+def new_state() -> str:
+    return secrets.token_urlsafe(24)
+
+
+def authorize_url(state: str) -> str:
+    query = urllib.parse.urlencode(
+        {
+            "client_id": config.client_id,
+            "redirect_uri": config.redirect_uri,
+            "response_type": "code",
+            "scope": SCOPES,
+            "state": state,
+            "prompt": "none",
+        }
+    )
+    return f"{DISCORD_AUTHORIZE_URL}?{query}"
+
+
+def exchange_code(code: str) -> dict:
+    return _request(
+        "POST",
+        f"{DISCORD_API}/oauth2/token",
+        data={
+            "client_id": config.client_id,
+            "client_secret": config.client_secret,
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": config.redirect_uri,
+        },
+    )
+
+
+def refresh_token(refresh: str) -> dict:
+    return _request(
+        "POST",
+        f"{DISCORD_API}/oauth2/token",
+        data={
+            "client_id": config.client_id,
+            "client_secret": config.client_secret,
+            "grant_type": "refresh_token",
+            "refresh_token": refresh,
+        },
+    )
+
+
+def fetch_user(access_token: str) -> dict:
+    return _request("GET", f"{DISCORD_API}/users/@me", token=access_token)
+
+
+def has_allowed_role(access_token: str) -> bool:
+    """False when the user isn't in the guild at all (Discord answers 404)
+    or holds none of the allowed roles."""
+    try:
+        member = _request("GET", f"{DISCORD_API}/users/@me/guilds/{config.guild_id}/member", token=access_token)
+    except DiscordError as exc:
+        if str(exc).startswith("404"):
+            return False
+        raise
+    return bool(set(member.get("roles", [])) & config.allowed_role_ids)
+
+
+def token_expiry(token_response: dict) -> int:
+    return int(time.time()) + int(token_response.get("expires_in", 0))
+
+
+def avatar_url(user_json: dict) -> str | None:
+    if not user_json.get("avatar"):
+        return None
+    return f"https://cdn.discordapp.com/avatars/{user_json['id']}/{user_json['avatar']}.png?size=64"
+
+
+# --- Request gate ------------------------------------------------------------
+
+# Retry a role check this soon when Discord itself is unreachable, instead of
+# locking everyone out during a Discord outage or hammering it per request.
+_DISCORD_DOWN_RETRY_SECONDS = 300
+
+
+@dataclass
+class SessionUser:
+    """What the request handlers need about the logged-in user — a plain
+    copy, so nothing touches a closed DB session later."""
+
+    id: int
+    name: str
+    avatar_url: str | None
+
+
+def _load_user(request) -> SessionUser | None:
+    from app import models
+    from app.database import SessionLocal
+
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return None
+    with SessionLocal() as db:
+        user = db.get(models.User, user_id)
+        if not user:
+            request.session.clear()
+            return None
+        now = int(time.time())
+        if now - user.roles_checked_at > ROLE_RECHECK_SECONDS:
+            try:
+                if user.token_expires_at - now < 60 and user.refresh_token:
+                    token = refresh_token(user.refresh_token)
+                    user.access_token = token["access_token"]
+                    user.refresh_token = token.get("refresh_token", user.refresh_token)
+                    user.token_expires_at = token_expiry(token)
+                allowed = has_allowed_role(user.access_token)
+            except (DiscordError, KeyError):
+                user.roles_checked_at = now - ROLE_RECHECK_SECONDS + _DISCORD_DOWN_RETRY_SECONDS
+                db.commit()
+                allowed = True
+            else:
+                user.roles_checked_at = now
+                db.commit()
+            if not allowed:
+                request.session.clear()
+                return None
+        return SessionUser(id=user.id, name=user.name, avatar_url=user.avatar_url)
+
+
+async def gate(request, call_next):
+    """Every /api/* and /uploads/* request needs a logged-in user with the
+    role when login is on. Static files (the SPA itself) stay public so the
+    login screen can load; /api/me answers either way so the SPA knows
+    whether to show it."""
+    request.state.user = None
+    if not config.enabled:
+        return await call_next(request)
+    from starlette.concurrency import run_in_threadpool
+
+    request.state.user = await run_in_threadpool(_load_user, request)
+    path = request.url.path
+    protected = path.startswith("/api/") or path.startswith("/uploads/")
+    if protected and path != "/api/me" and request.state.user is None:
+        return JSONResponse({"detail": "login_required"}, status_code=401)
+    return await call_next(request)
+
+
+def is_local_request(request) -> bool:
+    """True for a browser on this same machine — and NOT for traffic coming
+    through a tunnel/reverse proxy (cloudflared connects from localhost too,
+    but adds forwarding headers). Used so a remote web user never gets to
+    read the *server's* own game save as if it were theirs."""
+    host = request.client.host if request.client else ""
+    forwarded = any(h in request.headers for h in ("x-forwarded-for", "cf-connecting-ip", "forwarded", "x-real-ip"))
+    return host in ("127.0.0.1", "::1", "localhost") and not forwarded
+
+
+def current_user_id(request) -> int | None:
+    user = getattr(request.state, "user", None)
+    return user.id if user else None

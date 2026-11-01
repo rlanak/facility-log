@@ -11,3 +11,4 @@ vendor/
 build/
 dist/
 exe_test/
+data-docker/

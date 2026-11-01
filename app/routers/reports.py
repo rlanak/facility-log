@@ -1,9 +1,9 @@
 import json
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from app import crud, models, schemas
+from app import auth, crud, models, schemas
 from app.database import get_db
 from app.services.errors_i18n import err
 from app.services.report_generator import extract_blocks, generate_report, split_for_discord
@@ -20,11 +20,14 @@ def _to_report_out(report: models.Report) -> schemas.ReportOut:
         markdown_content=report.markdown_content,
         blocks=extract_blocks(report.markdown_content),
         parts=split_for_discord(discord_paragraphs, lang=report.lang),
+        created_by_name=report.created_by.name if report.created_by else None,
     )
 
 
 @router.post("/api/facilities/{facility_id}/reports", response_model=schemas.ReportOut, status_code=201)
-def create_report(facility_id: int, lang: str = "pt-BR", catalog_lang: str | None = None, db: Session = Depends(get_db)):
+def create_report(
+    facility_id: int, request: Request, lang: str = "pt-BR", catalog_lang: str | None = None, db: Session = Depends(get_db)
+):
     facility = crud.get_facility(db, facility_id)
     if not facility:
         raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
@@ -40,6 +43,7 @@ def create_report(facility_id: int, lang: str = "pt-BR", catalog_lang: str | Non
         stock_snapshot=json.dumps(result["snapshot"], ensure_ascii=False),
         discord_content=result["discord_content"],
         lang=lang,
+        created_by_id=auth.current_user_id(request),
     )
     return schemas.ReportOut(
         id=report.id,
@@ -48,6 +52,7 @@ def create_report(facility_id: int, lang: str = "pt-BR", catalog_lang: str | Non
         markdown_content=report.markdown_content,
         blocks=schemas.ReportBlocks(**result["blocks"]),
         parts=result["parts"],
+        created_by_name=report.created_by.name if report.created_by else None,
     )
 
 

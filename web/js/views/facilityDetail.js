@@ -277,7 +277,7 @@ views.facilityDetail = (() => {
               : nonLiquidStock
                   .map(
                     (s) =>
-                      `<span class="mr-4 inline-flex items-center gap-1.5">${resourceThumb(s.resource_id) || ui.escapeHtml(s.resource_icon)} ${ui.escapeHtml(s.resource_name)}: <strong>${s.quantity}</strong>
+                      `<span class="mr-4 inline-flex items-center gap-1.5"${s.created_by_name ? ` title="${ui.escapeHtml(i18n.t("facilityDetail.loggedBy", { name: s.created_by_name }))}"` : ""}>${resourceThumb(s.resource_id) || ui.escapeHtml(s.resource_icon)} ${ui.escapeHtml(s.resource_name)}: <strong>${s.quantity}</strong>
                         <button class="delete-stock-item text-zinc-600 hover:text-red-400 px-0.5" data-resource-id="${s.resource_id}" data-storage="${s.storage}" data-name="${ui.escapeHtml(s.resource_name)}" title="${i18n.t("facilityDetail.deleteStockItem")}">✕</button>
                       </span>`
                   )

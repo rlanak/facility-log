@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import crud, models, schemas
+from app import auth, crud, models, schemas
 from app.database import get_db
 from app.services import foxhole_data, save_reader
 from app.services.errors_i18n import err
@@ -10,9 +10,15 @@ from app.services.errors_i18n import err
 router = APIRouter(tags=["save"])
 
 
+def _local_save_allowed(request: Request) -> bool:
+    # In web mode the "local" save is the *server's* — only offer it to a
+    # browser on the server machine itself, never to remote users.
+    return not auth.config.enabled or auth.is_local_request(request)
+
+
 @router.get("/api/save/status", response_model=schemas.SaveStatusOut)
-def save_status():
-    save = save_reader.locate_save()
+def save_status(request: Request):
+    save = save_reader.locate_save() if _local_save_allowed(request) else None
     return schemas.SaveStatusOut(
         parser_available=save_reader.locate_parser() is not None,
         local_save=str(save) if save else None,
@@ -21,6 +27,7 @@ def save_status():
 
 @router.post("/api/save/pins", response_model=list[schemas.SavePinOut])
 async def list_save_pins(
+    request: Request,
     file: UploadFile | None = File(default=None),
     lang: str = "pt-BR",
     catalog_lang: str | None = None,
@@ -33,6 +40,8 @@ async def list_save_pins(
     catalog_lang = catalog_lang or lang
     try:
         save_bytes = await file.read() if file else None
+        if save_bytes is None and not _local_save_allowed(request):
+            raise save_reader.SaveReadError("save_missing")
         locations = save_reader.read_pinned_locations(save_bytes)
     except save_reader.SaveReadError as exc:
         detail = err(exc.key, lang)

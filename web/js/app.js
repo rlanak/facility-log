@@ -1,7 +1,58 @@
 (function () {
   const app = document.getElementById("app");
 
+  // Web mode (Discord login) — null until /api/me answers. In local mode
+  // auth_enabled is false and nothing below changes how the app behaves.
+  let me = null;
+
+  function renderLogin() {
+    const params = new URLSearchParams(location.search);
+    const error = params.get("auth_error");
+    app.innerHTML = `
+      <div class="max-w-sm mx-auto mt-16 bg-zinc-900 border border-zinc-800 rounded-lg p-6 text-center">
+        <h1 class="text-lg font-bold mb-2">${i18n.t("auth.title")}</h1>
+        <p class="text-sm text-zinc-400 mb-4">${i18n.t("auth.intro")}</p>
+        ${error ? `<p class="text-sm text-amber-400 mb-4">${ui.escapeHtml(i18n.t(`auth.error.${error}`))}</p>` : ""}
+        <a href="/auth/login" class="inline-block bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded text-sm font-semibold">${i18n.t("auth.login")}</a>
+      </div>`;
+  }
+
+  function renderUserBox() {
+    const box = document.getElementById("user-box");
+    if (!me || !me.user) return;
+    box.innerHTML = "";
+    if (me.user.avatar_url) box.appendChild(ui.el("img", { src: me.user.avatar_url, class: "w-6 h-6 rounded-full" }));
+    box.appendChild(ui.el("span", { class: "text-xs text-zinc-300" }, me.user.name));
+    box.appendChild(
+      ui.el(
+        "button",
+        {
+          class: "text-xs text-zinc-500 hover:text-zinc-200",
+          onclick: async () => {
+            await fetch("/auth/logout", { method: "POST" });
+            location.href = "/";
+          },
+        },
+        i18n.t("auth.logout")
+      )
+    );
+    box.classList.remove("hidden");
+    box.classList.add("flex");
+  }
+
   async function router() {
+    if (me === null) {
+      try {
+        me = await api.me();
+      } catch (_) {
+        me = { auth_enabled: false, user: null };
+      }
+      renderUserBox();
+    }
+    if (me.auth_enabled && !me.user) {
+      renderLogin();
+      return;
+    }
     const hash = location.hash || "#/";
     const parts = hash.replace(/^#\/?/, "").split("/").filter(Boolean);
 
@@ -45,6 +96,11 @@
   i18n.applyStaticText();
   setupLangSwitcher();
 
+  // api.js fires this on a 401 (session expired / role removed in Discord).
+  window.addEventListener("auth-required", () => {
+    me = { auth_enabled: true, user: null };
+    renderLogin();
+  });
   window.addEventListener("hashchange", router);
   window.addEventListener("DOMContentLoaded", router);
 })();

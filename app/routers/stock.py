@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from app import crud, schemas
+from app import auth, crud, schemas
 from app.database import get_db
 from app.services.errors_i18n import err
 
@@ -23,6 +23,7 @@ def get_building_stock(building_id: int, lang: str = "pt-BR", catalog_lang: str 
             storage=e.storage,
             source=e.source,
             recorded_at=e.recorded_at,
+            created_by_name=e.created_by.name if e.created_by else None,
         )
         for e in entries
     ]
@@ -32,6 +33,7 @@ def get_building_stock(building_id: int, lang: str = "pt-BR", catalog_lang: str 
 def add_building_stock(
     building_id: int,
     entries: list[schemas.StockEntryIn],
+    request: Request,
     lang: str = "pt-BR",
     catalog_lang: str | None = None,
     db: Session = Depends(get_db),
@@ -39,7 +41,7 @@ def add_building_stock(
     if not crud.get_building(db, building_id):
         raise HTTPException(status_code=404, detail=err("building_not_found", lang))
     try:
-        created = crud.add_stock_entries(db, building_id, entries, lang, catalog_lang)
+        created = crud.add_stock_entries(db, building_id, entries, lang, catalog_lang, created_by_id=auth.current_user_id(request))
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     return [
@@ -52,6 +54,7 @@ def add_building_stock(
             storage=e.storage,
             source=e.source,
             recorded_at=e.recorded_at,
+            created_by_name=e.created_by.name if e.created_by else None,
         )
         for e in created
     ]

@@ -127,6 +127,7 @@ class StockEntryOut(BaseModel):
     storage: str
     source: str
     recorded_at: datetime
+    created_by_name: str | None = None
 
 
 class UploadImageOut(BaseModel):
@@ -190,6 +191,7 @@ class ReportOut(BaseModel):
     markdown_content: str
     blocks: ReportBlocks
     parts: list[str]
+    created_by_name: str | None = None
 
 
 class SaveStatusOut(BaseModel):
@@ -249,3 +251,13 @@ class CaptureSettingsOut(BaseModel):
     api_key_hint: str
     providers: dict[str, CaptureProviderStatus]
     ollama_vision_models: list[str]
+
+
+class UserOut(BaseModel):
+    name: str
+    avatar_url: str | None
+
+
+class MeOut(BaseModel):
+    auth_enabled: bool
+    user: UserOut | None

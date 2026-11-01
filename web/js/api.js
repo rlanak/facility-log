@@ -10,6 +10,7 @@ const api = (() => {
       headers: body ? { "Content-Type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
     });
+    if (res.status === 401) window.dispatchEvent(new Event("auth-required"));
     if (!res.ok) {
       let detail = res.statusText;
       try {
@@ -26,6 +27,7 @@ const api = (() => {
     const formData = new FormData();
     formData.append("file", file);
     const res = await fetch(withLang(path), { method: "POST", body: formData });
+    if (res.status === 401) window.dispatchEvent(new Event("auth-required"));
     if (!res.ok) {
       let detail = res.statusText;
       try {
@@ -38,6 +40,7 @@ const api = (() => {
   }
 
   return {
+    me: () => request("GET", "/api/me"),
     listFacilities: () => request("GET", "/api/facilities"),
     createFacility: (data) => request("POST", "/api/facilities", data),
     getFacility: (id) => request("GET", `/api/facilities/${id}`),

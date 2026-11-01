@@ -87,7 +87,12 @@ views.report = (() => {
             "button",
             { class: "flex-1 min-w-0 text-left" },
             [
-              ui.el("span", {}, i18n.t("report.reportOf", { date: new Date(report.generated_at).toLocaleString(i18n.getLang()) })),
+              ui.el(
+                "span",
+                {},
+                i18n.t("report.reportOf", { date: new Date(report.generated_at).toLocaleString(i18n.getLang()) }) +
+                  (report.created_by_name ? ` · ${i18n.t("report.by", { name: report.created_by_name })}` : "")
+              ),
               ui.el("span", { class: "text-zinc-500 text-xs ml-2" }, i18n.t("report.expand")),
             ]
           ),
