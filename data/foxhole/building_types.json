@@ -2524,5 +2524,16 @@
     ],
     "icon": "/assets/foxhole/structures/ConcreteMixerIcon.png",
     "name_pt": "Betoneira"
+  },
+  "material_transfer_station": {
+    "name_en": "Material Transfer Station",
+    "wiki_url": "https://foxhole.wiki.gg/wiki/Material_Transfer_Station",
+    "queue_slots": 0,
+    "recipes": [],
+    "icon": "/assets/foxhole/structures/MaterialTransferStation.png",
+    "name_pt": "Estação de Transferência de Materiais",
+    "storage": true,
+    "codename": "FacilityTransferMaterial",
+    "stockpile_capacity": 1000
   }
 }

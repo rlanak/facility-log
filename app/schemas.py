@@ -76,6 +76,7 @@ class BuildingOut(BuildingBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
     facility_id: int
+    save_pin_key: str | None = None
     production_slots: list[ProductionSlot] = []
 
 
@@ -189,3 +190,33 @@ class ReportOut(BaseModel):
     markdown_content: str
     blocks: ReportBlocks
     parts: list[str]
+
+
+class SaveStatusOut(BaseModel):
+    parser_available: bool
+    local_save: str | None
+
+
+class SavePinItem(BaseModel):
+    codename: str
+    quantity: int
+    resource_def_key: str | None
+    name: str | None
+
+
+class SavePinOut(BaseModel):
+    key: str
+    code_name: str
+    building_type_key: str | None
+    label: str
+    last_updated_unix: int
+    items: list[SavePinItem]
+
+
+class SavePinLink(BaseModel):
+    pin_key: str | None
+
+
+class CodenameAliasIn(BaseModel):
+    codename: str
+    resource_def_key: str

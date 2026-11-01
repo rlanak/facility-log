@@ -16,6 +16,19 @@ def get_building_type_defs() -> dict:
     return json.loads((DATA_DIR / "building_types.json").read_text(encoding="utf-8"))
 
 
+@lru_cache(maxsize=1)
+def resource_keys_by_codename() -> dict[str, str]:
+    """Game-internal item name (what the map save stores, e.g.
+    "MaintenanceSupplies") -> catalog resource key. Filled in by
+    scripts/map_resource_codenames.py."""
+    return {d["codename"]: key for key, d in get_resource_defs().items() if d.get("codename")}
+
+
+@lru_cache(maxsize=1)
+def building_type_keys_by_codename() -> dict[str, str]:
+    return {d["codename"]: key for key, d in get_building_type_defs().items() if d.get("codename")}
+
+
 def get_resource_def(key: str) -> dict | None:
     return get_resource_defs().get(key)
 

@@ -318,8 +318,9 @@ views.facilityDetail = (() => {
         <div class="flex gap-2 mt-3 flex-wrap">
           <button class="open-stock-modal text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.launchStock")}</button>
           <button class="open-print-modal text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.sendPrint")}</button>
+          <button class="open-save-import-modal text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.importSave")}</button>
           ${
-            foxholeType
+            foxholeType && foxholeType.recipes.length > 0
               ? `<button class="open-production-modal text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded px-2 py-1">${i18n.t("facilityDetail.production")}</button>`
               : ""
           }
@@ -414,6 +415,19 @@ views.facilityDetail = (() => {
           });
         },
         { maxWidth: "max-w-3xl" }
+      );
+    });
+
+    card.querySelector(".open-save-import-modal").addEventListener("click", () => {
+      ui.openModal(
+        `${i18n.t("facilityDetail.importSave")} — ${buildingDisplayName}`,
+        (body, close) => {
+          views.saveImport.renderSaveImportUI(body, building, foxholeType, () => {
+            onChange();
+            close();
+          });
+        },
+        { maxWidth: "max-w-2xl" }
       );
     });
 

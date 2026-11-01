@@ -5,7 +5,8 @@
       "pt": "Carvão"
     },
     "farmable": true,
-    "icon": "/assets/foxhole/items/CoalIcon.png"
+    "icon": "/assets/foxhole/items/CoalIcon.png",
+    "codename": "Coal"
   },
   "sulfur": {
     "name": {
@@ -13,7 +14,8 @@
       "pt": "Enxofre"
     },
     "farmable": true,
-    "icon": "/assets/foxhole/items/SulfurIcon.png"
+    "icon": "/assets/foxhole/items/SulfurIcon.png",
+    "codename": "Sulfur"
   },
   "water": {
     "name": {
@@ -23,7 +25,8 @@
     "farmable": true,
     "icon": "/assets/foxhole/items/WaterIcon.png",
     "is_liquid": true,
-    "liters_per_unit": 50
+    "liters_per_unit": 50,
+    "codename": "Water"
   },
   "oil": {
     "name": {
@@ -33,7 +36,8 @@
     "farmable": true,
     "icon": "/assets/foxhole/items/OilIcon.png",
     "is_liquid": true,
-    "liters_per_unit": 50
+    "liters_per_unit": 50,
+    "codename": "Oil"
   },
   "salvage": {
     "name": {
@@ -41,7 +45,8 @@
       "pt": "Sucata"
     },
     "farmable": true,
-    "icon": "/assets/foxhole/items/SalvageIcon.png"
+    "icon": "/assets/foxhole/items/SalvageIcon.png",
+    "codename": "Metal"
   },
   "components": {
     "name": {
@@ -49,7 +54,8 @@
       "pt": "Componentes"
     },
     "farmable": true,
-    "icon": "/assets/foxhole/items/ComponentsIcon.png"
+    "icon": "/assets/foxhole/items/ComponentsIcon.png",
+    "codename": "Components"
   },
   "rare_metal": {
     "name": {
@@ -57,7 +63,8 @@
       "pt": "Metal Raro"
     },
     "farmable": true,
-    "icon": "/assets/foxhole/items/RareMetalIcon.png"
+    "icon": "/assets/foxhole/items/RareMetalIcon.png",
+    "codename": "RareMetal"
   },
   "coke": {
     "name": {
@@ -65,7 +72,8 @@
       "pt": "Coque"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/CokeIcon.png"
+    "icon": "/assets/foxhole/items/CokeIcon.png",
+    "codename": "FacilityCoal1"
   },
   "concrete_materials": {
     "name": {
@@ -73,7 +81,8 @@
       "pt": "Materiais de Concreto"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/ConcreteMaterialsIcon.png"
+    "icon": "/assets/foxhole/items/ConcreteMaterialsIcon.png",
+    "codename": "Concrete"
   },
   "heavy_oil": {
     "name": {
@@ -83,7 +92,8 @@
     "farmable": false,
     "icon": "/assets/foxhole/items/HeavyOilIcon.png",
     "is_liquid": true,
-    "liters_per_unit": 30
+    "liters_per_unit": 30,
+    "codename": "FacilityOil1"
   },
   "petrol": {
     "name": {
@@ -93,7 +103,8 @@
     "farmable": false,
     "icon": "/assets/foxhole/items/PetrolIcon.png",
     "is_liquid": true,
-    "liters_per_unit": 50
+    "liters_per_unit": 50,
+    "codename": "Petrol"
   },
   "enriched_oil": {
     "name": {
@@ -103,7 +114,8 @@
     "farmable": false,
     "icon": "/assets/foxhole/items/EnrichedOilIcon.png",
     "is_liquid": true,
-    "liters_per_unit": 30
+    "liters_per_unit": 30,
+    "codename": "FacilityOil2"
   },
   "construction_materials": {
     "name": {
@@ -111,7 +123,8 @@
       "pt": "Materiais de Construção"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/BasicMaterialsIcon.png"
+    "icon": "/assets/foxhole/items/BasicMaterialsIcon.png",
+    "codename": "FacilityMaterials1"
   },
   "maintenance_supplies": {
     "name": {
@@ -119,7 +132,8 @@
       "pt": "Suprimentos de Manutenção"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/MaintenanceSuppliesIcon.png"
+    "icon": "/assets/foxhole/items/MaintenanceSuppliesIcon.png",
+    "codename": "MaintenanceSupplies"
   },
   "barbed_wire": {
     "name": {
@@ -127,7 +141,8 @@
       "pt": "Arame Farpado"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/BarbedWireMaterialItemIcon.png"
+    "icon": "/assets/foxhole/items/BarbedWireMaterialItemIcon.png",
+    "codename": "BarbedWireMaterials"
   },
   "metal_beam": {
     "name": {
@@ -135,7 +150,8 @@
       "pt": "Viga de Metal"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/MetalBeamMaterialItemIcon.png"
+    "icon": "/assets/foxhole/items/MetalBeamMaterialItemIcon.png",
+    "codename": "MetalBeamMaterials"
   },
   "sandbag": {
     "name": {
@@ -143,7 +159,8 @@
       "pt": "Saco de Areia"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/SandbagMaterialItemIcon.png"
+    "icon": "/assets/foxhole/items/SandbagMaterialItemIcon.png",
+    "codename": "SandbagMaterials"
   },
   "assembly_materials_1": {
     "name": {
@@ -151,7 +168,8 @@
       "pt": "Materiais de Montagem I"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/AssemblyMaterials1Icon.png"
+    "icon": "/assets/foxhole/items/AssemblyMaterials1Icon.png",
+    "codename": "FacilityMaterials4"
   },
   "assembly_materials_2": {
     "name": {
@@ -159,7 +177,8 @@
       "pt": "Materiais de Montagem II"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/AssemblyMaterials2Icon.png"
+    "icon": "/assets/foxhole/items/AssemblyMaterials2Icon.png",
+    "codename": "FacilityMaterials5"
   },
   "assembly_materials_3": {
     "name": {
@@ -167,7 +186,8 @@
       "pt": "Materiais de Montagem III"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/AssemblyMaterials3Icon.png"
+    "icon": "/assets/foxhole/items/AssemblyMaterials3Icon.png",
+    "codename": "FacilityMaterials6"
   },
   "assembly_materials_4": {
     "name": {
@@ -175,7 +195,8 @@
       "pt": "Materiais de Montagem IV"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/AssemblyMaterials4Icon.png"
+    "icon": "/assets/foxhole/items/AssemblyMaterials4Icon.png",
+    "codename": "FacilityMaterials7"
   },
   "assembly_materials_5": {
     "name": {
@@ -183,7 +204,8 @@
       "pt": "Materiais de Montagem V"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/AssemblyMaterials5Icon.png"
+    "icon": "/assets/foxhole/items/AssemblyMaterials5Icon.png",
+    "codename": "FacilityMaterials8"
   },
   "processed_construction_materials": {
     "name": {
@@ -191,7 +213,8 @@
       "pt": "Materiais de Construção Processados"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/ProcessedConstructionMaterialsIcon.png"
+    "icon": "/assets/foxhole/items/ProcessedConstructionMaterialsIcon.png",
+    "codename": "FacilityMaterials2"
   },
   "steel_construction_materials": {
     "name": {
@@ -199,7 +222,8 @@
       "pt": "Materiais de Construção de Aço"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/SteelConstructionMaterialsIcon.png"
+    "icon": "/assets/foxhole/items/SteelConstructionMaterialsIcon.png",
+    "codename": "FacilityMaterials3"
   },
   "damaged_components": {
     "name": {
@@ -207,7 +231,8 @@
       "pt": "Componentes Danificados"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/DamagedComponentsIcon.png"
+    "icon": "/assets/foxhole/items/DamagedComponentsIcon.png",
+    "codename": "FacilityComponents1"
   },
   "rare_alloys": {
     "name": {
@@ -215,7 +240,8 @@
       "pt": "Ligas Raras"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/RareAlloysIcon.png"
+    "icon": "/assets/foxhole/items/RareAlloysIcon.png",
+    "codename": "FacilityMaterials9"
   },
   "rare_materials": {
     "name": {
@@ -223,7 +249,8 @@
       "pt": "Materiais Raros"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/RareMaterialsIcon.png"
+    "icon": "/assets/foxhole/items/RareMaterialsIcon.png",
+    "codename": "FacilityMaterials12"
   },
   "gravel": {
     "name": {
@@ -231,7 +258,8 @@
       "pt": "Cascalho"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/GravelIcon.png"
+    "icon": "/assets/foxhole/items/GravelIcon.png",
+    "codename": "GroundMaterials"
   },
   "pipe": {
     "name": {
@@ -239,7 +267,8 @@
       "pt": "Cano"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/PipeIcon.png"
+    "icon": "/assets/foxhole/items/PipeIcon.png",
+    "codename": "PipeMaterials"
   },
   "explosive_powder": {
     "name": {
@@ -247,7 +276,8 @@
       "pt": "Pólvora Explosiva"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/ExplosiveMaterialIcon.png"
+    "icon": "/assets/foxhole/items/ExplosiveMaterialIcon.png",
+    "codename": "Explosive"
   },
   "heavy_explosive_powder": {
     "name": {
@@ -255,7 +285,8 @@
       "pt": "Pólvora Explosiva Pesada"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/HeavyExplosivePowderIcon.png"
+    "icon": "/assets/foxhole/items/HeavyExplosivePowderIcon.png",
+    "codename": "HeavyExplosive"
   },
   "20mm": {
     "name": {
@@ -263,7 +294,8 @@
       "pt": "20mm"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/AircraftAmmoIcon.png"
+    "icon": "/assets/foxhole/items/AircraftAmmoIcon.png",
+    "codename": "AircraftAmmo"
   },
   "30mm": {
     "name": {
@@ -271,7 +303,8 @@
       "pt": "30mm"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/MiniTankAmmoItemIcon.png"
+    "icon": "/assets/foxhole/items/MiniTankAmmoItemIcon.png",
+    "codename": "MiniTankAmmo"
   },
   "40mm": {
     "name": {
@@ -279,7 +312,8 @@
       "pt": "40mm"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/LightTankAmmoItemIcon.png"
+    "icon": "/assets/foxhole/items/LightTankAmmoItemIcon.png",
+    "codename": "LightTankAmmo"
   },
   "68mm": {
     "name": {
@@ -287,7 +321,8 @@
       "pt": "68mm"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/ATAmmoIcon.png"
+    "icon": "/assets/foxhole/items/ATAmmoIcon.png",
+    "codename": "ATAmmo"
   },
   "75mm": {
     "name": {
@@ -295,7 +330,8 @@
       "pt": "75mm"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/BattleTankAmmoItemIcon.png"
+    "icon": "/assets/foxhole/items/BattleTankAmmoItemIcon.png",
+    "codename": "BattleTankAmmo"
   },
   "94_5mm": {
     "name": {
@@ -303,7 +339,8 @@
       "pt": "94.5mm"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/ATLargeAmmoIcon.png"
+    "icon": "/assets/foxhole/items/ATLargeAmmoIcon.png",
+    "codename": "ATLargeAmmo"
   },
   "120mm": {
     "name": {
@@ -311,7 +348,8 @@
       "pt": "120mm"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/LightArtilleryAmmoItemIcon.png"
+    "icon": "/assets/foxhole/items/LightArtilleryAmmoItemIcon.png",
+    "codename": "LightArtilleryAmmo"
   },
   "150mm": {
     "name": {
@@ -319,7 +357,8 @@
       "pt": "150mm"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/HeavyArtilleryAmmoItemIcon.png"
+    "icon": "/assets/foxhole/items/HeavyArtilleryAmmoItemIcon.png",
+    "codename": "HeavyArtilleryAmmo"
   },
   "300mm": {
     "name": {
@@ -327,7 +366,8 @@
       "pt": "300mm"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/LRArtilleryAmmoItemIcon.png"
+    "icon": "/assets/foxhole/items/LRArtilleryAmmoItemIcon.png",
+    "codename": "LRArtilleryAmmo"
   },
   "250mm_fury_shell": {
     "name": {
@@ -335,7 +375,8 @@
       "pt": "Projétil 250mm “Fury”"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/MortarTankAmmoBRIcon.png"
+    "icon": "/assets/foxhole/items/MortarTankAmmoBRIcon.png",
+    "codename": "MortarTankAmmoBR"
   },
   "950_70b_aa_shell": {
     "name": {
@@ -343,7 +384,8 @@
       "pt": "Projétil Antiaéreo 950-70b"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/AAAmmoIcon.png"
+    "icon": "/assets/foxhole/items/AAAmmoIcon.png",
+    "codename": "AAAmmo"
   },
   "flame_ammo": {
     "name": {
@@ -351,7 +393,8 @@
       "pt": "Munição Incendiária"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/FlameAmmoIcon.png"
+    "icon": "/assets/foxhole/items/FlameAmmoIcon.png",
+    "codename": "FlameAmmo"
   },
   "thermal_shielding": {
     "name": {
@@ -359,7 +402,8 @@
       "pt": "Blindagem Térmica"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/FacilityMaterials11Icon.png"
+    "icon": "/assets/foxhole/items/FacilityMaterials11Icon.png",
+    "codename": "FacilityMaterials11"
   },
   "unstable_substances": {
     "name": {
@@ -367,7 +411,8 @@
       "pt": "Substâncias Instáveis"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/FacilityMaterials10Icon.png"
+    "icon": "/assets/foxhole/items/FacilityMaterials10Icon.png",
+    "codename": "FacilityMaterials10"
   },
   "912_shrike_rounds": {
     "name": {
@@ -375,7 +420,8 @@
       "pt": "Munição 912 Shrike"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/DiveBomberAmmoIcon.png"
+    "icon": "/assets/foxhole/items/DiveBomberAmmoIcon.png",
+    "codename": "DiveBomberAmmo"
   },
   "14_5mm": {
     "name": {
@@ -383,7 +429,8 @@
       "pt": "14.5mm"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/ATRifleAmmoItemIcon.png"
+    "icon": "/assets/foxhole/items/ATRifleAmmoItemIcon.png",
+    "codename": "ATRifleAmmo"
   },
   "ap_rpg": {
     "name": {
@@ -391,7 +438,8 @@
       "pt": "AP/RPG"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/ATRpgAmmoItemIcon.png"
+    "icon": "/assets/foxhole/items/ATRpgAmmoItemIcon.png",
+    "codename": "ATRPGAmmo"
   },
   "arc_rpg": {
     "name": {
@@ -399,7 +447,8 @@
       "pt": "ARC/RPG"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/ATMortarAmmoItemIcon.png"
+    "icon": "/assets/foxhole/items/ATMortarAmmoItemIcon.png",
+    "codename": "ATRPGIndirectAmmo"
   },
   "rpg_ammo": {
     "name": {
@@ -407,7 +456,8 @@
       "pt": "Munição de RPG"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/RpgItemIcon.png"
+    "icon": "/assets/foxhole/items/RpgItemIcon.png",
+    "codename": "RpgAmmo"
   },
   "mark_ii_raidbreaker": {
     "name": {
@@ -415,7 +465,8 @@
       "pt": "Mark II Raidbreaker"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/AerialBombsIcon.png"
+    "icon": "/assets/foxhole/items/AerialBombsIcon.png",
+    "codename": "BomberAmmo"
   },
   "model_7_evie": {
     "name": {
@@ -423,7 +474,8 @@
       "pt": "Model-7 “Evie”"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/DepthChargeIcon.png"
+    "icon": "/assets/foxhole/items/DepthChargeIcon.png",
+    "codename": "DepthChargeAmmo"
   },
   "moray_torpedo": {
     "name": {
@@ -431,7 +483,8 @@
       "pt": "Torpedo Moray"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/TorpedoIcon.png"
+    "icon": "/assets/foxhole/items/TorpedoIcon.png",
+    "codename": "TorpedoAmmo"
   },
   "3c_he_rocket": {
     "name": {
@@ -439,7 +492,8 @@
       "pt": "Foguete 3C Altamente Explosivo"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/HERocketAmmoIcon.png"
+    "icon": "/assets/foxhole/items/HERocketAmmoIcon.png",
+    "codename": "HERocketAmmo"
   },
   "4c_fire_rocket": {
     "name": {
@@ -447,7 +501,8 @@
       "pt": "Foguete Incendiário 4C"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/FlameRocketAmmoIcon.png"
+    "icon": "/assets/foxhole/items/FlameRocketAmmoIcon.png",
+    "codename": "FireRocketAmmo"
   },
   "shatter_missile": {
     "name": {
@@ -455,7 +510,8 @@
       "pt": "Míssil Shatter"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/DemolitionRocketAmmoIcon.png"
+    "icon": "/assets/foxhole/items/DemolitionRocketAmmoIcon.png",
+    "codename": "DemolitionRocketAmmo"
   },
   "ignifist_30": {
     "name": {
@@ -463,7 +519,8 @@
       "pt": "Ignifist 30"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/ATRPGLightCItemIcon.png"
+    "icon": "/assets/foxhole/items/ATRPGLightCItemIcon.png",
+    "codename": "ATRPGLightC"
   },
   "anti_tank_sticky_bomb": {
     "name": {
@@ -471,7 +528,8 @@
       "pt": "Bomba Adesiva Antitanque"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/StickyBombIcon.png"
+    "icon": "/assets/foxhole/items/StickyBombIcon.png",
+    "codename": "StickyBomb"
   },
   "flare_mortar_shell": {
     "name": {
@@ -479,7 +537,8 @@
       "pt": "Projétil de Morteiro Iluminante"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/MortarAmmoIconFlare.png"
+    "icon": "/assets/foxhole/items/MortarAmmoIconFlare.png",
+    "codename": "MortarAmmoFL"
   },
   "mortar_shell": {
     "name": {
@@ -487,7 +546,8 @@
       "pt": "Projétil de Morteiro"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/MortarAmmoIcon.png"
+    "icon": "/assets/foxhole/items/MortarAmmoIcon.png",
+    "codename": "MortarAmmo"
   },
   "shrapnel_mortar_shell": {
     "name": {
@@ -495,7 +555,8 @@
       "pt": "Projétil de Morteiro de Estilhaços"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/MortarAmmoIconShrapnel.png"
+    "icon": "/assets/foxhole/items/MortarAmmoIconShrapnel.png",
+    "codename": "MortarAmmoSH"
   },
   "incendiary_mortar_shell": {
     "name": {
@@ -503,7 +564,8 @@
       "pt": "Projétil de Morteiro Incendiário"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/MortarAmmoIconFlame.png"
+    "icon": "/assets/foxhole/items/MortarAmmoIconFlame.png",
+    "codename": "MortarAmmoFlame"
   },
   "pt815_smoke_grenade": {
     "name": {
@@ -511,7 +573,8 @@
       "pt": "Granada de Fumaça PT-815"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/Smokegrenadeicon1.png"
+    "icon": "/assets/foxhole/items/Smokegrenadeicon1.png",
+    "codename": "SmokeGrenade"
   },
   "tremola_grenade_gpb1": {
     "name": {
@@ -519,7 +582,8 @@
       "pt": "Granada Tremola GPb-1"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/HELaunchedGrenadeItemIcon.png"
+    "icon": "/assets/foxhole/items/HELaunchedGrenadeItemIcon.png",
+    "codename": "HELaunchedGrenade"
   },
   "paratroopers_ruck": {
     "name": {
@@ -527,7 +591,8 @@
       "pt": "Mochila de Paraquedista"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/ParatrooperBackpackItemIcon.png"
+    "icon": "/assets/foxhole/items/ParatrooperBackpackItemIcon.png",
+    "codename": "ParatrooperBackpack"
   },
   "abisme_at99": {
     "name": {
@@ -535,7 +600,8 @@
       "pt": "Abisme AT-99"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/AntiTankMineItemIcon.png"
+    "icon": "/assets/foxhole/items/AntiTankMineItemIcon.png",
+    "codename": "TankMine"
   },
   "crows_foot_mine": {
     "name": {
@@ -543,7 +609,8 @@
       "pt": "Mina Pé-de-Corvo"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/InfantryMineIcon.png"
+    "icon": "/assets/foxhole/items/InfantryMineIcon.png",
+    "codename": "InfantryMine"
   },
   "e680_rudder_lock": {
     "name": {
@@ -551,7 +618,8 @@
       "pt": "Trava de Leme E680-S"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/SeaMineIcon.png"
+    "icon": "/assets/foxhole/items/SeaMineIcon.png",
+    "codename": "WaterMine"
   },
   "e681_hullbreaker_mine": {
     "name": {
@@ -559,7 +627,8 @@
       "pt": "Mina Quebra-Casco E681-B"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/SurfaceMineIcon.png"
+    "icon": "/assets/foxhole/items/SurfaceMineIcon.png",
+    "codename": "SurfaceWaterMine"
   },
   "naval_buoy": {
     "name": {
@@ -575,7 +644,8 @@
       "pt": "Torpedo Quillback"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/MiniTorpedoAmmoIcon.png"
+    "icon": "/assets/foxhole/items/MiniTorpedoAmmoIcon.png",
+    "codename": "MiniTorpedoAmmo"
   },
   "typhon_ra_xii": {
     "name": {
@@ -583,7 +653,8 @@
       "pt": "“Typhon” ra.XII"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/ATRifleTCIcon.png"
+    "icon": "/assets/foxhole/items/ATRifleTCIcon.png",
+    "codename": "ATRifleTC"
   },
   "daucus_isg_iii": {
     "name": {
@@ -591,7 +662,8 @@
       "pt": "Daucus isg.III"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/InfantrySupportGunItemIcon.png"
+    "icon": "/assets/foxhole/items/InfantrySupportGunItemIcon.png",
+    "codename": "ISGTC"
   },
   "lamentum_mm_iv": {
     "name": {
@@ -599,7 +671,8 @@
       "pt": "Lamentum mm.IV"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/HeavyMachineGunIcon.png"
+    "icon": "/assets/foxhole/items/HeavyMachineGunIcon.png",
+    "codename": "MGTC"
   },
   "mounted_fissura_gd_i": {
     "name": {
@@ -607,7 +680,8 @@
       "pt": "Fissura gd.I Montada"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/GrenadeLauncherTCIcon.png"
+    "icon": "/assets/foxhole/items/GrenadeLauncherTCIcon.png",
+    "codename": "GrenadeLauncherTC"
   },
   "legion_vexillum": {
     "name": {
@@ -615,7 +689,8 @@
       "pt": "Vexillum da Legião"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/BannerTCItemIcon.png"
+    "icon": "/assets/foxhole/items/BannerTCItemIcon.png",
+    "codename": "BannerTC"
   },
   "tripod_generic": {
     "name": {
@@ -623,7 +698,8 @@
       "pt": "Tripé"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/DeployableTripodItemIcon.png"
+    "icon": "/assets/foxhole/items/DeployableTripodItemIcon.png",
+    "codename": "Tripod"
   },
   "dusk_ce_iii": {
     "name": {
@@ -631,7 +707,8 @@
       "pt": "“Dusk” ce.III"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/AssaultRifleHeavyCItemIcon.png"
+    "icon": "/assets/foxhole/items/AssaultRifleHeavyCItemIcon.png",
+    "codename": "AssaultRifleHeavyC"
   },
   "dawn_ve_ii": {
     "name": {
@@ -639,7 +716,8 @@
       "pt": "“Dawn” Ve.II"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/ATRifleLightCIcon.png"
+    "icon": "/assets/foxhole/items/ATRifleLightCIcon.png",
+    "codename": "ATRifleLightC"
   },
   "catara_mo_ii": {
     "name": {
@@ -647,7 +725,8 @@
       "pt": "Catara mo.II"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/LightMachineGunIcon.png"
+    "icon": "/assets/foxhole/items/LightMachineGunIcon.png",
+    "codename": "AssaultRifleC"
   },
   "quickhatch_rt_i": {
     "name": {
@@ -655,7 +734,8 @@
       "pt": "“Quickhatch” Rt.I"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/ATRifleSniperCIcontga.png"
+    "icon": "/assets/foxhole/items/ATRifleSniperCIcontga.png",
+    "codename": "ATRifleSniperC"
   },
   "argenti_r_ii_rifle": {
     "name": {
@@ -663,7 +743,8 @@
       "pt": "Rifle Argenti r.II"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/RifleCItemIcon.png"
+    "icon": "/assets/foxhole/items/RifleCItemIcon.png",
+    "codename": "RifleC"
   },
   "krr3_792_auger": {
     "name": {
@@ -671,7 +752,8 @@
       "pt": "KRR3-792 Auger"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/SniperRifleCItemIcon.png"
+    "icon": "/assets/foxhole/items/SniperRifleCItemIcon.png",
+    "codename": "SniperRifleC"
   },
   "fabri_rucksack": {
     "name": {
@@ -679,7 +761,8 @@
       "pt": "Mochila Fabri"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/EngineerUniformCIcon.png"
+    "icon": "/assets/foxhole/items/EngineerUniformCIcon.png",
+    "codename": "EngineerUniformC"
   },
   "grenadiers_baldric": {
     "name": {
@@ -687,7 +770,8 @@
       "pt": "Talabarte do Granadeiro"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/GrenadeUniformCIcon.png"
+    "icon": "/assets/foxhole/items/GrenadeUniformCIcon.png",
+    "codename": "GrenadeUniformC"
   },
   "heavy_topcoat": {
     "name": {
@@ -695,7 +779,8 @@
       "pt": "Sobretudo Pesado"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/SnowUniformCIcon.png"
+    "icon": "/assets/foxhole/items/SnowUniformCIcon.png",
+    "codename": "SnowUniformC"
   },
   "legionarys_oilcoat": {
     "name": {
@@ -703,7 +788,8 @@
       "pt": "Capa Impermeável do Legionário"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/RainUniformCIcon.png"
+    "icon": "/assets/foxhole/items/RainUniformCIcon.png",
+    "codename": "RainUniformC"
   },
   "medic_fatigues": {
     "name": {
@@ -711,7 +797,8 @@
       "pt": "Uniforme de Médico"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/MedicUniformCIcon.png"
+    "icon": "/assets/foxhole/items/MedicUniformCIcon.png",
+    "codename": "MedicUniformC"
   },
   "officialis_attire": {
     "name": {
@@ -719,7 +806,8 @@
       "pt": "Traje Officialis"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/OfficerUniformCIcon.png"
+    "icon": "/assets/foxhole/items/OfficerUniformCIcon.png",
+    "codename": "OfficerUniformC"
   },
   "recon_camo": {
     "name": {
@@ -727,7 +815,8 @@
       "pt": "Camuflagem de Reconhecimento"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/ScoutUniformCIcon.png"
+    "icon": "/assets/foxhole/items/ScoutUniformCIcon.png",
+    "codename": "ScoutUniformC"
   },
   "remex_garb": {
     "name": {
@@ -735,7 +824,8 @@
       "pt": "Vestimenta Remex"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/NavalUniformC.png"
+    "icon": "/assets/foxhole/items/NavalUniformC.png",
+    "codename": "NavalUniformC"
   },
   "tankmans_coveralls": {
     "name": {
@@ -743,7 +833,8 @@
       "pt": "Macacão de Tanquista"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/TankUniformCIcon.png"
+    "icon": "/assets/foxhole/items/TankUniformCIcon.png",
+    "codename": "TankUniformC"
   },
   "velian_flak_vest": {
     "name": {
@@ -751,7 +842,8 @@
       "pt": "Colete Antifragmento Velian"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/ArmourUniformC.png"
+    "icon": "/assets/foxhole/items/ArmourUniformC.png",
+    "codename": "ArmourUniformC"
   },
   "austers_harness": {
     "name": {
@@ -759,7 +851,8 @@
       "pt": "Arreio de Auster"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/ParatrooperUniformCIcon.png"
+    "icon": "/assets/foxhole/items/ParatrooperUniformCIcon.png",
+    "codename": "ParatrooperUniformC"
   },
   "lodesmans_lorica": {
     "name": {
@@ -767,7 +860,8 @@
       "pt": "Lorica de Lodesman"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/PilotUniformCIcon.png"
+    "icon": "/assets/foxhole/items/PilotUniformCIcon.png",
+    "codename": "PilotUniformC"
   },
   "colonial_aircraft_engine_small": {
     "name": {
@@ -775,7 +869,8 @@
       "pt": "Motor de Aeronave Colonial (Pequeno)"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/AircraftPartSmallEngineCIcon.png"
+    "icon": "/assets/foxhole/items/AircraftPartSmallEngineCIcon.png",
+    "codename": "AircraftPartSmallEngineC"
   },
   "colonial_aircraft_mech_parts_small": {
     "name": {
@@ -783,7 +878,8 @@
       "pt": "Peças Mecânicas de Aeronave Colonial (Pequeno)"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/AircraftPartSmallMechanicalCIcon.png"
+    "icon": "/assets/foxhole/items/AircraftPartSmallMechanicalCIcon.png",
+    "codename": "AircraftPartSmallMechanicalC"
   },
   "colonial_aircraft_engine_large": {
     "name": {
@@ -791,7 +887,8 @@
       "pt": "Motor de Aeronave Colonial (Grande)"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/AircraftPartLargeEngineCIcon.png"
+    "icon": "/assets/foxhole/items/AircraftPartLargeEngineCIcon.png",
+    "codename": "AircraftPartLargeEngineC"
   },
   "colonial_aircraft_mech_parts_large": {
     "name": {
@@ -799,7 +896,8 @@
       "pt": "Peças Mecânicas de Aeronave Colonial (Grande)"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/AircraftPartLargeMechanicalCIcon.png"
+    "icon": "/assets/foxhole/items/AircraftPartLargeMechanicalCIcon.png",
+    "codename": "AircraftPartLargeMechanicalC"
   },
   "damaged_colonial_aircraft_engine_small": {
     "name": {
@@ -807,7 +905,8 @@
       "pt": "Motor de Aeronave Colonial Danificado (Pequeno)"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/DamagedAircraftPartSmallEngineCIcon.png"
+    "icon": "/assets/foxhole/items/DamagedAircraftPartSmallEngineCIcon.png",
+    "codename": "AircraftPartSmallEngineWreckedC"
   },
   "damaged_colonial_aircraft_mech_parts_small": {
     "name": {
@@ -815,7 +914,8 @@
       "pt": "Peças Mecânicas de Aeronave Colonial Danificadas (Pequeno)"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/DamagedAircraftPartSmallMechanicalCIcon.png"
+    "icon": "/assets/foxhole/items/DamagedAircraftPartSmallMechanicalCIcon.png",
+    "codename": "AircraftPartSmallMechanicalWreckedC"
   },
   "damaged_colonial_aircraft_engine_large": {
     "name": {
@@ -823,7 +923,8 @@
       "pt": "Motor de Aeronave Colonial Danificado (Grande)"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/DamagedAircraftPartLargeEngineCIcon.png"
+    "icon": "/assets/foxhole/items/DamagedAircraftPartLargeEngineCIcon.png",
+    "codename": "AircraftPartLargeEngineWreckedC"
   },
   "damaged_colonial_aircraft_mech_parts_large": {
     "name": {
@@ -831,6 +932,7 @@
       "pt": "Peças Mecânicas de Aeronave Colonial Danificadas (Grande)"
     },
     "farmable": false,
-    "icon": "/assets/foxhole/items/DamagedAircraftPartLargeMechanicalCIcon.png"
+    "icon": "/assets/foxhole/items/DamagedAircraftPartLargeMechanicalCIcon.png",
+    "codename": "AircraftPartLargeMechanicalWreckedC"
   }
 }

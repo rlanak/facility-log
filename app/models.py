@@ -59,6 +59,10 @@ class Building(Base):
     name: Mapped[str] = mapped_column(String(200))
     role: Mapped[str] = mapped_column(String(100), default="")
     position: Mapped[int] = mapped_column(default=0)
+    # The map pin (save_reader.pin_key) this building's stockpile is imported
+    # from — remembered after the first "Importar do save" so the next import
+    # preselects it.
+    save_pin_key: Mapped[str | None] = mapped_column(String(160), default=None)
     building_type_key: Mapped[str | None] = mapped_column(String(80), default=None)
     # Up to the building type's queue_slots total, each running a different
     # recipe — the game allows distinct simultaneous production orders, not
@@ -106,6 +110,17 @@ class StockEntry(Base):
 
     building: Mapped["Building"] = relationship(back_populates="stock_entries")
     resource: Mapped["Resource"] = relationship()
+
+
+class CodenameAlias(Base):
+    """User-picked catalog resource for a game item codename the catalog
+    doesn't map yet (resources.json "codename"), so a save import only asks
+    about it once."""
+
+    __tablename__ = "codename_aliases"
+
+    codename: Mapped[str] = mapped_column(String(120), primary_key=True)
+    resource_def_key: Mapped[str] = mapped_column(String(80))
 
 
 class UploadImage(Base):

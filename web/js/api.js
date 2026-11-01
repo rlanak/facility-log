@@ -75,5 +75,11 @@ const api = (() => {
     listFoxholeBuildingTypes: () => request("GET", "/api/foxhole/building-types"),
     setBuildingProduction: (buildingId, data) => request("PUT", `/api/buildings/${buildingId}/production`, data),
     getProductionEstimate: (buildingId) => request("GET", `/api/buildings/${buildingId}/production-estimate`),
+
+    saveStatus: () => request("GET", "/api/save/status"),
+    // No file = read this PC's own save (local mode); a file = an uploaded .sav (web mode).
+    listSavePins: (file) => (file ? upload("/api/save/pins", file) : request("POST", "/api/save/pins")),
+    linkSavePin: (buildingId, pinKey) => request("PUT", `/api/buildings/${buildingId}/save-pin`, { pin_key: pinKey }),
+    setCodenameAlias: (data) => request("PUT", "/api/save/aliases", data),
   };
 })();

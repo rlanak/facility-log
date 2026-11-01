@@ -44,6 +44,7 @@ _ADDED_COLUMNS = [
     ("resources", "imported", "BOOLEAN DEFAULT 0"),
     ("reports", "discord_content", "TEXT DEFAULT ''"),
     ("reports", "lang", "VARCHAR(10) DEFAULT 'pt-BR'"),
+    ("buildings", "save_pin_key", "VARCHAR(160)"),
 ]
 
 

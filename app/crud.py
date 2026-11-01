@@ -27,6 +27,16 @@ def create_resource(db: Session, data: schemas.ResourceCreate) -> models.Resourc
 
 
 def get_or_create_resource(db: Session, name: str, resource_def_key: str | None = None) -> models.Resource:
+    # A catalog-linked resource is the same resource whatever name it was
+    # saved under (e.g. the user created "Cmat" linked to construction
+    # materials) — match on the link first so a save/OCR import doesn't
+    # spawn a duplicate under the catalog's English name.
+    if resource_def_key:
+        linked = db.scalar(
+            select(models.Resource).where(models.Resource.resource_def_key == resource_def_key).order_by(models.Resource.id)
+        )
+        if linked:
+            return linked
     resource = get_resource_by_name(db, name)
     if resource:
         return resource
