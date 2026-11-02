@@ -69,6 +69,11 @@ class Building(Base):
     # preselects it.
     save_pin_key: Mapped[str | None] = mapped_column(String(160), default=None)
     building_type_key: Mapped[str | None] = mapped_column(String(80), default=None)
+    # The upgrade module installed (a recipe "module" name from the catalog,
+    # e.g. "Forge Upgrade"); None = base building. The game allows only one
+    # per building, and it adds recipes on top of the base ones — the
+    # production form only offers Base + this module's recipes.
+    upgrade: Mapped[str | None] = mapped_column(String(80), default=None)
     # Up to the building type's queue_slots total, each running a different
     # recipe — the game allows distinct simultaneous production orders, not
     # just N copies of one recipe. JSON-encoded list of {recipe_key, queue_count}.

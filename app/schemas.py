@@ -57,6 +57,7 @@ class BuildingBase(BaseModel):
     role: str = ""
     position: int = 0
     building_type_key: str | None = None
+    upgrade: str | None = None
 
 
 class BuildingCreate(BuildingBase):
@@ -67,6 +68,7 @@ class BuildingUpdate(BaseModel):
     name: str | None = None
     role: str | None = None
     position: int | None = None
+    upgrade: str | None = None
 
 
 class ProductionSlot(BaseModel):

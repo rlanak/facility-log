@@ -49,6 +49,33 @@ views.facilityDetail = (() => {
     return resource ? resource.unlimited : Boolean(foxholeResourceDefs[key] && foxholeResourceDefs[key].unlimited);
   }
 
+  // Upgrade modules of a building type. Base recipes ("Base", "Base
+  // (Uniforms)", none) are always available; a building installs at most one
+  // upgrade, which adds its own recipes. A type with a single module (e.g.
+  // Aircraft Maintenance Hangar) has nothing to choose.
+  function isBaseModule(mod) {
+    return !mod || mod.startsWith("Base");
+  }
+  function upgradeOptions(foxholeType) {
+    if (!foxholeType) return [];
+    const mods = [...new Set(foxholeType.recipes.map((r) => r.module || "Base"))];
+    return mods.length > 1 ? mods.filter((m) => !isBaseModule(m)) : [];
+  }
+  // Saved upgrade, else inferred from a non-base recipe already in
+  // production (buildings set up before the upgrade field existed).
+  function buildingUpgrade(building, foxholeType) {
+    const options = upgradeOptions(foxholeType);
+    if (building.upgrade && options.includes(building.upgrade)) return building.upgrade;
+    for (const slot of building.production_slots || []) {
+      const recipe = foxholeType.recipes.find((r) => r.key === slot.recipe_key);
+      if (recipe && options.includes(recipe.module)) return recipe.module;
+    }
+    return null;
+  }
+  function upgradeLabel(mod) {
+    return mod.replace(/ Upgrade$/, "");
+  }
+
   function resourceThumb(resourceId) {
     const resource = allResources.find((r) => r.id === resourceId);
     const def = resource && foxholeResourceDefs[resource.resource_def_key];
@@ -170,8 +197,27 @@ views.facilityDetail = (() => {
           class="bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
         <button class="bg-emerald-700 hover:bg-emerald-600 px-4 py-2 rounded text-sm font-semibold whitespace-nowrap">${i18n.t("facilityDetail.addBuilding")}</button>
       </form>
+      <div class="flex justify-end items-center gap-2 mb-2 text-xs text-zinc-500">
+        <label for="b-grouping">${i18n.t("facilityDetail.groupBy")}</label>
+        <select id="b-grouping" class="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs focus:outline-none focus:border-emerald-500">
+          <option value="type">${i18n.t("facilityDetail.groupByType")}</option>
+          <option value="upgrade">${i18n.t("facilityDetail.groupByUpgrade")}</option>
+        </select>
+      </div>
       <div id="buildings-list" class="space-y-6"></div>
     `;
+
+    // Per-viewer preference: "type" (default) or "upgrade" (type + upgrade).
+    const groupingSelect = document.getElementById("b-grouping");
+    try {
+      groupingSelect.value = localStorage.getItem("buildingGrouping") === "upgrade" ? "upgrade" : "type";
+    } catch {}
+    groupingSelect.addEventListener("change", () => {
+      try {
+        localStorage.setItem("buildingGrouping", groupingSelect.value);
+      } catch {}
+      renderBuildingsList();
+    });
 
     const typeSelect = document.getElementById("b-type");
     const nameInput = document.getElementById("b-name");
@@ -206,23 +252,31 @@ views.facilityDetail = (() => {
         listEl.innerHTML = `<p class="text-zinc-500 text-sm">${i18n.t("facilityDetail.noBuildings")}</p>`;
         return;
       }
+      const byUpgrade = groupingSelect.value === "upgrade";
       const groups = new Map();
       for (const building of [...buildings].sort((a, b) => a.position - b.position)) {
-        const key = building.building_type_key || "";
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key).push(building);
+        const typeKey = building.building_type_key || "";
+        const type = typeKey ? getFoxholeType(typeKey) : null;
+        const upgrade = byUpgrade && type ? buildingUpgrade(building, type) : null;
+        const key = `${typeKey}|${upgrade || ""}`;
+        if (!groups.has(key)) groups.set(key, { typeKey, upgrade, members: [] });
+        groups.get(key).members.push(building);
       }
       const cards = await Promise.all(buildings.map((b) => buildingCard(b, renderBuildingsList)));
       const cardById = new Map(buildings.map((b, i) => [b.id, cards[i]]));
 
       listEl.innerHTML = "";
-      for (const [typeKey, members] of groups) {
+      for (const { typeKey, upgrade, members } of groups.values()) {
         const type = typeKey ? getFoxholeType(typeKey) : null;
+        const hasUpgrades = byUpgrade && upgradeOptions(type).length > 0;
         const section = ui.el("section", {});
         section.appendChild(
           ui.el("div", { class: "flex items-center gap-2 mb-2" }, [
             type && type.icon ? ui.el("img", { src: type.icon, class: "w-7 h-7 object-contain opacity-80" }) : null,
             ui.el("h2", { class: "text-sm font-semibold text-zinc-300" }, type ? i18n.catalogName(type) : i18n.t("facilityDetail.groupOther")),
+            hasUpgrades
+              ? ui.el("span", { class: "text-xs text-sky-400" }, `· ${upgrade ? upgradeLabel(upgrade) : i18n.t("facilityDetail.noUpgrade")}`)
+              : null,
             ui.el("span", { class: "text-xs text-zinc-600" }, `(${members.length})`),
           ])
         );
@@ -305,6 +359,7 @@ views.facilityDetail = (() => {
     // any other resource.
     const nonLiquidStock = stock.filter((s) => !(liquidResourceIds.has(s.resource_id) && s.storage === "tank"));
     const buildingDisplayName = i18n.buildingName(building, foxholeType);
+    const upgrade = foxholeType ? buildingUpgrade(building, foxholeType) : null;
     const iconBtn = "p-1 rounded text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800";
     // One line, each button as wide as its label and then stretched to fill
     // (flex-auto): a flex-wrap row broke into two lines at ~300px cards, and
@@ -315,7 +370,10 @@ views.facilityDetail = (() => {
     card.innerHTML = `
       <div class="flex items-center gap-2 px-3 pt-3 pb-2 border-b border-zinc-800">
         <span class="drag-handle cursor-grab active:cursor-grabbing text-zinc-600 hover:text-zinc-300 select-none" title="${i18n.t("facilityDetail.dragToReorder")}">⠿</span>
-        <span class="font-semibold truncate flex-1 min-w-0" title="${ui.escapeHtml(buildingDisplayName)}">${ui.escapeHtml(buildingDisplayName)}</span>
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold truncate" title="${ui.escapeHtml(buildingDisplayName)}">${ui.escapeHtml(buildingDisplayName)}</p>
+          ${upgrade ? `<p class="text-[11px] text-sky-400 truncate" title="${ui.escapeHtml(upgrade)}">⬆ ${ui.escapeHtml(upgradeLabel(upgrade))}</p>` : ""}
+        </div>
         <button class="edit-building ${iconBtn}" title="${i18n.t("common.edit")}">✎</button>
         <button class="delete-building ${iconBtn} hover:!text-red-400" title="${i18n.t("common.delete")}">🗑</button>
       </div>
@@ -557,10 +615,21 @@ views.facilityDetail = (() => {
   }
 
   function buildProductionForm(container, building, foxholeType, onChange) {
-    const recipesByModule = {};
-    for (const recipe of foxholeType.recipes) {
-      const mod = recipe.module || "Base";
-      (recipesByModule[mod] = recipesByModule[mod] || []).push(recipe);
+    const upgrades = upgradeOptions(foxholeType);
+    let selectedUpgrade = buildingUpgrade(building, foxholeType);
+
+    // Only Base + the installed upgrade's recipes. A recipe already in a
+    // queue row that the chosen upgrade doesn't offer stays listed (marked
+    // ⚠) so switching the upgrade never silently drops a row.
+    function recipesByModule(keepKey) {
+      const groups = {};
+      for (const recipe of foxholeType.recipes) {
+        const mod = recipe.module || "Base";
+        const allowed = upgrades.length === 0 || isBaseModule(mod) || mod === selectedUpgrade;
+        if (!allowed && recipe.key !== keepKey) continue;
+        (groups[mod] = groups[mod] || []).push({ recipe, allowed });
+      }
+      return groups;
     }
 
     function recipeLabel(recipe) {
@@ -573,14 +642,14 @@ views.facilityDetail = (() => {
     function recipeOptionsHtml(selectedKey) {
       return (
         `<option value="">${i18n.t("facilityDetail.noRecipe")}</option>` +
-        Object.entries(recipesByModule)
+        Object.entries(recipesByModule(selectedKey))
           .map(
             ([mod, recipes]) => `
           <optgroup label="${ui.escapeHtml(mod)}">
             ${recipes
               .map(
-                (r) =>
-                  `<option value="${r.key}" ${r.key === selectedKey ? "selected" : ""}>${ui.escapeHtml(recipeLabel(r))}${r.note ? " ⚠" : ""}</option>`
+                ({ recipe: r, allowed }) =>
+                  `<option value="${r.key}" ${r.key === selectedKey ? "selected" : ""}>${allowed ? "" : "⚠ "}${ui.escapeHtml(recipeLabel(r))}${r.note ? " ⚠" : ""}</option>`
               )
               .join("")}
           </optgroup>`
@@ -591,6 +660,18 @@ views.facilityDetail = (() => {
 
     container.innerHTML = `
       <div class="border border-zinc-800 rounded p-3 bg-zinc-950">
+        ${
+          upgrades.length > 0
+            ? `<label class="flex flex-wrap items-center gap-2 text-xs text-zinc-400 mb-3">
+                 ${i18n.t("facilityDetail.upgrade")}
+                 <select class="building-upgrade bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500">
+                   <option value="">${i18n.t("facilityDetail.noUpgrade")}</option>
+                   ${upgrades.map((m) => `<option value="${ui.escapeHtml(m)}" ${m === selectedUpgrade ? "selected" : ""}>${ui.escapeHtml(upgradeLabel(m))}</option>`).join("")}
+                 </select>
+                 <span class="text-zinc-600">${i18n.t("facilityDetail.upgradeHint")}</span>
+               </label>`
+            : ""
+        }
         <div class="production-slot-rows grid gap-2 mb-2"></div>
         <button type="button" class="add-slot text-xs text-zinc-400 hover:text-zinc-200 mb-2">${i18n.t("facilityDetail.addQueue")}</button>
         <p class="slot-total text-xs text-zinc-500 mb-3"></p>
@@ -636,6 +717,16 @@ views.facilityDetail = (() => {
     }
     updateTotal();
 
+    const upgradeSelect = container.querySelector(".building-upgrade");
+    if (upgradeSelect) {
+      upgradeSelect.addEventListener("change", () => {
+        selectedUpgrade = upgradeSelect.value || null;
+        rowsEl.querySelectorAll(".slot-recipe").forEach((select) => {
+          select.innerHTML = recipeOptionsHtml(select.value);
+        });
+      });
+    }
+
     container.querySelector(".add-slot").addEventListener("click", () => {
       addSlotRow("", 1);
       updateTotal();
@@ -649,6 +740,9 @@ views.facilityDetail = (() => {
         }))
         .filter((slot) => slot.recipe_key && slot.queue_count > 0);
       try {
+        if (upgrades.length > 0 && (building.upgrade || null) !== selectedUpgrade) {
+          await api.updateBuilding(building.id, { upgrade: selectedUpgrade });
+        }
         await api.setBuildingProduction(building.id, { slots });
         ui.toast(i18n.t("facilityDetail.productionUpdated"));
         onChange();
