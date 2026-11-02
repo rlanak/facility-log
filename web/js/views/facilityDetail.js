@@ -151,6 +151,7 @@ views.facilityDetail = (() => {
       </div>
       <div class="flex gap-2 mb-6">
         ${tabLink("buildings", i18n.t("facilityDetail.tabBuildings"), activeTab)}
+        ${tabLink("targets", i18n.t("facilityDetail.tabTargets"), activeTab)}
         ${tabLink("report", i18n.t("facilityDetail.tabReport"), activeTab)}
         ${tabLink("history", i18n.t("facilityDetail.tabHistory"), activeTab)}
       </div>
@@ -179,6 +180,7 @@ views.facilityDetail = (() => {
 
     const tabContent = document.getElementById("tab-content");
     if (activeTab === "buildings") await renderBuildingsTab(tabContent);
+    else if (activeTab === "targets") await views.targets.renderTargetsTab(tabContent, facilityId);
     else if (activeTab === "report") await views.report.renderReportTab(tabContent, facilityId);
     else if (activeTab === "history") await views.report.renderHistoryTab(tabContent, facilityId);
   }
@@ -460,7 +462,7 @@ views.facilityDetail = (() => {
                   (s) => `
               <li class="group flex items-center gap-2 py-1 min-w-0"${s.created_by_name ? ` title="${ui.escapeHtml(i18n.t("facilityDetail.loggedBy", { name: s.created_by_name }))}"` : ""}>
                 <span class="w-5 h-5 shrink-0 flex items-center justify-center">${resourceThumb(s.resource_id) || ui.escapeHtml(s.resource_icon)}</span>
-                <span class="truncate flex-1 min-w-0 text-zinc-300" title="${ui.escapeHtml(s.resource_name)}">${ui.escapeHtml(s.resource_name)}</span>
+                <button type="button" class="item-info truncate flex-1 min-w-0 text-left text-zinc-300 hover:text-emerald-300" data-resource-id="${s.resource_id}" title="${ui.escapeHtml(s.resource_name)} — ${i18n.t("item.openHint")}">${ui.escapeHtml(s.resource_name)}</button>
                 <span class="tabular-nums font-semibold">${formatQty(s.quantity)}</span>
                 <button class="delete-stock-item text-zinc-600 hover:text-red-400 px-0.5 opacity-0 group-hover:opacity-100 focus:opacity-100" data-resource-id="${s.resource_id}" data-storage="${s.storage}" data-name="${ui.escapeHtml(s.resource_name)}" title="${i18n.t("facilityDetail.deleteStockItem")}">✕</button>
               </li>`
@@ -550,6 +552,14 @@ views.facilityDetail = (() => {
         } catch (err) {
           ui.toast(err.message, true);
         }
+      });
+    });
+
+    card.querySelectorAll(".item-info").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const resource = allResources.find((r) => String(r.id) === btn.dataset.resourceId);
+        if (!resource) return;
+        views.itemPanel.open(resource, foxholeResourceDefs[resource.resource_def_key] || null, onChange);
       });
     });
 

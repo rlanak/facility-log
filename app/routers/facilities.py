@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app import crud, schemas
 from app.database import get_db
+from app.services import foxhole_data
 from app.services.errors_i18n import err
 
 router = APIRouter(prefix="/api/facilities", tags=["facilities"])
@@ -66,3 +67,34 @@ def get_facility_stock(facility_id: int, lang: str = "pt-BR", catalog_lang: str 
         )
         for building, entries in stock.items()
     ]
+
+
+@router.get("/{facility_id}/targets", response_model=list[schemas.TargetOut])
+def list_targets(facility_id: int, lang: str = "pt-BR", db: Session = Depends(get_db)):
+    if not crud.get_facility(db, facility_id):
+        raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
+    by_key, by_id = crud.facility_stock_totals(db, facility_id)
+    result = []
+    for resource_id, target in crud.get_facility_targets(db, facility_id).items():
+        resource = crud.get_resource(db, resource_id)
+        if not resource:
+            continue
+        current = by_key.get(resource.resource_def_key, 0) if resource.resource_def_key else by_id.get(resource.id, 0)
+        result.append(schemas.TargetOut(resource=resource, target_max=target, current=current))
+    return result
+
+
+@router.put("/{facility_id}/targets", status_code=204)
+def set_target(facility_id: int, data: schemas.TargetSet, lang: str = "pt-BR", db: Session = Depends(get_db)):
+    if not crud.get_facility(db, facility_id):
+        raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
+    if data.resource_id is not None:
+        resource = crud.get_resource(db, data.resource_id)
+    elif data.resource_def_key and foxhole_data.get_resource_def(data.resource_def_key):
+        name = foxhole_data.resource_display_name(data.resource_def_key, "en-US")
+        resource = crud.get_or_create_resource(db, name, data.resource_def_key)
+    else:
+        resource = None
+    if not resource:
+        raise HTTPException(status_code=404, detail=err("resource_not_found", lang))
+    crud.set_facility_target(db, facility_id, resource, data.target_max)

@@ -34,7 +34,10 @@ def create_report(
 
     stock_by_building = crud.get_current_stock_for_facility(db, facility_id)
     all_resources = crud.get_resources(db)
-    result = generate_report(facility, stock_by_building, all_resources, lang=lang, catalog_lang=catalog_lang or lang)
+    targets = crud.get_facility_targets(db, facility_id)
+    result = generate_report(
+        facility, stock_by_building, all_resources, targets, lang=lang, catalog_lang=catalog_lang or lang
+    )
 
     report = crud.create_report(
         db,

@@ -17,6 +17,7 @@ def list_foxhole_resources():
             "is_liquid": data.get("is_liquid", False),
             "unlimited": data.get("unlimited", False),
             "liters_per_unit": data.get("liters_per_unit"),
+            "category": data.get("category"),
         }
         for key, data in foxhole_data.get_resource_defs().items()
     ]

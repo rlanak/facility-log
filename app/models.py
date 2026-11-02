@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timezone
 
-from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy import ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -17,6 +17,8 @@ class Resource(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(120), unique=True, index=True)
     icon: Mapped[str] = mapped_column(String(20), default="")
+    # Legacy global Meta — moved to FacilityTarget (per facility) and
+    # cleared by apply_migrations(); no longer read anywhere.
     target_max: Mapped[float | None] = mapped_column(default=None)
     farmable: Mapped[bool] = mapped_column(default=True)
     # Acquired from an outside source (a coalition/ally) instead of being
@@ -54,6 +56,26 @@ class Facility(Base):
     reports: Mapped[list["Report"]] = relationship(
         back_populates="facility", cascade="all, delete-orphan", order_by="Report.generated_at.desc()"
     )
+    targets: Mapped[list["FacilityTarget"]] = relationship(back_populates="facility", cascade="all, delete-orphan")
+
+
+class FacilityTarget(Base):
+    """Stock target (Meta) of one resource in one facility — the report works
+    out what's missing down the production chain to reach it. Per facility
+    (each FAC wants different amounts); replaced the old global
+    `Resource.target_max`, which apply_migrations() copied into every
+    facility once."""
+
+    __tablename__ = "facility_targets"
+    __table_args__ = (UniqueConstraint("facility_id", "resource_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    facility_id: Mapped[int] = mapped_column(ForeignKey("facilities.id"))
+    resource_id: Mapped[int] = mapped_column(ForeignKey("resources.id"))
+    target_max: Mapped[float]
+
+    facility: Mapped["Facility"] = relationship(back_populates="targets")
+    resource: Mapped["Resource"] = relationship()
 
 
 class Building(Base):

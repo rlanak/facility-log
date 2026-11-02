@@ -47,6 +47,8 @@ const api = (() => {
     updateFacility: (id, data) => request("PUT", `/api/facilities/${id}`, data),
     deleteFacility: (id) => request("DELETE", `/api/facilities/${id}`),
     getFacilityStock: (id) => request("GET", `/api/facilities/${id}/stock`),
+    listFacilityTargets: (id) => request("GET", `/api/facilities/${id}/targets`),
+    setFacilityTarget: (id, data) => request("PUT", `/api/facilities/${id}/targets`, data),
 
     listBuildings: (facilityId) => request("GET", `/api/facilities/${facilityId}/buildings`),
     createBuilding: (facilityId, data) => request("POST", `/api/facilities/${facilityId}/buildings`, data),

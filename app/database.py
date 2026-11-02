@@ -72,6 +72,20 @@ def apply_migrations() -> None:
                     keys = [k for k, d in foxhole_data.get_resource_defs().items() if d.get("unlimited")]
                     for key in keys:
                         conn.exec_driver_sql("UPDATE resources SET unlimited = 1 WHERE resource_def_key = ?", (key,))
+        # Global Metas (resources.target_max) became per facility: copy each
+        # one into every facility, then clear it so this runs only once.
+        legacy = conn.exec_driver_sql(
+            "SELECT id, target_max FROM resources WHERE target_max IS NOT NULL AND target_max > 0"
+        ).fetchall()
+        if legacy:
+            facility_ids = [row[0] for row in conn.exec_driver_sql("SELECT id FROM facilities")]
+            for resource_id, target in legacy:
+                for facility_id in facility_ids:
+                    conn.exec_driver_sql(
+                        "INSERT OR IGNORE INTO facility_targets (facility_id, resource_id, target_max) VALUES (?, ?, ?)",
+                        (facility_id, resource_id, target),
+                    )
+            conn.exec_driver_sql("UPDATE resources SET target_max = NULL")
         # One-time backfill: buildings still on the old single-recipe fields
         # (production_slots never written) get migrated into the new
         # multi-queue shape. Naturally idempotent — once backfilled,

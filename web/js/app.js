@@ -59,8 +59,6 @@
     try {
       if (parts.length === 0) {
         await views.facilities.render(app);
-      } else if (parts[0] === "resources") {
-        await views.resources.render(app);
       } else if (parts[0] === "settings") {
         await views.settings.render(app);
       } else if (parts[0] === "facilities" && parts[1]) {

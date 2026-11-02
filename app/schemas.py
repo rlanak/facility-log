@@ -33,6 +33,20 @@ class ResourceOut(ResourceBase):
     id: int
 
 
+class TargetSet(BaseModel):
+    # An existing resource, or a catalog item (created on first use).
+    resource_id: int | None = None
+    resource_def_key: str | None = None
+    # None/0 removes the target.
+    target_max: float | None = None
+
+
+class TargetOut(BaseModel):
+    resource: ResourceOut
+    target_max: float
+    current: float
+
+
 class FacilityBase(BaseModel):
     name: str
 

@@ -22,7 +22,7 @@ _STRINGS = {
         "production_leftover": ". Sobra: {leftovers}",
         "liquid_tank": "🧪 Tanque:",
         "recommendation_title": "**\U0001f3af Foco de Produção** _(o que falta pra bater as Metas cadastradas)_",
-        "recommendation_no_targets": "Nenhuma Meta cadastrada ainda — defina uma meta de estoque num recurso do catálogo pra ver aqui o que falta produzir/farmar pra chegar nela.",
+        "recommendation_no_targets": "Nenhuma Meta cadastrada ainda — adicione metas na aba Metas desta facility pra ver aqui o que falta produzir/farmar pra chegar nelas.",
         "recommendation_all_met": "Todas as Metas cadastradas já estão em dia. ✅",
         "meta_line": "{icon}**{name}**: {current}/{target} — faltam {missing}",
         "total_time_line": "⏱️ Tempo total estimado: **{duration}** — caminho mais longo: {path} _(o resto roda em paralelo)_",
@@ -50,7 +50,7 @@ _STRINGS = {
         "production_leftover": ". Leftover: {leftovers}",
         "liquid_tank": "🧪 Tank:",
         "recommendation_title": "**\U0001f3af Production Focus** _(what's missing to hit your registered Targets)_",
-        "recommendation_no_targets": "No Target registered yet — set a stock target on a catalog resource to see what's missing to reach it here.",
+        "recommendation_no_targets": "No Target registered yet — add targets in this facility's Targets tab to see what's missing to reach them here.",
         "recommendation_all_met": "All registered Targets are already met. ✅",
         "meta_line": "{icon}**{name}**: {current}/{target} — {missing} short",
         "total_time_line": "⏱️ Estimated total time: **{duration}** — longest chain: {path} _(everything else runs in parallel)_",
@@ -300,7 +300,7 @@ def _totals_by_def_key(totals: list[ResourceTotal]) -> dict[str, float]:
 def _resource_key_flags(all_resources: list[models.Resource]) -> tuple[set[str], set[str]]:
     """farmable_keys / imported_keys for every Foxhole catalog resource — the
     app's own Resource row wins when the player has customized it (via the
-    Catálogo de Recursos checkboxes), else falls back to the static
+    item panel's Origin choice), else falls back to the static
     catalog's own farmable default (same default used when a resource is
     first imported — see crud.get_or_create_resource)."""
     by_key = {r.resource_def_key: r for r in all_resources if r.resource_def_key}
@@ -322,12 +322,14 @@ def build_recommendation_block(
     stock_by_building: dict[models.Building, list[models.StockEntry]],
     totals: list[ResourceTotal],
     all_resources: list[models.Resource],
+    targets: dict[int, float],
     lang: str = "pt-BR",
     catalog_lang: str | None = None,
     bulleted: bool = False,
 ) -> str:
     """What's missing, all the way down the production chain, to hit every
-    Target (Meta) currently registered on a resource — replaces the old
+    Target (Meta) registered for this facility (`targets`: resource_id →
+    target) — replaces the old
     "go farm the lowest-stock item" suggestion, which used to only ever
     consider farmable resources and ignored Targets set on produced/
     intermediate ones (see memory/... or CLAUDE.md — this is the fix for
@@ -341,7 +343,7 @@ def build_recommendation_block(
     # per-building production lines talk in "cycles" and "queues".
     legend = f"\n{_t('cycles_legend', lang)}" if any(b.production_slots for b in stock_by_building) else ""
 
-    any_target = any(r.target_max and r.target_max > 0 for r in all_resources)
+    any_target = any(t > 0 for t in targets.values())
     if not any_target:
         return f"{title}\n{_t('recommendation_no_targets', lang)}{legend}"
 
@@ -352,14 +354,15 @@ def build_recommendation_block(
     catalog_targets: list[tuple[models.Resource, float, float]] = []
     freeform_targets: list[tuple[models.Resource, float, float]] = []
     for resource in all_resources:
-        if not resource.target_max or resource.target_max <= 0 or resource.resource_def_key in unlimited_keys:
+        target = targets.get(resource.id)
+        if not target or target <= 0 or resource.resource_def_key in unlimited_keys:
             continue
         current = (
             stock_by_def_key.get(resource.resource_def_key, 0)
             if resource.resource_def_key
             else totals_by_resource_id.get(resource.id, 0)
         )
-        deficit = resource.target_max - current
+        deficit = target - current
         if deficit <= 0:
             continue
         (catalog_targets if resource.resource_def_key else freeform_targets).append((resource, current, deficit))
@@ -371,14 +374,14 @@ def build_recommendation_block(
     farmable_keys, imported_keys = _resource_key_flags(all_resources)
     stock_pool = dict(stock_by_def_key)
     chain_targets = sorted(catalog_targets, key=lambda x: crud.resolve_resource_name(x[0], catalog_lang))
-    # Pass the full target_max here, not the already-subtracted `deficit` —
+    # Pass the full target here, not the already-subtracted `deficit` —
     # stock_pool still holds this resource's full current stock, and
     # resolve_requirements() does its own have-vs-needed netting against
     # that same pool. Passing `deficit` would net the current stock a
     # second time, so a Meta on a resource that already has some stock
     # under-counted (or even zeroed out) the real production need.
     result = material_chain.resolve_requirements(
-        [(r.resource_def_key, r.target_max) for r, _current, _deficit in chain_targets],
+        [(r.resource_def_key, targets[r.id]) for r, _current, _deficit in chain_targets],
         stock_pool,
         preferred_recipes,
         farmable_keys,
@@ -395,7 +398,7 @@ def build_recommendation_block(
             icon=f"{r.icon} " if r.icon else "",
             name=crud.resolve_resource_name(r, catalog_lang),
             current=_display_qty(current, r.resource_def_key),
-            target=_display_qty(r.target_max, r.resource_def_key),
+            target=_display_qty(targets[r.id], r.resource_def_key),
             missing=_display_qty(deficit, r.resource_def_key),
         )
         for r, current, deficit in sorted(
@@ -562,6 +565,7 @@ def generate_report(
     facility: models.Facility,
     stock_by_building: dict[models.Building, list[models.StockEntry]],
     all_resources: list[models.Resource],
+    targets: dict[int, float],
     now: datetime | None = None,
     lang: str = "pt-BR",
     catalog_lang: str | None = None,
@@ -580,7 +584,9 @@ def generate_report(
 
     header_block = build_header_block(facility, now, lang)
     stock_block = build_stock_block(stock_by_building, now, lang, catalog_lang, unlimited_keys)
-    recommendation_block = build_recommendation_block(stock_by_building, totals, all_resources, lang, catalog_lang)
+    recommendation_block = build_recommendation_block(
+        stock_by_building, totals, all_resources, targets, lang, catalog_lang
+    )
 
     markdown_content = "\n\n".join([header_block, stock_block, recommendation_block])
 
@@ -593,7 +599,7 @@ def generate_report(
     # while leaving the in-app "Recomendação de Farm" block above untouched.
     totals_block = build_totals_block(stock_by_building, totals, lang, catalog_lang)
     discord_recommendation_block = build_recommendation_block(
-        stock_by_building, totals, all_resources, lang, catalog_lang, bulleted=True
+        stock_by_building, totals, all_resources, targets, lang, catalog_lang, bulleted=True
     )
     discord_paragraphs = [header_block, totals_block, discord_recommendation_block]
     parts = split_for_discord(discord_paragraphs, lang=lang)

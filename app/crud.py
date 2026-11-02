@@ -225,6 +225,41 @@ def get_current_stock_for_building(db: Session, building_id: int) -> list[models
     return [e for e in entries if e.resource is not None]
 
 
+def get_facility_targets(db: Session, facility_id: int) -> dict[int, float]:
+    """resource_id → Meta in this facility."""
+    rows = db.scalars(select(models.FacilityTarget).where(models.FacilityTarget.facility_id == facility_id))
+    return {t.resource_id: t.target_max for t in rows}
+
+
+def set_facility_target(db: Session, facility_id: int, resource: models.Resource, target_max: float | None) -> None:
+    target = db.scalar(
+        select(models.FacilityTarget).where(
+            models.FacilityTarget.facility_id == facility_id, models.FacilityTarget.resource_id == resource.id
+        )
+    )
+    if not target_max or target_max <= 0:
+        if target:
+            db.delete(target)
+    elif target:
+        target.target_max = target_max
+    else:
+        db.add(models.FacilityTarget(facility_id=facility_id, resource_id=resource.id, target_max=target_max))
+    db.commit()
+
+
+def facility_stock_totals(db: Session, facility_id: int) -> tuple[dict[str, float], dict[int, float]]:
+    """Current stock of the whole facility (every building, tank + crate),
+    by catalog key and by resource id — what a Meta is compared against."""
+    by_key: dict[str, float] = {}
+    by_id: dict[int, float] = {}
+    for entries in get_current_stock_for_facility(db, facility_id).values():
+        for e in entries:
+            by_id[e.resource_id] = by_id.get(e.resource_id, 0) + e.quantity
+            if e.resource.resource_def_key:
+                by_key[e.resource.resource_def_key] = by_key.get(e.resource.resource_def_key, 0) + e.quantity
+    return by_key, by_id
+
+
 def get_current_stock_for_facility(db: Session, facility_id: int) -> dict[models.Building, list[models.StockEntry]]:
     buildings = get_buildings(db, facility_id)
     return {building: get_current_stock_for_building(db, building.id) for building in buildings}
