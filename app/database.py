@@ -54,6 +54,7 @@ _ADDED_COLUMNS = [
     ("reports", "created_by_id", "INTEGER REFERENCES users(id)"),
     ("resources", "unlimited", "BOOLEAN DEFAULT 0"),
     ("buildings", "upgrade", "VARCHAR(80)"),
+    ("buildings", "location", "VARCHAR(120)"),
 ]
 
 

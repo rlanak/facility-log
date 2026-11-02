@@ -86,7 +86,8 @@ const api = (() => {
     saveStatus: () => request("GET", "/api/save/status"),
     // No file = read this PC's own save (local mode); a file = an uploaded .sav (web mode).
     listSavePins: (file) => (file ? upload("/api/save/pins", file) : request("POST", "/api/save/pins")),
-    linkSavePin: (buildingId, pinKey) => request("PUT", `/api/buildings/${buildingId}/save-pin`, { pin_key: pinKey }),
+    linkSavePin: (buildingId, pinKey, location) =>
+      request("PUT", `/api/buildings/${buildingId}/save-pin`, { pin_key: pinKey, location }),
     setCodenameAlias: (data) => request("PUT", "/api/save/aliases", data),
   };
 })();

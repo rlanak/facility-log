@@ -77,6 +77,7 @@ async def list_save_pins(
                 code_name=loc["code_name"],
                 building_type_key=bt_key,
                 label=f"{kind} — {save_reader.hex_display_name(loc['map_id'])} {loc.get('grid_coordinate', '')}".strip(),
+                location=f"{save_reader.hex_display_name(loc['map_id'])} {loc.get('grid_coordinate', '')}".strip(),
                 last_updated_unix=loc["last_updated_unix"],
                 items=items,
             )
@@ -92,6 +93,8 @@ def link_save_pin(building_id: int, data: schemas.SavePinLink, lang: str = "pt-B
     if not building:
         raise HTTPException(status_code=404, detail=err("building_not_found", lang))
     building.save_pin_key = data.pin_key
+    if data.location and not (building.location or "").strip():
+        building.location = data.location.strip()
     db.commit()
     db.refresh(building)
     return building

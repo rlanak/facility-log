@@ -188,12 +188,15 @@ views.facilityDetail = (() => {
       <datalist id="resources-datalist">
         ${allResources.map((r) => `<option value="${ui.escapeHtml(r.name)}"></option>`).join("")}
       </datalist>
-      <form id="new-building-form" class="grid grid-cols-1 sm:grid-cols-[220px_1fr_auto] gap-2 mb-6">
+      <datalist id="locations-datalist"></datalist>
+      <form id="new-building-form" class="grid grid-cols-1 sm:grid-cols-[220px_1fr_180px_auto] gap-2 mb-6">
         <select id="b-type" class="bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
           <option value="">${i18n.t("facilityDetail.freeBuilding")}</option>
           ${foxholeBuildingTypes.map((t) => `<option value="${t.key}">📖 ${ui.escapeHtml(i18n.catalogName(t))}</option>`).join("")}
         </select>
         <input id="b-name" placeholder="${i18n.t("facilityDetail.buildingNamePlaceholder")}"
+          class="bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
+        <input id="b-location" list="locations-datalist" placeholder="${i18n.t("facilityDetail.locationPlaceholder")}"
           class="bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
         <button class="bg-emerald-700 hover:bg-emerald-600 px-4 py-2 rounded text-sm font-semibold whitespace-nowrap">${i18n.t("facilityDetail.addBuilding")}</button>
       </form>
@@ -202,15 +205,20 @@ views.facilityDetail = (() => {
         <select id="b-grouping" class="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs focus:outline-none focus:border-emerald-500">
           <option value="type">${i18n.t("facilityDetail.groupByType")}</option>
           <option value="upgrade">${i18n.t("facilityDetail.groupByUpgrade")}</option>
+          <option value="location">${i18n.t("facilityDetail.groupByLocation")}</option>
+          <option value="location_type">${i18n.t("facilityDetail.groupByLocationType")}</option>
         </select>
       </div>
       <div id="buildings-list" class="space-y-6"></div>
     `;
 
-    // Per-viewer preference: "type" (default) or "upgrade" (type + upgrade).
+    // Per-viewer preference: "type" (default), "upgrade" (type + upgrade),
+    // "location" or "location_type" (location + type).
+    const GROUPINGS = ["type", "upgrade", "location", "location_type"];
     const groupingSelect = document.getElementById("b-grouping");
     try {
-      groupingSelect.value = localStorage.getItem("buildingGrouping") === "upgrade" ? "upgrade" : "type";
+      const saved = localStorage.getItem("buildingGrouping");
+      groupingSelect.value = GROUPINGS.includes(saved) ? saved : "type";
     } catch {}
     groupingSelect.addEventListener("change", () => {
       try {
@@ -221,6 +229,7 @@ views.facilityDetail = (() => {
 
     const typeSelect = document.getElementById("b-type");
     const nameInput = document.getElementById("b-name");
+    const locationInput = document.getElementById("b-location");
 
     document.getElementById("new-building-form").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -231,8 +240,11 @@ views.facilityDetail = (() => {
         return;
       }
       try {
-        await api.createBuilding(facilityId, { name, building_type_key });
+        const location = locationInput.value.trim() || null;
+        await api.createBuilding(facilityId, { name, building_type_key, location });
+        // Keep the location: buildings are usually added one spot at a time.
         e.target.reset();
+        locationInput.value = location || "";
         renderBuildingsList();
       } catch (err) {
         ui.toast(err.message, true);
@@ -252,28 +264,45 @@ views.facilityDetail = (() => {
         listEl.innerHTML = `<p class="text-zinc-500 text-sm">${i18n.t("facilityDetail.noBuildings")}</p>`;
         return;
       }
-      const byUpgrade = groupingSelect.value === "upgrade";
+      const locations = [...new Set(buildings.map((b) => b.location).filter(Boolean))].sort();
+      document.getElementById("locations-datalist").innerHTML = locations
+        .map((l) => `<option value="${ui.escapeHtml(l)}"></option>`)
+        .join("");
+
+      const mode = groupingSelect.value;
+      const byUpgrade = mode === "upgrade";
+      const byLocation = mode === "location" || mode === "location_type";
+      const byType = mode !== "location";
       const groups = new Map();
       for (const building of [...buildings].sort((a, b) => a.position - b.position)) {
-        const typeKey = building.building_type_key || "";
+        const typeKey = byType ? building.building_type_key || "" : "";
         const type = typeKey ? getFoxholeType(typeKey) : null;
         const upgrade = byUpgrade && type ? buildingUpgrade(building, type) : null;
-        const key = `${typeKey}|${upgrade || ""}`;
-        if (!groups.has(key)) groups.set(key, { typeKey, upgrade, members: [] });
+        const location = byLocation ? building.location || "" : null;
+        const key = `${location ?? ""}|${typeKey}|${upgrade || ""}`;
+        if (!groups.has(key)) groups.set(key, { typeKey, upgrade, location, members: [] });
         groups.get(key).members.push(building);
       }
       const cards = await Promise.all(buildings.map((b) => buildingCard(b, renderBuildingsList)));
       const cardById = new Map(buildings.map((b, i) => [b.id, cards[i]]));
 
       listEl.innerHTML = "";
-      for (const { typeKey, upgrade, members } of groups.values()) {
+      // By location: locations in name order, "no location" last (stable
+      // sort keeps the type order inside each location).
+      const groupList = [...groups.values()];
+      if (byLocation) {
+        groupList.sort((a, b) => (a.location === "") - (b.location === "") || a.location.localeCompare(b.location));
+      }
+      for (const { typeKey, upgrade, location, members } of groupList) {
         const type = typeKey ? getFoxholeType(typeKey) : null;
         const hasUpgrades = byUpgrade && upgradeOptions(type).length > 0;
+        const locationLabel = location === null ? null : `📍 ${location || i18n.t("facilityDetail.noLocation")}`;
+        const typeLabel = type ? i18n.catalogName(type) : byType ? i18n.t("facilityDetail.groupOther") : null;
         const section = ui.el("section", {});
         section.appendChild(
           ui.el("div", { class: "flex items-center gap-2 mb-2" }, [
             type && type.icon ? ui.el("img", { src: type.icon, class: "w-7 h-7 object-contain opacity-80" }) : null,
-            ui.el("h2", { class: "text-sm font-semibold text-zinc-300" }, type ? i18n.catalogName(type) : i18n.t("facilityDetail.groupOther")),
+            ui.el("h2", { class: "text-sm font-semibold text-zinc-300" }, [locationLabel, typeLabel].filter(Boolean).join(" · ")),
             hasUpgrades
               ? ui.el("span", { class: "text-xs text-sky-400" }, `· ${upgrade ? upgradeLabel(upgrade) : i18n.t("facilityDetail.noUpgrade")}`)
               : null,
@@ -408,7 +437,16 @@ views.facilityDetail = (() => {
         <span class="drag-handle cursor-grab active:cursor-grabbing text-zinc-600 hover:text-zinc-300 select-none" title="${i18n.t("facilityDetail.dragToReorder")}">⠿</span>
         <div class="flex-1 min-w-0">
           <p class="font-semibold truncate" title="${ui.escapeHtml(buildingDisplayName)}">${ui.escapeHtml(buildingDisplayName)}</p>
-          ${upgrade ? `<p class="text-[11px] text-sky-400 truncate" title="${ui.escapeHtml(upgrade)}">⬆ ${ui.escapeHtml(upgradeLabel(upgrade))}</p>` : ""}
+          ${
+            upgrade || building.location
+              ? `<p class="text-[11px] truncate" title="${ui.escapeHtml([upgrade, building.location].filter(Boolean).join(" · "))}">${[
+                  upgrade ? `<span class="text-sky-400">⬆ ${ui.escapeHtml(upgradeLabel(upgrade))}</span>` : "",
+                  building.location ? `<span class="text-zinc-500">📍 ${ui.escapeHtml(building.location)}</span>` : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}</p>`
+              : ""
+          }
         </div>
         <button class="edit-building ${iconBtn}" title="${i18n.t("common.edit")}">✎</button>
         <button class="delete-building ${iconBtn} hover:!text-red-400" title="${i18n.t("common.delete")}">🗑</button>
@@ -533,12 +571,40 @@ views.facilityDetail = (() => {
       onChange();
     });
 
-    card.querySelector(".edit-building").addEventListener("click", async () => {
-      const label = foxholeType ? i18n.t("facilityDetail.editNicknamePrompt") : i18n.t("facilityDetail.editNamePrompt");
-      const name = prompt(label, building.name);
-      if (name === null) return;
-      await api.updateBuilding(building.id, { name: name.trim() || null });
-      onChange();
+    card.querySelector(".edit-building").addEventListener("click", () => {
+      ui.openModal(`${i18n.t("common.edit")} — ${buildingDisplayName}`, (body, close) => {
+        const label = foxholeType ? i18n.t("facilityDetail.editNicknamePrompt") : i18n.t("facilityDetail.editNamePrompt");
+        const input = "w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500";
+        body.innerHTML = `
+          <form class="grid gap-3">
+            <label class="grid gap-1 text-xs text-zinc-400">${label}
+              <input name="name" class="${input}" value="${ui.escapeHtml(building.name || "")}" />
+            </label>
+            <label class="grid gap-1 text-xs text-zinc-400">${i18n.t("facilityDetail.locationLabel")}
+              <input name="location" list="locations-datalist" class="${input}" value="${ui.escapeHtml(building.location || "")}"
+                placeholder="${i18n.t("facilityDetail.locationPlaceholder")}" />
+              <span class="text-zinc-600">${i18n.t("facilityDetail.locationHint")}</span>
+            </label>
+            <div><button class="bg-emerald-700 hover:bg-emerald-600 px-4 py-2 rounded text-sm font-semibold">${i18n.t("common.save")}</button></div>
+          </form>`;
+        const form = body.querySelector("form");
+        const nameField = form.querySelector('[name="name"]');
+        const locationField = form.querySelector('[name="location"]');
+        nameField.focus();
+        form.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          try {
+            await api.updateBuilding(building.id, {
+              name: nameField.value.trim() || null,
+              location: locationField.value.trim() || null,
+            });
+            close();
+            onChange();
+          } catch (err) {
+            ui.toast(err.message, true);
+          }
+        });
+      }, { maxWidth: "max-w-md" });
     });
 
     card.querySelector(".open-stock-modal").addEventListener("click", () => {

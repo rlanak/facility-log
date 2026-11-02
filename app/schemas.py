@@ -58,6 +58,7 @@ class BuildingBase(BaseModel):
     position: int = 0
     building_type_key: str | None = None
     upgrade: str | None = None
+    location: str | None = None
 
 
 class BuildingCreate(BuildingBase):
@@ -69,6 +70,7 @@ class BuildingUpdate(BaseModel):
     role: str | None = None
     position: int | None = None
     upgrade: str | None = None
+    location: str | None = None
 
 
 class ProductionSlot(BaseModel):
@@ -217,12 +219,16 @@ class SavePinOut(BaseModel):
     code_name: str
     building_type_key: str | None
     label: str
+    # Region + grid square ("Westgate G5"), used as the building's
+    # location when it has none yet.
+    location: str = ""
     last_updated_unix: int
     items: list[SavePinItem]
 
 
 class SavePinLink(BaseModel):
     pin_key: str | None
+    location: str | None = None
 
 
 class CodenameAliasIn(BaseModel):

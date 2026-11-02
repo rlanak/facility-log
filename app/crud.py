@@ -174,6 +174,8 @@ def update_building(db: Session, building: models.Building, data: schemas.Buildi
     for field, value in data.model_dump(exclude_unset=True).items():
         if field == "name" and not value:
             value = _default_building_name(building.building_type_key)
+        if field == "location":
+            value = (value or "").strip() or None
         setattr(building, field, value)
     db.commit()
     db.refresh(building)

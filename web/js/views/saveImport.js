@@ -175,7 +175,7 @@ views.saveImport = (() => {
           for (const r of chosen.filter((r) => r.pickedKey)) {
             await api.setCodenameAlias({ codename: r.codename, resource_def_key: r.pickedKey });
           }
-          await api.linkSavePin(building.id, current.key);
+          await api.linkSavePin(building.id, current.key, current.location);
           await api.addBuildingStock(
             building.id,
             chosen.map((r) => {
