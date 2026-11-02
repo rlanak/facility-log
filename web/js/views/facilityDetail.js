@@ -281,6 +281,7 @@ views.facilityDetail = (() => {
           ])
         );
         const grid = ui.el("div", { class: "grid gap-3 grid-cols-[repeat(auto-fill,minmax(280px,1fr))]" });
+        makeGridDroppable(listEl, grid);
         for (const building of members) {
           const card = cardById.get(building.id);
           makeCardDraggable(listEl, grid, card, building.id);
@@ -291,11 +292,52 @@ views.facilityDetail = (() => {
       }
     }
 
-    // Drag a card by its ⠿ handle onto another card of the same group: it
-    // lands before or after it depending on which half (left/right — the
-    // grid flows left to right) the pointer is over, with a highlight on the
-    // target meanwhile. Positions are saved for every building, in page order.
+    // Drag a card by its ⠿ handle within its group. Dropping on a card takes
+    // its place: dragged forward it lands after that card, backward before
+    // it — so the first card can reach the last spot by dropping anywhere on
+    // the last card (the old left/right-half rule made that a narrow target).
+    // Dropping on empty grid space sends it to the end. A green bar on the
+    // side shows where it will land. Positions are saved in page order.
     let draggingId = null;
+    const MARK_BEFORE = "inset 4px 0 0 #10b981";
+    const MARK_AFTER = "inset -4px 0 0 #10b981";
+
+    function draggedIn(grid, exclude) {
+      const dragged = draggingId && grid.querySelector(`:scope > [data-building-id="${draggingId}"]`);
+      return dragged && dragged !== exclude ? dragged : null;
+    }
+    function clearMarks(listEl) {
+      listEl.querySelectorAll(".building-card").forEach((c) => (c.style.boxShadow = ""));
+    }
+    async function savePositions(listEl) {
+      const ordered = [...listEl.querySelectorAll("[data-building-id]")];
+      await Promise.all(ordered.map((el, idx) => api.updateBuilding(el.dataset.buildingId, { position: idx })));
+    }
+    // Forward drag → after the target; backward → before it.
+    function landsAfter(grid, dragged, card) {
+      const cards = [...grid.children];
+      return cards.indexOf(dragged) < cards.indexOf(card);
+    }
+
+    function makeGridDroppable(listEl, grid) {
+      grid.addEventListener("dragover", (e) => {
+        if (e.target !== grid || !draggedIn(grid)) return;
+        e.preventDefault();
+        clearMarks(listEl);
+        const last = grid.lastElementChild;
+        if (last && last.dataset.buildingId !== draggingId) last.style.boxShadow = MARK_AFTER;
+      });
+      grid.addEventListener("drop", async (e) => {
+        if (e.target !== grid) return;
+        const dragged = draggedIn(grid);
+        clearMarks(listEl);
+        if (!dragged) return;
+        e.preventDefault();
+        grid.appendChild(dragged);
+        await savePositions(listEl);
+      });
+    }
+
     function makeCardDraggable(listEl, grid, card, buildingId) {
       card.dataset.buildingId = buildingId;
       const handle = card.querySelector(".drag-handle");
@@ -310,28 +352,22 @@ views.facilityDetail = (() => {
       handle.addEventListener("dragend", () => {
         draggingId = null;
         card.classList.remove("opacity-40");
-        listEl.querySelectorAll(".building-card").forEach((c) => c.classList.remove("ring-2", "ring-emerald-500"));
+        clearMarks(listEl);
       });
-      const sameGroup = () => {
-        const dragged = draggingId && listEl.querySelector(`[data-building-id="${draggingId}"]`);
-        return dragged && dragged !== card && dragged.parentElement === grid ? dragged : null;
-      };
       card.addEventListener("dragover", (e) => {
-        if (!sameGroup()) return;
-        e.preventDefault();
-        card.classList.add("ring-2", "ring-emerald-500");
-      });
-      card.addEventListener("dragleave", () => card.classList.remove("ring-2", "ring-emerald-500"));
-      card.addEventListener("drop", async (e) => {
-        const dragged = sameGroup();
-        card.classList.remove("ring-2", "ring-emerald-500");
+        const dragged = draggedIn(grid, card);
         if (!dragged) return;
         e.preventDefault();
-        const rect = card.getBoundingClientRect();
-        const before = e.clientX - rect.left < rect.width / 2;
-        grid.insertBefore(dragged, before ? card : card.nextSibling);
-        const ordered = [...listEl.querySelectorAll("[data-building-id]")];
-        await Promise.all(ordered.map((el, idx) => api.updateBuilding(el.dataset.buildingId, { position: idx })));
+        clearMarks(listEl);
+        card.style.boxShadow = landsAfter(grid, dragged, card) ? MARK_AFTER : MARK_BEFORE;
+      });
+      card.addEventListener("drop", async (e) => {
+        const dragged = draggedIn(grid, card);
+        clearMarks(listEl);
+        if (!dragged) return;
+        e.preventDefault();
+        grid.insertBefore(dragged, landsAfter(grid, dragged, card) ? card.nextSibling : card);
+        await savePositions(listEl);
       });
     }
 
