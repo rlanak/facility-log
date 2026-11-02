@@ -1168,7 +1168,7 @@
           },
           {
             "resource": "heavy_explosive_powder",
-            "qty": 2
+            "qty": 8
           },
           {
             "power_mw": 4
@@ -1213,7 +1213,7 @@
           },
           {
             "resource": "heavy_explosive_powder",
-            "qty": 8
+            "qty": 2
           },
           {
             "power_mw": 4
@@ -1725,6 +1725,10 @@
         "module": "Special-Issue Firearms Assembly Upgrade",
         "inputs": [
           {
+            "resource": "dusk_ce_iii",
+            "qty": 20
+          },
+          {
             "resource": "processed_construction_materials",
             "qty": 3
           },
@@ -1738,8 +1742,8 @@
         ],
         "outputs": [
           {
-            "resource": "dusk_ce_iii",
-            "qty": 20
+            "resource": "dawn_ve_ii",
+            "qty": 3
           }
         ],
         "time_seconds": 75
@@ -1773,6 +1777,10 @@
         "module": "Special-Issue Firearms Assembly Upgrade",
         "inputs": [
           {
+            "resource": "catara_mo_ii",
+            "qty": 20
+          },
+          {
             "resource": "processed_construction_materials",
             "qty": 25
           },
@@ -1786,8 +1794,8 @@
         ],
         "outputs": [
           {
-            "resource": "catara_mo_ii",
-            "qty": 20
+            "resource": "quickhatch_rt_i",
+            "qty": 3
           }
         ],
         "time_seconds": 120
@@ -1821,6 +1829,10 @@
         "module": "Special-Issue Firearms Assembly Upgrade",
         "inputs": [
           {
+            "resource": "argenti_r_ii_rifle",
+            "qty": 20
+          },
+          {
             "resource": "construction_materials",
             "qty": 50
           },
@@ -1834,8 +1846,8 @@
         ],
         "outputs": [
           {
-            "resource": "argenti_r_ii_rifle",
-            "qty": 20
+            "resource": "krr3_792_auger",
+            "qty": 5
           }
         ],
         "time_seconds": 100
@@ -1869,6 +1881,10 @@
         "module": "Special-Issue Firearms Assembly Upgrade",
         "inputs": [
           {
+            "resource": "shrapnel_mortar_shell",
+            "qty": 15
+          },
+          {
             "resource": "construction_materials",
             "qty": 5
           },
@@ -1882,7 +1898,7 @@
         ],
         "outputs": [
           {
-            "resource": "shrapnel_mortar_shell",
+            "resource": "incendiary_mortar_shell",
             "qty": 15
           }
         ],
