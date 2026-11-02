@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -31,6 +33,11 @@ class ResourceUpdate(BaseModel):
 class ResourceOut(ResourceBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
+
+
+class ItemOriginSet(BaseModel):
+    resource_id: int
+    origin: Literal["produced", "farmed", "imported", "unlimited"]
 
 
 class TargetSet(BaseModel):

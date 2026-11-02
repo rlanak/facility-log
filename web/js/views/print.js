@@ -40,12 +40,20 @@ views.print = (() => {
       el("p", { class: "text-xs mb-2 " + (engineMessage.startsWith("✓") ? "text-emerald-400" : "text-amber-400") }, engineMessage)
     );
 
-    const dropzone = el("div", {
-      tabindex: "0",
-      class: "border-2 border-dashed border-zinc-700 rounded-lg p-6 text-center text-sm text-zinc-400 focus:outline-none focus:border-emerald-500 cursor-pointer",
-    }, i18n.t("print.dropzone"));
-
+    // Usually the print is already in the clipboard: Ctrl+V anywhere in the
+    // modal loads it (see the paste listener below). The file picker only
+    // opens from its own button — clicking the zone used to open it, which
+    // got in the way of pasting.
     const fileInput = el("input", { type: "file", accept: "image/png,image/jpeg,image/webp", class: "hidden" });
+    const pickFileBtn = el(
+      "button",
+      { type: "button", class: "mt-3 text-xs border border-zinc-700 hover:border-zinc-500 text-zinc-300 rounded px-3 py-1.5" },
+      i18n.t("print.pickFile")
+    );
+    pickFileBtn.addEventListener("click", () => fileInput.click());
+    const dropzone = el("div", {
+      class: "border-2 border-dashed border-zinc-700 rounded-lg p-6 text-center text-sm text-zinc-400",
+    }, [el("p", {}, i18n.t("print.dropzone")), pickFileBtn]);
 
     const stageWrap = el("div", { class: "mt-4 hidden" });
     const modeToggle = el("div", { class: "flex gap-2 mb-2" });
@@ -93,16 +101,20 @@ views.print = (() => {
     container.appendChild(cropsListEl);
     container.appendChild(saveBtn);
 
-    dropzone.addEventListener("click", () => fileInput.click());
     dropzone.addEventListener("dragover", (e) => e.preventDefault());
     dropzone.addEventListener("drop", (e) => {
       e.preventDefault();
       const file = e.dataTransfer.files[0];
       if (file) handleFile(file);
     });
-    dropzone.addEventListener("paste", (e) => {
-      const item = [...e.clipboardData.items].find((i) => i.type.startsWith("image/"));
-      if (item) handleFile(item.getAsFile());
+    // Whole page while this form is open; text pastes (e.g. into a
+    // quantity field) pass through untouched.
+    document.addEventListener("paste", function onPaste(e) {
+      if (!document.body.contains(container)) return document.removeEventListener("paste", onPaste);
+      const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith("image/"));
+      if (!item) return;
+      e.preventDefault();
+      handleFile(item.getAsFile());
     });
     fileInput.addEventListener("change", () => {
       if (fileInput.files[0]) handleFile(fileInput.files[0]);

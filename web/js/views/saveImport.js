@@ -97,8 +97,49 @@ views.saveImport = (() => {
         )
       );
       select.value = current.key;
-      body.appendChild(el("label", { class: "block text-xs text-zinc-400 mb-1" }, i18n.t("saveImport.pickPin")));
-      body.appendChild(select);
+      const pickWrap = el("div", {}, [
+        el("label", { class: "block text-xs text-zinc-400 mb-1" }, i18n.t("saveImport.pickPin")),
+        select,
+      ]);
+      body.appendChild(pickWrap);
+
+      // A building linked to a pin stays on it (MTSs hardly ever move): no
+      // pin picker, just the link and a way to undo it.
+      if (linked) {
+        pickWrap.classList.add("hidden");
+        const lockBar = el("div", {
+          class: "flex flex-wrap items-center gap-2 mb-3 rounded border border-emerald-900 bg-emerald-950/30 px-3 py-2 text-sm",
+        }, [
+          el("span", { class: "flex-1 min-w-0" }, [
+            el("span", { class: "text-emerald-400" }, `📌 ${i18n.t("saveImport.lockedTo")} `),
+            el("span", {}, linked.label),
+            el("span", { class: "text-xs text-zinc-500" }, ` · ${i18n.t("saveImport.readAgo", { ago: ago(linked.last_updated_unix) })}`),
+          ]),
+        ]);
+        const unlinkBtn = el(
+          "button",
+          { type: "button", class: "text-xs text-zinc-400 hover:text-red-400 border border-zinc-700 rounded px-2 py-1" },
+          i18n.t("saveImport.unlink")
+        );
+        unlinkBtn.addEventListener("click", async () => {
+          if (!confirm(i18n.t("saveImport.unlinkConfirm"))) return;
+          try {
+            await api.linkSavePin(building.id, null);
+            building.save_pin_key = null;
+            lockBar.remove();
+            pickWrap.classList.remove("hidden");
+          } catch (err) {
+            ui.toast(err.message, true);
+          }
+        });
+        lockBar.appendChild(unlinkBtn);
+        body.insertBefore(lockBar, pickWrap);
+      } else if (building.save_pin_key) {
+        body.insertBefore(
+          el("p", { class: "text-xs text-amber-400 mb-2" }, i18n.t("saveImport.linkedMissing")),
+          pickWrap
+        );
+      }
 
       const rowsEl = el("div", { class: "grid gap-2 mb-3" });
       body.appendChild(rowsEl);

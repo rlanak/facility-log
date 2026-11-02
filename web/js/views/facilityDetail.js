@@ -171,7 +171,7 @@ views.facilityDetail = (() => {
       location.hash = "#/";
     });
 
-    allResources = await api.listResources();
+    allResources = await api.listResources(facilityId);
     foxholeBuildingTypes = await api.listFoxholeBuildingTypes();
     if (Object.keys(foxholeResourceDefs).length === 0) {
       const foxholeResources = await api.listFoxholeResources();
@@ -259,7 +259,7 @@ views.facilityDetail = (() => {
     // like the facility itself. Groups follow the order of their first
     // building; inside a group, the user's drag order (`position`) holds.
     async function renderBuildingsList() {
-      allResources = await api.listResources();
+      allResources = await api.listResources(facilityId);
       const listEl = document.getElementById("buildings-list");
       const buildings = await api.listBuildings(facilityId);
       if (buildings.length === 0) {
@@ -440,10 +440,11 @@ views.facilityDetail = (() => {
         <div class="flex-1 min-w-0">
           <p class="font-semibold truncate" title="${ui.escapeHtml(buildingDisplayName)}">${ui.escapeHtml(buildingDisplayName)}</p>
           ${
-            upgrade || building.location
-              ? `<p class="text-[11px] truncate" title="${ui.escapeHtml([upgrade, building.location].filter(Boolean).join(" · "))}">${[
+            upgrade || building.location || building.save_pin_key
+              ? `<p class="text-[11px] truncate" title="${ui.escapeHtml([upgrade, building.location, building.save_pin_key ? i18n.t("facilityDetail.pinLinked") : ""].filter(Boolean).join(" · "))}">${[
                   upgrade ? `<span class="text-sky-400">⬆ ${ui.escapeHtml(upgradeLabel(upgrade))}</span>` : "",
                   building.location ? `<span class="text-zinc-500">📍 ${ui.escapeHtml(building.location)}</span>` : "",
+                  building.save_pin_key ? `<span class="text-emerald-600">📌</span>` : "",
                 ]
                   .filter(Boolean)
                   .join(" ")}</p>`
@@ -559,7 +560,7 @@ views.facilityDetail = (() => {
       btn.addEventListener("click", () => {
         const resource = allResources.find((r) => String(r.id) === btn.dataset.resourceId);
         if (!resource) return;
-        views.itemPanel.open(resource, foxholeResourceDefs[resource.resource_def_key] || null, onChange);
+        views.itemPanel.open(resource, foxholeResourceDefs[resource.resource_def_key] || null, onChange, facilityId);
       });
     });
 

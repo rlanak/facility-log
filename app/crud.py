@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -65,7 +67,47 @@ def update_resource(db: Session, resource: models.Resource, data: schemas.Resour
     return resource
 
 
-def unlimited_resource_keys(resources: list[models.Resource]) -> set[str]:
+ORIGIN_FLAGS = {
+    "produced": {"farmable": False, "imported": False, "unlimited": False},
+    "farmed": {"farmable": True, "imported": False, "unlimited": False},
+    "imported": {"farmable": False, "imported": True, "unlimited": False},
+    "unlimited": {"farmable": False, "imported": False, "unlimited": True},
+}
+
+
+def resources_for_facility(db: Session, facility_id: int) -> list[SimpleNamespace]:
+    """Every resource as seen from one facility: same fields as the
+    Resource rows, with farmable/imported/unlimited replaced by the
+    facility's own origin where it set one (FacilityItemOrigin). Plain
+    copies, not ORM rows — changing them never writes to the database."""
+    origins = {
+        o.resource_id: o.origin
+        for o in db.scalars(select(models.FacilityItemOrigin).where(models.FacilityItemOrigin.facility_id == facility_id))
+    }
+    columns = [c.key for c in models.Resource.__table__.columns]
+    result = []
+    for r in get_resources(db):
+        view = SimpleNamespace(**{c: getattr(r, c) for c in columns})
+        if r.id in origins:
+            view.__dict__.update(ORIGIN_FLAGS[origins[r.id]])
+        result.append(view)
+    return result
+
+
+def set_item_origin(db: Session, facility_id: int, resource_id: int, origin: str) -> None:
+    row = db.scalar(
+        select(models.FacilityItemOrigin).where(
+            models.FacilityItemOrigin.facility_id == facility_id, models.FacilityItemOrigin.resource_id == resource_id
+        )
+    )
+    if row:
+        row.origin = origin
+    else:
+        db.add(models.FacilityItemOrigin(facility_id=facility_id, resource_id=resource_id, origin=origin))
+    db.commit()
+
+
+def unlimited_resource_keys(resources) -> set[str]:
     """Catalog keys treated as always available in a facility (Resource.unlimited)
     — the player's own Resource row wins, else the catalog default (Water)."""
     by_key = {r.resource_def_key: r for r in resources if r.resource_def_key}

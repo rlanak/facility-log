@@ -280,13 +280,13 @@ views.targets = (() => {
       listEl.querySelectorAll(".item-info").forEach((btn) => {
         btn.addEventListener("click", () => {
           const resource = targets.find((t) => String(t.resource.id) === btn.dataset.id).resource;
-          views.itemPanel.open(resource, defsByKey[resource.resource_def_key] || null, refresh);
+          views.itemPanel.open(resource, defsByKey[resource.resource_def_key] || null, refresh, facilityId);
         });
       });
     }
 
     async function refresh() {
-      [resources, targets] = await Promise.all([api.listResources(), api.listFacilityTargets(facilityId)]);
+      [resources, targets] = await Promise.all([api.listResources(facilityId), api.listFacilityTargets(facilityId)]);
       renderList();
     }
 

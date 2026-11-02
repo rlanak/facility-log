@@ -57,6 +57,23 @@ class Facility(Base):
         back_populates="facility", cascade="all, delete-orphan", order_by="Report.generated_at.desc()"
     )
     targets: Mapped[list["FacilityTarget"]] = relationship(back_populates="facility", cascade="all, delete-orphan")
+    item_origins: Mapped[list["FacilityItemOrigin"]] = relationship(cascade="all, delete-orphan")
+
+
+class FacilityItemOrigin(Base):
+    """Where an item comes from in one facility — "produced", "farmed",
+    "imported" or "unlimited" (abundant). Overrides the resource's global
+    flags (farmable/imported/unlimited), which stay as the default for
+    facilities that never set it: one FAC may import Cmat while another
+    makes it. See crud.resources_for_facility()."""
+
+    __tablename__ = "facility_item_origins"
+    __table_args__ = (UniqueConstraint("facility_id", "resource_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    facility_id: Mapped[int] = mapped_column(ForeignKey("facilities.id"))
+    resource_id: Mapped[int] = mapped_column(ForeignKey("resources.id"))
+    origin: Mapped[str] = mapped_column(String(20))
 
 
 class FacilityTarget(Base):

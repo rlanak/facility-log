@@ -33,7 +33,7 @@ def create_report(
         raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
 
     stock_by_building = crud.get_current_stock_for_facility(db, facility_id)
-    all_resources = crud.get_resources(db)
+    all_resources = crud.resources_for_facility(db, facility_id)
     targets = crud.get_facility_targets(db, facility_id)
     result = generate_report(
         facility, stock_by_building, all_resources, targets, lang=lang, catalog_lang=catalog_lang or lang

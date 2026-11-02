@@ -1,18 +1,15 @@
 window.views = window.views || {};
 
 // Per-item settings (nickname + origin), opened by clicking an item's name in
-// a building card or in the Metas tab. Replaced the old "Catálogo de
+// a building card or in the Metas tab. Origin is per facility (one FAC may
+// import what another produces); the nickname is the same everywhere. Replaced the old "Catálogo de
 // Recursos" page: items are created on their own when stock is logged, and
 // the catalog already knows the right origin for almost all of them.
 views.itemPanel = (() => {
-  // The three stored flags as one choice — unlimited wins over imported,
-  // which wins over farmable (same priority the report uses).
-  const ORIGINS = {
-    produced: { farmable: false, imported: false, unlimited: false },
-    farmed: { farmable: true, imported: false, unlimited: false },
-    imported: { farmable: false, imported: true, unlimited: false },
-    unlimited: { farmable: false, imported: false, unlimited: true },
-  };
+  // One choice, stored per facility; read back from the three flags the
+  // API returns (unlimited wins over imported, which wins over farmable —
+  // same priority the report uses).
+  const ORIGINS = ["produced", "farmed", "imported", "unlimited"];
   const ORIGIN_ICONS = { produced: "🏭", farmed: "🌾", imported: "📦", unlimited: "∞" };
 
   function originOf(resource) {
@@ -26,8 +23,9 @@ views.itemPanel = (() => {
     return `<span class="text-xs text-zinc-500 whitespace-nowrap" title="${ui.escapeHtml(i18n.t(`item.originHint.${origin}`))}">${ORIGIN_ICONS[origin]} ${i18n.t(`item.origin.${origin}`)}</span>`;
   }
 
-  // resource: a row from /api/resources; def: its catalog entry (or null).
-  function open(resource, def, onChange) {
+  // resource: a row from /api/resources?facility_id=…; def: its catalog
+  // entry (or null); facilityId: whose origin is being set.
+  function open(resource, def, onChange, facilityId) {
     const catalogLabel = def ? i18n.catalogName(def) : resource.name;
     ui.openModal(
       i18n.resourceName(resource, def ? { [def.key]: def } : {}),
@@ -47,7 +45,7 @@ views.itemPanel = (() => {
             </label>
             <fieldset class="grid gap-1.5">
               <legend class="text-xs text-zinc-400 mb-1">${i18n.t("item.originLabel")}</legend>
-              ${Object.keys(ORIGINS)
+              ${ORIGINS
                 .map(
                   (origin) => `
                 <label class="flex items-start gap-2 text-sm rounded border border-zinc-800 hover:border-zinc-600 px-3 py-2 cursor-pointer has-[:checked]:border-emerald-600 has-[:checked]:bg-emerald-950/30">
@@ -59,7 +57,7 @@ views.itemPanel = (() => {
                 </label>`
                 )
                 .join("")}
-              <span class="text-xs text-zinc-600">${i18n.t("item.originGlobal")}</span>
+              <span class="text-xs text-zinc-600">${i18n.t("item.originFacility")}</span>
             </fieldset>
             <div><button class="bg-emerald-700 hover:bg-emerald-600 px-4 py-2 rounded text-sm font-semibold">${i18n.t("common.save")}</button></div>
           </form>`;
@@ -68,10 +66,9 @@ views.itemPanel = (() => {
           e.preventDefault();
           const origin = form.querySelector('[name="origin"]:checked').value;
           try {
-            await api.updateResource(resource.id, {
-              nickname: form.querySelector('[name="nickname"]').value.trim() || null,
-              ...ORIGINS[origin],
-            });
+            const nickname = form.querySelector('[name="nickname"]').value.trim() || null;
+            if (nickname !== (resource.nickname || null)) await api.updateResource(resource.id, { nickname });
+            if (origin !== current) await api.setItemOrigin(facilityId, { resource_id: resource.id, origin });
             close();
             onChange();
           } catch (err) {

@@ -9,7 +9,11 @@ router = APIRouter(prefix="/api/resources", tags=["resources"])
 
 
 @router.get("", response_model=list[schemas.ResourceOut])
-def list_resources(db: Session = Depends(get_db)):
+def list_resources(facility_id: int | None = None, db: Session = Depends(get_db)):
+    # With facility_id: origins as that facility set them (see
+    # crud.resources_for_facility).
+    if facility_id is not None:
+        return crud.resources_for_facility(db, facility_id)
     return crud.get_resources(db)
 
 

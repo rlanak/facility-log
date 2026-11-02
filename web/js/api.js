@@ -49,13 +49,16 @@ const api = (() => {
     getFacilityStock: (id) => request("GET", `/api/facilities/${id}/stock`),
     listFacilityTargets: (id) => request("GET", `/api/facilities/${id}/targets`),
     setFacilityTarget: (id, data) => request("PUT", `/api/facilities/${id}/targets`, data),
+    setItemOrigin: (id, data) => request("PUT", `/api/facilities/${id}/item-origins`, data),
 
     listBuildings: (facilityId) => request("GET", `/api/facilities/${facilityId}/buildings`),
     createBuilding: (facilityId, data) => request("POST", `/api/facilities/${facilityId}/buildings`, data),
     updateBuilding: (id, data) => request("PUT", `/api/buildings/${id}`, data),
     deleteBuilding: (id) => request("DELETE", `/api/buildings/${id}`),
 
-    listResources: () => request("GET", "/api/resources"),
+    // With a facility: item origins as that facility set them.
+    listResources: (facilityId) =>
+      request("GET", facilityId ? `/api/resources?facility_id=${facilityId}` : "/api/resources"),
     createResource: (data) => request("POST", "/api/resources", data),
     updateResource: (id, data) => request("PUT", `/api/resources/${id}`, data),
     deleteResource: (id) => request("DELETE", `/api/resources/${id}`),

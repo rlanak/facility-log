@@ -83,5 +83,5 @@ def get_production_estimate(
         current_stock,
         datetime.now(),
         catalog_lang or lang,
-        crud.unlimited_resource_keys(crud.get_resources(db)),
+        crud.unlimited_resource_keys(crud.resources_for_facility(db, building.facility_id)),
     )
