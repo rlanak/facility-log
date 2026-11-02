@@ -25,10 +25,12 @@ _STRINGS = {
         "recommendation_no_targets": "Nenhuma Meta cadastrada ainda — adicione metas na aba Metas desta facility pra ver aqui o que falta produzir/farmar pra chegar nelas.",
         "recommendation_all_met": "Todas as Metas cadastradas já estão em dia. ✅",
         "meta_line": "{icon}**{name}**: {current}/{target} — faltam {missing}",
-        "total_time_line": "⏱️ Tempo total estimado: **{duration}** — caminho mais longo: {path} _(o resto roda em paralelo)_",
-        "total_time_assumed_note": "_* fila ainda não configurada — contei 1 fila; configure a produção pra um tempo mais preciso_",
+        "total_time_line": "⏱️ Tempo total com 5 filas: **{duration}**{current} — caminho mais longo: {path} _(o resto roda em paralelo)_",
+        "total_time_current": " (com as filas atuais: **{duration}**)",
         "production_needed_title": "🏭 Produção necessária:",
-        "production_needed_item": "{name}: {cycles} ciclos em {building} — {queues}{assumed} → {per_queue} × {cycle} = {duration}",
+        "production_needed_item": "{name}: {cycles} ciclos em {building} — {timing}",
+        "timing_current": "fila atual ({queues}) → {per_queue} × {cycle} = {duration}",
+        "timing_full": "Estimativa com {queues} → {per_queue} × {cycle} = {duration}",
         "cycles_legend": "_ℹ️ 1 ciclo = 1 execução da receita (consome os insumos, entrega o produto). Filas do mesmo prédio rodam em paralelo: tempo = ciclos ÷ filas × tempo de 1 ciclo._",
         "import_needed_title": "📦 Importar (produção externa):",
         "farm_needed_title": "🌾 Farm necessário:",
@@ -53,10 +55,12 @@ _STRINGS = {
         "recommendation_no_targets": "No Target registered yet — add targets in this facility's Targets tab to see what's missing to reach them here.",
         "recommendation_all_met": "All registered Targets are already met. ✅",
         "meta_line": "{icon}**{name}**: {current}/{target} — {missing} short",
-        "total_time_line": "⏱️ Estimated total time: **{duration}** — longest chain: {path} _(everything else runs in parallel)_",
-        "total_time_assumed_note": "_* queue not configured yet — counted 1 queue; set up production for a more accurate time_",
+        "total_time_line": "⏱️ Total time with 5 queues: **{duration}**{current} — longest chain: {path} _(everything else runs in parallel)_",
+        "total_time_current": " (with the current queues: **{duration}**)",
         "production_needed_title": "🏭 Production needed:",
-        "production_needed_item": "{name}: {cycles} cycles at {building} — {queues}{assumed} → {per_queue} × {cycle} = {duration}",
+        "production_needed_item": "{name}: {cycles} cycles at {building} — {timing}",
+        "timing_current": "current queues ({queues}) → {per_queue} × {cycle} = {duration}",
+        "timing_full": "Estimate with {queues} → {per_queue} × {cycle} = {duration}",
         "cycles_legend": "_ℹ️ 1 cycle = 1 run of the recipe (uses up the inputs, delivers the output). Queues in the same building run in parallel: time = cycles ÷ queues × time of 1 cycle._",
         "import_needed_title": "📦 Import (outside production):",
         "farm_needed_title": "🌾 Farming needed:",
@@ -416,15 +420,45 @@ def build_recommendation_block(
 
     if result["production"]:
         time_estimate = material_chain.compute_production_time(result["production"], preferred_recipes)
-        path_text = " → ".join(output_name(bt, rk) for bt, rk in time_estimate["critical_path"])
-        lines.append(
-            _t("total_time_line", lang, duration=format_duration(time_estimate["total_seconds"]), path=path_text)
+        full, current = time_estimate["full"], time_estimate["current"]
+        path_text = " → ".join(output_name(bt, rk) for bt, rk in full["critical_path"])
+        current_text = (
+            _t("total_time_current", lang, duration=format_duration(current["total_seconds"]))
+            if time_estimate["has_current"] and current["total_seconds"] != full["total_seconds"]
+            else ""
         )
+        lines.append(
+            _t(
+                "total_time_line",
+                lang,
+                duration=format_duration(full["total_seconds"]),
+                current=current_text,
+                path=path_text,
+            )
+        )
+
+        def timing(key: str, cycles: float, run: dict, cycle_seconds: int) -> str:
+            return _t(
+                key,
+                lang,
+                queues=_queues_text(run["queue_count"], lang),
+                per_queue=_per_queue_text(cycles, run["queue_count"], run["rounds"], lang),
+                cycle=format_cycle_time(cycle_seconds),
+                duration=format_duration(run["seconds"]),
+            )
 
         prod_lines = []
         for node, cycles in sorted(result["production"].items(), key=lambda kv: -kv[1]):
             bt_key, recipe_key = node
             info = time_estimate["nodes"][node]
+            # Configured queues: show them, then the 5-queue estimate (the
+            # reference) unless they already are 5 or more. Nothing
+            # configured: just the 5-queue estimate.
+            parts = []
+            if info["configured"]:
+                parts.append(timing("timing_current", cycles, info["current"], info["cycle_seconds"]))
+            if not info["configured"] or info["configured"] < material_chain.FULL_QUEUES:
+                parts.append(timing("timing_full", cycles, info["full"], info["cycle_seconds"]))
             prod_lines.append(
                 _t(
                     "production_needed_item",
@@ -432,16 +466,10 @@ def build_recommendation_block(
                     name=output_name(bt_key, recipe_key),
                     cycles=format_qty(cycles),
                     building=foxhole_data.building_display_name(bt_key, catalog_lang),
-                    queues=_queues_text(info["queue_count"], lang),
-                    assumed="*" if info["assumed"] else "",
-                    per_queue=_per_queue_text(cycles, info["queue_count"], info["rounds"], lang),
-                    cycle=format_cycle_time(info["cycle_seconds"]),
-                    duration=format_duration(info["seconds"]),
+                    timing=" · ".join(parts),
                 )
             )
         lines.append(_format_list(_t("production_needed_title", lang), prod_lines, bulleted))
-        if time_estimate["any_assumed_single_queue"]:
-            lines.append(_t("total_time_assumed_note", lang))
 
     if result["imports"]:
         import_lines = [
