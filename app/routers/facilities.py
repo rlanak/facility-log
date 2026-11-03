@@ -1,11 +1,12 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app import crud, schemas
+from app import crud, models, schemas
 from app.database import get_db
-from app.services import foxhole_data, projection
+from app.services import discord_dashboard, foxhole_data, projection
 from app.services.errors_i18n import err
 
 router = APIRouter(prefix="/api/facilities", tags=["facilities"])
@@ -118,45 +119,79 @@ def dashboard(facility_id: int, lang: str = "pt-BR", catalog_lang: str | None = 
     Read only: nothing here is stored."""
     if not crud.get_facility(db, facility_id):
         raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
-    catalog_lang = catalog_lang or lang
-    now = datetime.now(timezone.utc)
-    resources = crud.resources_for_facility(db, facility_id)
-    unlimited = crud.unlimited_resource_keys(resources)
-    type_defs = foxhole_data.get_building_type_defs()
+    return projection.facility_dashboard(db, facility_id, datetime.now(timezone.utc), catalog_lang or lang)
 
-    buildings = []
-    logged_total: dict[str, float] = {}
-    projected_total: dict[str, float] = {}
-    for building, entries in crud.get_current_stock_for_facility(db, facility_id).items():
-        p = projection.project_building(building, entries, now, unlimited, catalog_lang)
-        for key, qty in p["logged"].items():
-            logged_total[key] = logged_total.get(key, 0) + qty
-        for key, qty in p["projected"].items():
-            projected_total[key] = projected_total.get(key, 0) + qty
-        buildings.append(
-            {
-                "id": building.id,
-                "name": building.name,
-                "building_type_key": building.building_type_key,
-                "location": building.location,
-                "storage": bool(type_defs.get(building.building_type_key, {}).get("storage")),
-                **p,
-            }
-        )
 
-    targets = []
-    by_id = {r.id: r for r in resources}
-    for resource_id, target in crud.get_facility_targets(db, facility_id).items():
-        r = by_id.get(resource_id)
-        if not r or not r.resource_def_key or r.resource_def_key in unlimited:
-            continue
-        targets.append(
-            {
-                "resource_def_key": r.resource_def_key,
-                "name": crud.resolve_resource_name(r, catalog_lang),
-                "target": target,
-                "logged": logged_total.get(r.resource_def_key, 0),
-                "projected": projected_total.get(r.resource_def_key, 0),
-            }
-        )
-    return {"now": now, "buildings": buildings, "targets": targets}
+class WebhookIn(BaseModel):
+    url: str
+
+
+def _webhook_status(hook: models.FacilityWebhook | None) -> dict:
+    """Never the URL itself: it works like a password for the channel."""
+    if not hook:
+        return {"configured": False, "interval_seconds": discord_dashboard.INTERVAL_SECONDS}
+    token = hook.url.rstrip("/").rsplit("/", 1)[-1]
+    return {
+        "configured": True,
+        "url_hint": f"…{token[-4:]}",
+        "message_id": hook.message_id,
+        "last_sent_at": hook.last_sent_at,
+        "last_error": hook.last_error,
+        "interval_seconds": discord_dashboard.INTERVAL_SECONDS,
+    }
+
+
+def _send_now(db: Session, hook: models.FacilityWebhook) -> dict:
+    try:
+        discord_dashboard.send(db, hook)
+    except discord_dashboard.WebhookError:
+        pass  # recorded in hook.last_error, shown by the page
+    return _webhook_status(hook)
+
+
+@router.get("/{facility_id}/discord-webhook")
+def get_discord_webhook(facility_id: int, lang: str = "pt-BR", db: Session = Depends(get_db)):
+    if not crud.get_facility(db, facility_id):
+        raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
+    return _webhook_status(db.get(models.FacilityWebhook, facility_id))
+
+
+@router.put("/{facility_id}/discord-webhook")
+def put_discord_webhook(
+    facility_id: int, data: WebhookIn, lang: str = "pt-BR", catalog_lang: str | None = None, db: Session = Depends(get_db)
+):
+    """Save the channel's webhook and post/edit the message right away. The
+    message keeps the language the page had when it was saved."""
+    if not crud.get_facility(db, facility_id):
+        raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
+    url = data.url.strip()
+    if not discord_dashboard.WEBHOOK_URL_RE.match(url):
+        raise HTTPException(status_code=400, detail=err("invalid_webhook_url", lang))
+    hook = db.get(models.FacilityWebhook, facility_id)
+    if not hook:
+        hook = models.FacilityWebhook(facility_id=facility_id, url=url)
+        db.add(hook)
+    elif hook.url != url:
+        hook.url, hook.message_id = url, None  # another channel: start a new message there
+    hook.lang, hook.catalog_lang = lang, catalog_lang or lang
+    db.commit()
+    return _send_now(db, hook)
+
+
+@router.post("/{facility_id}/discord-webhook/send")
+def send_discord_webhook(facility_id: int, lang: str = "pt-BR", db: Session = Depends(get_db)):
+    hook = db.get(models.FacilityWebhook, facility_id)
+    if not hook:
+        raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
+    return _send_now(db, hook)
+
+
+@router.delete("/{facility_id}/discord-webhook", status_code=204)
+def delete_discord_webhook(facility_id: int, db: Session = Depends(get_db)):
+    """Stops the updates and deletes the message from the channel (best
+    effort — if Discord refuses, the message just stays, frozen)."""
+    hook = db.get(models.FacilityWebhook, facility_id)
+    if hook:
+        discord_dashboard.delete_message(hook)
+        db.delete(hook)
+        db.commit()

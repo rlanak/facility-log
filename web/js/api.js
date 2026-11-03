@@ -51,6 +51,10 @@ const api = (() => {
     setFacilityTarget: (id, data) => request("PUT", `/api/facilities/${id}/targets`, data),
     // Live estimate (Ao vivo tab) — computed on the server, never stored.
     getDashboard: (id) => request("GET", `/api/facilities/${id}/dashboard`),
+    getDiscordWebhook: (id) => request("GET", `/api/facilities/${id}/discord-webhook`),
+    setDiscordWebhook: (id, url) => request("PUT", `/api/facilities/${id}/discord-webhook`, { url }),
+    sendDiscordWebhook: (id) => request("POST", `/api/facilities/${id}/discord-webhook/send`),
+    deleteDiscordWebhook: (id) => request("DELETE", `/api/facilities/${id}/discord-webhook`),
     setItemOrigin: (id, data) => request("PUT", `/api/facilities/${id}/item-origins`, data),
 
     listBuildings: (facilityId) => request("GET", `/api/facilities/${facilityId}/buildings`),

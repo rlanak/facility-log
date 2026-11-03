@@ -6,6 +6,7 @@ showing up in Portuguese regardless of the selected UI language.
 _STRINGS = {
     "pt-BR": {
         "facility_not_found": "Facility não encontrada.",
+        "invalid_webhook_url": "URL de webhook inválida. Copie em Editar canal → Integrações → Webhooks → Copiar URL do webhook.",
         "building_not_found": "Prédio não encontrado.",
         "resource_not_found": "Recurso não encontrado.",
         "report_not_found": "Relatório não encontrado.",
@@ -24,6 +25,7 @@ _STRINGS = {
     },
     "en-US": {
         "facility_not_found": "Facility not found.",
+        "invalid_webhook_url": "Invalid webhook URL. Copy it from Edit Channel → Integrations → Webhooks → Copy Webhook URL.",
         "building_not_found": "Building not found.",
         "resource_not_found": "Resource not found.",
         "report_not_found": "Report not found.",

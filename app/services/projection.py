@@ -100,3 +100,51 @@ def project_building(building, entries, now: datetime, unlimited_keys: set, lang
         "elapsed_seconds": int(elapsed),
         "slots": slots,
     }
+
+
+def facility_dashboard(db, facility_id: int, now: datetime, catalog_lang: str = "pt-BR") -> dict:
+    """Everything the "Ao vivo" tab and the Discord webhook show: each
+    building projected, plus the facility's Metas against the projected
+    total. Shared so the two never disagree."""
+    from app import crud  # crud doesn't import this module, but keep services import-light
+
+    resources = crud.resources_for_facility(db, facility_id)
+    unlimited = crud.unlimited_resource_keys(resources)
+    type_defs = foxhole_data.get_building_type_defs()
+
+    buildings = []
+    logged_total: dict[str, float] = {}
+    projected_total: dict[str, float] = {}
+    for building, entries in crud.get_current_stock_for_facility(db, facility_id).items():
+        p = project_building(building, entries, now, unlimited, catalog_lang)
+        for key, qty in p["logged"].items():
+            logged_total[key] = logged_total.get(key, 0) + qty
+        for key, qty in p["projected"].items():
+            projected_total[key] = projected_total.get(key, 0) + qty
+        buildings.append(
+            {
+                "id": building.id,
+                "name": building.name,
+                "building_type_key": building.building_type_key,
+                "location": building.location,
+                "storage": bool(type_defs.get(building.building_type_key, {}).get("storage")),
+                **p,
+            }
+        )
+
+    targets = []
+    by_id = {r.id: r for r in resources}
+    for resource_id, target in crud.get_facility_targets(db, facility_id).items():
+        r = by_id.get(resource_id)
+        if not r or not r.resource_def_key or r.resource_def_key in unlimited:
+            continue
+        targets.append(
+            {
+                "resource_def_key": r.resource_def_key,
+                "name": crud.resolve_resource_name(r, catalog_lang),
+                "target": target,
+                "logged": logged_total.get(r.resource_def_key, 0),
+                "projected": projected_total.get(r.resource_def_key, 0),
+            }
+        )
+    return {"now": now, "buildings": buildings, "targets": targets}

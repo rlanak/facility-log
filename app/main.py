@@ -1,5 +1,8 @@
 from app import envfile  # noqa: F401  (must run before app.auth reads the environment)
 
+import asyncio
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.staticfiles import StaticFiles
@@ -10,6 +13,7 @@ from app.database import UPLOADS_DIR, Base, apply_migrations, engine
 from app.paths import APP_DIR
 from app.routers import auth as auth_routes
 from app.routers import buildings, facilities, foxhole, images, reports, resources, save, settings, stock
+from app.services import discord_dashboard
 
 Base.metadata.create_all(bind=engine)
 apply_migrations()
@@ -26,7 +30,15 @@ class NoCacheStaticFiles(StaticFiles):
         return response
 
 
-app = FastAPI(title="Facility Log")
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Discord webhook dashboards (opt-in per facility; idle when none is set).
+    task = asyncio.create_task(discord_dashboard.run_forever())
+    yield
+    task.cancel()
+
+
+app = FastAPI(title="Facility Log", lifespan=lifespan)
 
 # Web mode (Discord login) only when configured — see app/auth.py. Local
 # mode stays exactly as it was: no login, no session cookie.

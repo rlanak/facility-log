@@ -58,6 +58,7 @@ class Facility(Base):
     )
     targets: Mapped[list["FacilityTarget"]] = relationship(back_populates="facility", cascade="all, delete-orphan")
     item_origins: Mapped[list["FacilityItemOrigin"]] = relationship(cascade="all, delete-orphan")
+    webhook: Mapped["FacilityWebhook | None"] = relationship(cascade="all, delete-orphan")
 
 
 class FacilityItemOrigin(Base):
@@ -74,6 +75,24 @@ class FacilityItemOrigin(Base):
     facility_id: Mapped[int] = mapped_column(ForeignKey("facilities.id"))
     resource_id: Mapped[int] = mapped_column(ForeignKey("resources.id"))
     origin: Mapped[str] = mapped_column(String(20))
+
+
+class FacilityWebhook(Base):
+    """Discord webhook that keeps one message in a channel showing the
+    facility's "Ao vivo" estimate — see services/discord_dashboard.py. The
+    URL works like a password (anyone with it can post there), so the API
+    never sends it back whole. `message_id` is the message being edited;
+    when it's gone (deleted in Discord) a new one is posted."""
+
+    __tablename__ = "facility_webhooks"
+
+    facility_id: Mapped[int] = mapped_column(ForeignKey("facilities.id"), primary_key=True)
+    url: Mapped[str] = mapped_column(String(300))
+    message_id: Mapped[str | None] = mapped_column(String(40), default=None)
+    lang: Mapped[str] = mapped_column(String(10), default="pt-BR")
+    catalog_lang: Mapped[str] = mapped_column(String(10), default="pt-BR")
+    last_sent_at: Mapped[datetime | None] = mapped_column(default=None)
+    last_error: Mapped[str | None] = mapped_column(Text, default=None)
 
 
 class FacilityTarget(Base):

@@ -143,6 +143,68 @@ views.dashboard = (() => {
       <p class="text-xs text-zinc-600 mt-4">${i18n.t("dashboard.footer")}</p>`;
   }
 
+  // "📣 No Discord": a channel webhook the server keeps editing with this
+  // panel (app/services/discord_dashboard.py). The URL never comes back from
+  // the API, only its last 4 characters.
+  async function drawWebhook(box, facilityId, status, editing = false) {
+    const interval = status.interval_seconds;
+    const btn = "px-2 py-1 rounded text-xs";
+    if (!status.configured || editing) {
+      box.innerHTML = `
+        <p class="text-xs text-zinc-400 mb-2">${i18n.t("dashboard.webhookHelp", { interval })}</p>
+        <form class="flex flex-wrap gap-2">
+          <input name="url" type="password" autocomplete="off" required placeholder="${i18n.t("dashboard.webhookPlaceholder")}"
+            class="flex-1 min-w-0 basis-64 bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-sm" />
+          <button class="${btn} bg-indigo-600 hover:bg-indigo-500 font-semibold">${i18n.t("dashboard.webhookSave")}</button>
+          ${editing ? `<button type="button" class="wh-cancel ${btn} bg-zinc-800 hover:bg-zinc-700">${i18n.t("dashboard.webhookCancel")}</button>` : ""}
+        </form>`;
+      box.querySelector("form").addEventListener("submit", async (ev) => {
+        ev.preventDefault();
+        try {
+          const next = await api.setDiscordWebhook(facilityId, ev.target.url.value.trim());
+          if (!next.last_error) ui.toast(i18n.t("dashboard.webhookSent"));
+          drawWebhook(box, facilityId, next);
+        } catch (err) {
+          ui.toast(err.message, true);
+        }
+      });
+      const cancel = box.querySelector(".wh-cancel");
+      if (cancel) cancel.addEventListener("click", () => drawWebhook(box, facilityId, status));
+      return;
+    }
+    const last = status.last_sent_at
+      ? i18n.t("dashboard.webhookLast", { span: formatSpan((Date.now() - new Date(status.last_sent_at)) / 1000) })
+      : i18n.t("dashboard.webhookNever");
+    box.innerHTML = `
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-sm flex-1 min-w-0">${i18n.t("dashboard.webhookOn", { interval, hint: ui.escapeHtml(status.url_hint) })}
+          <span class="text-xs text-zinc-500">· ${last}</span></span>
+        <button class="wh-send ${btn} bg-zinc-800 hover:bg-zinc-700">${i18n.t("dashboard.webhookSendNow")}</button>
+        <button class="wh-change ${btn} bg-zinc-800 hover:bg-zinc-700">${i18n.t("dashboard.webhookChange")}</button>
+        <button class="wh-remove ${btn} bg-zinc-800 hover:bg-red-900">${i18n.t("dashboard.webhookRemove")}</button>
+      </div>
+      ${status.last_error ? `<p class="text-xs text-red-400 mt-1 break-words">${ui.escapeHtml(i18n.t("dashboard.webhookError", { error: status.last_error }))}</p>` : ""}`;
+    box.querySelector(".wh-send").addEventListener("click", async () => {
+      try {
+        const next = await api.sendDiscordWebhook(facilityId);
+        if (!next.last_error) ui.toast(i18n.t("dashboard.webhookSent"));
+        drawWebhook(box, facilityId, next);
+      } catch (err) {
+        ui.toast(err.message, true);
+      }
+    });
+    box.querySelector(".wh-change").addEventListener("click", () => drawWebhook(box, facilityId, status, true));
+    box.querySelector(".wh-remove").addEventListener("click", async () => {
+      if (!confirm(i18n.t("dashboard.webhookRemoveConfirm"))) return;
+      try {
+        await api.deleteDiscordWebhook(facilityId);
+        drawWebhook(box, facilityId, await api.getDiscordWebhook(facilityId));
+      } catch (err) {
+        ui.toast(err.message, true);
+      }
+    });
+  }
+
   async function renderDashboardTab(container, facilityId) {
     stop();
     if (!defs) {
@@ -154,7 +216,16 @@ views.dashboard = (() => {
         <p class="text-sm text-zinc-400">${i18n.t("dashboard.intro")}</p>
         <span class="dash-status text-xs text-zinc-500 tabular-nums"></span>
       </div>
+      <details class="dash-webhook-wrap bg-zinc-900 border border-zinc-800 rounded p-3 mb-4">
+        <summary class="cursor-pointer text-sm font-semibold text-zinc-300">${i18n.t("dashboard.webhookTitle")}</summary>
+        <div class="dash-webhook mt-2"></div>
+      </details>
       <div class="dash-body"></div>`;
+    const webhookBox = container.querySelector(".dash-webhook");
+    const webhookStatus = await api.getDiscordWebhook(facilityId);
+    // Open when it's on, so its status shows; closed otherwise.
+    if (webhookStatus.configured) container.querySelector(".dash-webhook-wrap").open = true;
+    drawWebhook(webhookBox, facilityId, webhookStatus);
     const statusEl = container.querySelector(".dash-status");
     let fetchedAt = null;
     let failed = false;
@@ -164,6 +235,8 @@ views.dashboard = (() => {
       if (!document.body.contains(container) || !location.hash.endsWith("/live")) return stop();
       try {
         draw(container, await api.getDashboard(facilityId));
+        // Refresh "último envio" too — unless the URL form is open (would wipe the typing).
+        if (!webhookBox.querySelector("form")) drawWebhook(webhookBox, facilityId, await api.getDiscordWebhook(facilityId));
         fetchedAt = Date.now();
         failed = false;
       } catch (err) {
