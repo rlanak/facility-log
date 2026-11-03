@@ -89,6 +89,8 @@ class FacilityWebhook(Base):
     facility_id: Mapped[int] = mapped_column(ForeignKey("facilities.id"), primary_key=True)
     url: Mapped[str] = mapped_column(String(300))
     message_id: Mapped[str | None] = mapped_column(String(40), default=None)
+    # Thread (tópico) inside the webhook's channel to post in; NULL = the channel itself.
+    thread_id: Mapped[str | None] = mapped_column(String(40), default=None)
     lang: Mapped[str] = mapped_column(String(10), default="pt-BR")
     catalog_lang: Mapped[str] = mapped_column(String(10), default="pt-BR")
     last_sent_at: Mapped[datetime | None] = mapped_column(default=None)

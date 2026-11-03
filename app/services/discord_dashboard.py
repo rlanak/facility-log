@@ -30,6 +30,8 @@ from app.services.report_generator import _display_qty
 log = logging.getLogger("facility_log.discord")
 
 INTERVAL_SECONDS = 60
+# A thread is given as its ID or as its link (…/channels/<guild>/<channel>/<thread>, from "Copiar link").
+THREAD_RE = re.compile(r"^(?:https://(?:ptb\.|canary\.)?discord(?:app)?\.com/channels/\d+/(?:\d+/)?)?(\d{15,25})/?$")
 WEBHOOK_URL_RE = re.compile(r"^https://(?:ptb\.|canary\.)?discord(?:app)?\.com/api/webhooks/(\d+)/([\w-]+)/?$")
 
 # Embed limits (Discord): 25 fields, 1024 chars per field value, 6000 in total.
@@ -112,7 +114,7 @@ def _targets_value(targets: list[dict]) -> str:
     return _clip("\n".join(lines), _FIELD_MAX)
 
 
-def _building_value(b: dict, lang: str, with_stock: bool) -> str:
+def _building_value(b: dict, lang: str, catalog_lang: str, with_stock: bool) -> str:
     lines = []
     for s in b["slots"]:
         names = ", ".join(p["name"] for p in s["produced"]) or s["recipe_key"]
@@ -138,7 +140,7 @@ def _building_value(b: dict, lang: str, with_stock: bool) -> str:
             parts = []
             for key, qty in sorted(stock, key=lambda kv: kv[0]):
                 changed = abs(qty - b["logged"].get(key, 0)) >= 0.5
-                name = names.get(key) or foxhole_data.resource_display_name(key, lang)
+                name = names.get(key) or foxhole_data.resource_display_name(key, catalog_lang)
                 parts.append(f"{name} {'≈ ' if changed else ''}{_display_qty(qty, key)}")
             lines.append("📦 " + " · ".join(parts))
     when = _t("logged", lang, when=_ts(b["last_logged_at"])) if b["last_logged_at"] else _t("never_logged", lang)
@@ -157,7 +159,7 @@ def build_embed(facility_name: str, data: dict, lang: str, catalog_lang: str) ->
             fields.append({"name": _t("targets", lang), "value": _targets_value(data["targets"]), "inline": False})
         for b in producing[:_MAX_BUILDING_FIELDS]:
             title = f"🏭 {b['name']}" + (f" · 📍{b['location']}" if b.get("location") else "")
-            fields.append({"name": _clip(title, 256), "value": _building_value(b, catalog_lang, with_stock), "inline": False})
+            fields.append({"name": _clip(title, 256), "value": _building_value(b, lang, catalog_lang, with_stock), "inline": False})
         if len(producing) > _MAX_BUILDING_FIELDS:
             fields.append(
                 {"name": "…", "value": _t("more_buildings", lang, n=len(producing) - _MAX_BUILDING_FIELDS), "inline": False}
@@ -188,6 +190,27 @@ def _embed_size(embed: dict) -> int:
         + len(embed["footer"]["text"])
         + sum(len(f["name"]) + len(f["value"]) for f in embed["fields"])
     )
+
+
+def parse_thread(text: str | None) -> str | None:
+    """Thread ID from an ID or a thread link; None for empty. Raises
+    ValueError for anything else."""
+    text = (text or "").strip()
+    if not text:
+        return None
+    m = THREAD_RE.match(text)
+    if not m:
+        raise ValueError(text)
+    return m.group(1)
+
+
+def _url(hook: models.FacilityWebhook, path: str = "", **query) -> str:
+    # thread_id goes on every call (post, edit, delete) — Discord looks the
+    # message up inside the thread.
+    if hook.thread_id:
+        query["thread_id"] = hook.thread_id
+    qs = "&".join(f"{k}={v}" for k, v in query.items())
+    return hook.url.rstrip("/") + path + (f"?{qs}" if qs else "")
 
 
 class WebhookError(Exception):
@@ -226,11 +249,10 @@ def send(db, hook: models.FacilityWebhook, now: datetime | None = None) -> None:
         "embeds": [build_embed(facility.name, data, hook.lang, hook.catalog_lang)],
         "allowed_mentions": {"parse": []},
     }
-    base = hook.url.rstrip("/")
     try:
         if hook.message_id:
             try:
-                _call("PATCH", f"{base}/messages/{hook.message_id}", payload)
+                _call("PATCH", _url(hook, f"/messages/{hook.message_id}"), payload)
             except WebhookError as exc:
                 if exc.status != 404:
                     raise
@@ -238,7 +260,7 @@ def send(db, hook: models.FacilityWebhook, now: datetime | None = None) -> None:
                 # (If the whole webhook is gone, the POST 404s too and that's the error shown.)
                 hook.message_id = None
         if not hook.message_id:
-            message = _call("POST", f"{base}?wait=true", payload)
+            message = _call("POST", _url(hook, wait="true"), payload)
             hook.message_id = str(message["id"])
         hook.last_error = None
     except WebhookError as exc:
@@ -253,7 +275,7 @@ def delete_message(hook: models.FacilityWebhook) -> None:
     if not hook.message_id:
         return
     try:
-        _call("DELETE", f"{hook.url.rstrip('/')}/messages/{hook.message_id}", None)
+        _call("DELETE", _url(hook, f"/messages/{hook.message_id}"), None)
     except WebhookError as exc:
         log.info("webhook da facility %s: não apagou a mensagem: %s", hook.facility_id, exc)
 

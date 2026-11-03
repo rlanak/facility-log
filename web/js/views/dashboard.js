@@ -153,7 +153,11 @@ views.dashboard = (() => {
       box.innerHTML = `
         <p class="text-xs text-zinc-400 mb-2">${i18n.t("dashboard.webhookHelp", { interval })}</p>
         <form class="flex flex-wrap gap-2">
-          <input name="url" type="password" autocomplete="off" required placeholder="${i18n.t("dashboard.webhookPlaceholder")}"
+          <input name="url" type="password" autocomplete="off" ${status.configured ? "" : "required"}
+            placeholder="${status.configured ? i18n.t("dashboard.webhookKeepUrl") : i18n.t("dashboard.webhookPlaceholder")}"
+            class="flex-1 min-w-0 basis-64 bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-sm" />
+          <input name="thread" autocomplete="off" placeholder="${i18n.t("dashboard.webhookThreadPlaceholder")}"
+            value="${ui.escapeHtml(status.thread_id || "")}"
             class="flex-1 min-w-0 basis-64 bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-sm" />
           <button class="${btn} bg-indigo-600 hover:bg-indigo-500 font-semibold">${i18n.t("dashboard.webhookSave")}</button>
           ${editing ? `<button type="button" class="wh-cancel ${btn} bg-zinc-800 hover:bg-zinc-700">${i18n.t("dashboard.webhookCancel")}</button>` : ""}
@@ -161,7 +165,7 @@ views.dashboard = (() => {
       box.querySelector("form").addEventListener("submit", async (ev) => {
         ev.preventDefault();
         try {
-          const next = await api.setDiscordWebhook(facilityId, ev.target.url.value.trim());
+          const next = await api.setDiscordWebhook(facilityId, ev.target.url.value.trim(), ev.target.thread.value.trim());
           if (!next.last_error) ui.toast(i18n.t("dashboard.webhookSent"));
           drawWebhook(box, facilityId, next);
         } catch (err) {
@@ -177,7 +181,9 @@ views.dashboard = (() => {
       : i18n.t("dashboard.webhookNever");
     box.innerHTML = `
       <div class="flex flex-wrap items-center gap-2">
-        <span class="text-sm flex-1 min-w-0">${i18n.t("dashboard.webhookOn", { interval, hint: ui.escapeHtml(status.url_hint) })}
+        <span class="text-sm flex-1 min-w-0">${i18n.t("dashboard.webhookOn", { interval, hint: ui.escapeHtml(status.url_hint) })}${
+          status.thread_id ? ` · ${i18n.t("dashboard.webhookInThread")}` : ""
+        }
           <span class="text-xs text-zinc-500">· ${last}</span></span>
         <button class="wh-send ${btn} bg-zinc-800 hover:bg-zinc-700">${i18n.t("dashboard.webhookSendNow")}</button>
         <button class="wh-change ${btn} bg-zinc-800 hover:bg-zinc-700">${i18n.t("dashboard.webhookChange")}</button>

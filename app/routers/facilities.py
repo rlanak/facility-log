@@ -123,7 +123,8 @@ def dashboard(facility_id: int, lang: str = "pt-BR", catalog_lang: str | None = 
 
 
 class WebhookIn(BaseModel):
-    url: str
+    url: str = ""  # empty = keep the saved one (changing only the thread)
+    thread: str | None = None  # thread (tópico) ID or link; empty = the channel
 
 
 def _webhook_status(hook: models.FacilityWebhook | None) -> dict:
@@ -135,6 +136,7 @@ def _webhook_status(hook: models.FacilityWebhook | None) -> dict:
         "configured": True,
         "url_hint": f"…{token[-4:]}",
         "message_id": hook.message_id,
+        "thread_id": hook.thread_id,
         "last_sent_at": hook.last_sent_at,
         "last_error": hook.last_error,
         "interval_seconds": discord_dashboard.INTERVAL_SECONDS,
@@ -164,15 +166,21 @@ def put_discord_webhook(
     message keeps the language the page had when it was saved."""
     if not crud.get_facility(db, facility_id):
         raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
-    url = data.url.strip()
+    hook = db.get(models.FacilityWebhook, facility_id)
+    url = data.url.strip() or (hook.url if hook else "")
     if not discord_dashboard.WEBHOOK_URL_RE.match(url):
         raise HTTPException(status_code=400, detail=err("invalid_webhook_url", lang))
-    hook = db.get(models.FacilityWebhook, facility_id)
+    try:
+        thread_id = discord_dashboard.parse_thread(data.thread)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=err("invalid_thread", lang))
     if not hook:
-        hook = models.FacilityWebhook(facility_id=facility_id, url=url)
+        hook = models.FacilityWebhook(facility_id=facility_id, url=url, thread_id=thread_id)
         db.add(hook)
-    elif hook.url != url:
-        hook.url, hook.message_id = url, None  # another channel: start a new message there
+    elif (hook.url, hook.thread_id) != (url, thread_id):
+        # Another channel/thread: stop the old message, start a new one there.
+        discord_dashboard.delete_message(hook)
+        hook.url, hook.thread_id, hook.message_id = url, thread_id, None
     hook.lang, hook.catalog_lang = lang, catalog_lang or lang
     db.commit()
     return _send_now(db, hook)
