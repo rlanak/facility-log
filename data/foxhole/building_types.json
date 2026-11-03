@@ -2551,5 +2551,16 @@
     "storage": true,
     "codename": "FacilityTransferMaterial",
     "stockpile_capacity": 1000
+  },
+  "resource_transfer_station": {
+    "name_en": "Resource Transfer Station",
+    "wiki_url": "https://foxhole.wiki.gg/wiki/Resource_Transfer_Station",
+    "queue_slots": 0,
+    "recipes": [],
+    "icon": "/assets/foxhole/structures/MaterialTransferStation.png",
+    "name_pt": "Estação de Transferência de Recursos",
+    "storage": true,
+    "codename": "FacilityTransferResource",
+    "stockpile_capacity": 30000
   }
 }

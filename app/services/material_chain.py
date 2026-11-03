@@ -78,7 +78,8 @@ def _building_pools(buildings) -> dict[tuple[str, str], list]:
     building only uses its own stock — the Ammunition Factory making 120mm
     doesn't take the powder sitting in the one making rockets (the author,
     03/11/2026) — but two buildings of the same type making the same thing
-    share it."""
+    share it. Storage stations (MTS, RTS) are shared by every recipe on top
+    of this; see resolve_requirements()."""
     pools: dict[tuple[str, str], list] = {}
     for b in buildings:
         for slot in b.production_slots or []:
@@ -106,8 +107,10 @@ def resolve_requirements(
     the facility (any building, MTS included). A recipe's inputs only count
     what's in the buildings running that recipe (_building_pools); if no
     building runs it yet, the buildings of that type that run nothing (where
-    it would go). Stock in other buildings — another factory type, a
-    factory busy with a different recipe, an MTS — isn't credited as input.
+    it would go), plus every storage station (MTS/RTS — `storage: true` in
+    the catalog), which exists to hold inputs and finished goods for the
+    whole facility. Stock in another factory — another type, or the same
+    type busy with a different recipe — isn't credited as input.
 
     farmable_keys / imported_keys stop the recursion early even when a
     recipe for that resource exists: a resource the player farms (or
@@ -129,11 +132,15 @@ def resolve_requirements(
     buildings = list(buildings)
     pools = _building_pools(buildings)
     all_ids = list(stock_by_building)
+    type_defs = foxhole_data.get_building_type_defs()
+    storage_ids = [b.id for b in buildings if type_defs.get(b.building_type_key, {}).get("storage")]
 
     def pool_for(bt_key: str, recipe_key: str) -> list:
-        if (bt_key, recipe_key) in pools:
-            return pools[(bt_key, recipe_key)]
-        return [b.id for b in buildings if b.building_type_key == bt_key and not b.production_slots]
+        # The building's own stock first, then the shared storage stations.
+        own = pools.get((bt_key, recipe_key)) or [
+            b.id for b in buildings if b.building_type_key == bt_key and not b.production_slots
+        ]
+        return own + storage_ids
 
     def take(resource_key: str, needed: float, building_ids: list) -> float:
         used = 0.0
