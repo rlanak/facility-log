@@ -1,9 +1,11 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app import crud, schemas
 from app.database import get_db
-from app.services import foxhole_data
+from app.services import foxhole_data, projection
 from app.services.errors_i18n import err
 
 router = APIRouter(prefix="/api/facilities", tags=["facilities"])
@@ -108,3 +110,53 @@ def set_target(facility_id: int, data: schemas.TargetSet, lang: str = "pt-BR", d
     if not resource:
         raise HTTPException(status_code=404, detail=err("resource_not_found", lang))
     crud.set_facility_target(db, facility_id, resource, data.target_max)
+
+
+@router.get("/{facility_id}/dashboard")
+def dashboard(facility_id: int, lang: str = "pt-BR", catalog_lang: str | None = None, db: Session = Depends(get_db)):
+    """Live estimate for the dashboard tab — see app/services/projection.py.
+    Read only: nothing here is stored."""
+    if not crud.get_facility(db, facility_id):
+        raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
+    catalog_lang = catalog_lang or lang
+    now = datetime.now(timezone.utc)
+    resources = crud.resources_for_facility(db, facility_id)
+    unlimited = crud.unlimited_resource_keys(resources)
+    type_defs = foxhole_data.get_building_type_defs()
+
+    buildings = []
+    logged_total: dict[str, float] = {}
+    projected_total: dict[str, float] = {}
+    for building, entries in crud.get_current_stock_for_facility(db, facility_id).items():
+        p = projection.project_building(building, entries, now, unlimited, catalog_lang)
+        for key, qty in p["logged"].items():
+            logged_total[key] = logged_total.get(key, 0) + qty
+        for key, qty in p["projected"].items():
+            projected_total[key] = projected_total.get(key, 0) + qty
+        buildings.append(
+            {
+                "id": building.id,
+                "name": building.name,
+                "building_type_key": building.building_type_key,
+                "location": building.location,
+                "storage": bool(type_defs.get(building.building_type_key, {}).get("storage")),
+                **p,
+            }
+        )
+
+    targets = []
+    by_id = {r.id: r for r in resources}
+    for resource_id, target in crud.get_facility_targets(db, facility_id).items():
+        r = by_id.get(resource_id)
+        if not r or not r.resource_def_key or r.resource_def_key in unlimited:
+            continue
+        targets.append(
+            {
+                "resource_def_key": r.resource_def_key,
+                "name": crud.resolve_resource_name(r, catalog_lang),
+                "target": target,
+                "logged": logged_total.get(r.resource_def_key, 0),
+                "projected": projected_total.get(r.resource_def_key, 0),
+            }
+        )
+    return {"now": now, "buildings": buildings, "targets": targets}

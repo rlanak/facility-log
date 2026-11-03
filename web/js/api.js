@@ -49,6 +49,8 @@ const api = (() => {
     getFacilityStock: (id) => request("GET", `/api/facilities/${id}/stock`),
     listFacilityTargets: (id) => request("GET", `/api/facilities/${id}/targets`),
     setFacilityTarget: (id, data) => request("PUT", `/api/facilities/${id}/targets`, data),
+    // Live estimate (Ao vivo tab) — computed on the server, never stored.
+    getDashboard: (id) => request("GET", `/api/facilities/${id}/dashboard`),
     setItemOrigin: (id, data) => request("PUT", `/api/facilities/${id}/item-origins`, data),
 
     listBuildings: (facilityId) => request("GET", `/api/facilities/${facilityId}/buildings`),

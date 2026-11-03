@@ -132,7 +132,7 @@ views.facilityDetail = (() => {
   function tabLink(tab, label, activeTab) {
     const isActive = tab === activeTab;
     const href = tab === "buildings" ? `#/facilities/${facilityId}` : `#/facilities/${facilityId}/${tab}`;
-    return `<a href="${href}" class="px-3 py-1.5 rounded text-sm font-medium ${
+    return `<a href="${href}" class="px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${
       isActive ? "bg-emerald-700 text-white" : "bg-zinc-900 text-zinc-400 hover:text-zinc-200"
     }">${label}</a>`;
   }
@@ -155,9 +155,10 @@ views.facilityDetail = (() => {
           <button id="delete-facility" class="text-xs text-red-400 hover:text-red-300 border border-red-900 hover:border-red-600 rounded px-2 py-1">${i18n.t("facilityDetail.deleteFacility")}</button>
         </div>
       </div>
-      <div class="flex gap-2 mb-6">
+      <div class="flex flex-wrap gap-2 mb-6">
         ${tabLink("buildings", i18n.t("facilityDetail.tabBuildings"), activeTab)}
         ${tabLink("targets", i18n.t("facilityDetail.tabTargets"), activeTab)}
+        ${tabLink("live", i18n.t("facilityDetail.tabLive"), activeTab)}
         ${tabLink("report", i18n.t("facilityDetail.tabReport"), activeTab)}
         ${tabLink("history", i18n.t("facilityDetail.tabHistory"), activeTab)}
       </div>
@@ -187,6 +188,7 @@ views.facilityDetail = (() => {
     const tabContent = document.getElementById("tab-content");
     if (activeTab === "buildings") await renderBuildingsTab(tabContent);
     else if (activeTab === "targets") await views.targets.renderTargetsTab(tabContent, facilityId);
+    else if (activeTab === "live") await views.dashboard.renderDashboardTab(tabContent, facilityId);
     else if (activeTab === "report") await views.report.renderReportTab(tabContent, facilityId);
     else if (activeTab === "history") await views.report.renderHistoryTab(tabContent, facilityId);
   }
