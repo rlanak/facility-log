@@ -12,6 +12,12 @@ views.facilityDetail = (() => {
 
   function resourcesForBuildingType(foxholeType) {
     const seen = new Map();
+    // Storage stations have no recipes: their rows are what the stockpile
+    // accepts (MTS: large items + Cmat; RTS: loose raw resources).
+    for (const key of foxholeType.accepts || []) {
+      const def = foxholeResourceDefs[key];
+      if (def) seen.set(key, { key, name: i18n.catalogName(def), search: `${def.name_pt || ""} ${def.name_en}`, icon: def.icon });
+    }
     for (const recipe of foxholeType.recipes) {
       for (const io of [...recipe.inputs, ...recipe.outputs]) {
         if (!io.resource || seen.has(io.resource)) continue;
@@ -882,7 +888,9 @@ views.facilityDetail = (() => {
     const hint = i18n.t("facilityDetail.predefinedHint", { ex1: "<code>25.7k</code>", ex2: "<code>1,8k</code>", ex3: "<code>32000</code>" });
     container.innerHTML = `
       <div class="border border-zinc-800 rounded p-3 bg-zinc-950">
-        <div class="predefined-rows grid gap-2"></div>
+        ${resources.length > 12 ? `<input type="search" placeholder="${i18n.t("facilityDetail.filterItems")}"
+          class="row-filter w-full mb-3 bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500" />` : ""}
+        <div class="predefined-rows grid gap-2 max-h-[55vh] overflow-y-auto pr-1"></div>
         <div class="flex gap-2 mt-3">
           <button type="button" class="save-stock bg-emerald-700 hover:bg-emerald-600 px-3 py-1.5 rounded text-xs font-semibold">${i18n.t("facilityDetail.saveStock")}</button>
         </div>
@@ -898,7 +906,7 @@ views.facilityDetail = (() => {
           ? `<img src="${ui.escapeHtml(r.icon)}" class="h-7 w-7 object-contain" />`
           : `<span class="w-7"></span>`;
         return `
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2" data-name="${ui.escapeHtml(`${r.name} ${r.search || ""}`.toLowerCase())}">
           ${thumb}
           <span class="flex-1 min-w-0 truncate text-sm" title="${ui.escapeHtml(r.name)}">${ui.escapeHtml(r.name)}</span>
           <input placeholder="${i18n.t("facilityDetail.qtyPlaceholder")}" data-key="${r.key}" data-current-id="${current ? current.id : ""}"
@@ -906,6 +914,15 @@ views.facilityDetail = (() => {
         </div>`;
       })
       .join("");
+
+    // Hides rows only: a quantity typed before filtering still gets saved.
+    const filter = container.querySelector(".row-filter");
+    if (filter) {
+      filter.addEventListener("input", () => {
+        const q = filter.value.trim().toLowerCase();
+        rowsEl.querySelectorAll("[data-name]").forEach((row) => row.classList.toggle("hidden", !row.dataset.name.includes(q)));
+      });
+    }
 
     container.querySelector(".save-stock").addEventListener("click", async () => {
       const entries = [];

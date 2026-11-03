@@ -34,6 +34,10 @@ def list_foxhole_building_types():
             "wiki_url": data.get("wiki_url"),
             "icon": data.get("icon"),
             "recipes": data["recipes"],
+            # Storage stations (MTS/RTS): what the stockpile takes, per the wiki.
+            "storage": data.get("storage", False),
+            "stockpile_capacity": data.get("stockpile_capacity"),
+            "accepts": data.get("accepts", []),
         }
         for key, data in foxhole_data.get_building_type_defs().items()
     ]
