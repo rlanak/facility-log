@@ -72,18 +72,42 @@ def active_recipes_by_output(buildings) -> dict[str, dict]:
     return result
 
 
+def _building_pools(buildings) -> dict[tuple[str, str], list]:
+    """(building_type_key, recipe_key) -> ids of the buildings whose stock
+    that recipe can draw on: buildings of that type running that recipe. A
+    building only uses its own stock — the Ammunition Factory making 120mm
+    doesn't take the powder sitting in the one making rockets (the author,
+    03/11/2026) — but two buildings of the same type making the same thing
+    share it."""
+    pools: dict[tuple[str, str], list] = {}
+    for b in buildings:
+        for slot in b.production_slots or []:
+            ids = pools.setdefault((b.building_type_key, slot["recipe_key"]), [])
+            if b.id not in ids:
+                ids.append(b.id)
+    return pools
+
+
 def resolve_requirements(
     targets: list[tuple[str, float]],
-    stock: dict[str, float],
+    stock_by_building: dict,
+    buildings,
     preferred_recipes: dict,
     farmable_keys: set = frozenset(),
     imported_keys: set = frozenset(),
     unlimited_keys: set = frozenset(),
 ) -> dict:
-    """targets: [(resource_key, deficit_qty), ...] to resolve, top to bottom.
-    stock: current stock by Foxhole resource key — a shared pool that gets
-    consumed as targets are resolved, so the same stock isn't credited
-    toward two different Metas. Mutated in place.
+    """targets: [(resource_key, target_qty), ...] to resolve, top to bottom.
+    stock_by_building: {building_id: {resource_key: qty}} — consumed as
+    targets are resolved, so the same stock isn't credited toward two
+    different Metas. Mutated in place.
+
+    Where stock comes from: a Meta's own product counts wherever it is in
+    the facility (any building, MTS included). A recipe's inputs only count
+    what's in the buildings running that recipe (_building_pools); if no
+    building runs it yet, the buildings of that type that run nothing (where
+    it would go). Stock in other buildings — another factory type, a
+    factory busy with a different recipe, an MTS — isn't credited as input.
 
     farmable_keys / imported_keys stop the recursion early even when a
     recipe for that resource exists: a resource the player farms (or
@@ -102,15 +126,31 @@ def resolve_requirements(
     production: dict[tuple[str, str], float] = {}
     farm: dict[str, float] = {}
     imports: dict[str, float] = {}
+    buildings = list(buildings)
+    pools = _building_pools(buildings)
+    all_ids = list(stock_by_building)
 
-    def resolve(resource_key: str, needed: float, depth: int) -> None:
+    def pool_for(bt_key: str, recipe_key: str) -> list:
+        if (bt_key, recipe_key) in pools:
+            return pools[(bt_key, recipe_key)]
+        return [b.id for b in buildings if b.building_type_key == bt_key and not b.production_slots]
+
+    def take(resource_key: str, needed: float, building_ids: list) -> float:
+        used = 0.0
+        for bid in building_ids:
+            stock = stock_by_building.get(bid)
+            if not stock or used >= needed:
+                continue
+            got = min(stock.get(resource_key, 0), needed - used)
+            stock[resource_key] = stock.get(resource_key, 0) - got
+            used += got
+        return used
+
+    def resolve(resource_key: str, needed: float, depth: int, building_ids: list) -> None:
         # Unlimited (e.g. Water): always available, nothing to produce or farm.
         if needed <= 1e-9 or resource_key in unlimited_keys:
             return
-        have = stock.get(resource_key, 0)
-        used = min(have, needed)
-        stock[resource_key] = have - used
-        deficit = needed - used
+        deficit = needed - take(resource_key, needed, building_ids)
         if deficit <= 1e-9:
             return
         if resource_key in imported_keys:
@@ -136,13 +176,14 @@ def resolve_requirements(
         cycles = math.ceil(deficit / out_qty)
         prod_key = (bt_key, recipe["key"])
         production[prod_key] = production.get(prod_key, 0) + cycles
+        input_pool = pool_for(bt_key, recipe["key"])
         for io in recipe["inputs"]:
             if "resource" not in io:
                 continue
-            resolve(io["resource"], foxhole_data.recipe_io_qty(io) * cycles, depth + 1)
+            resolve(io["resource"], foxhole_data.recipe_io_qty(io) * cycles, depth + 1, input_pool)
 
-    for resource_key, deficit in targets:
-        resolve(resource_key, deficit, 0)
+    for resource_key, target in targets:
+        resolve(resource_key, target, 0, all_ids)
 
     return {"production": production, "farm": farm, "imports": imports}
 

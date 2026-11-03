@@ -376,7 +376,12 @@ def build_recommendation_block(
 
     preferred_recipes = material_chain.active_recipes_by_output(stock_by_building.keys())
     farmable_keys, imported_keys = _resource_key_flags(all_resources)
-    stock_pool = dict(stock_by_def_key)
+    # Per building: a recipe's inputs only come from the buildings running
+    # it (see material_chain.resolve_requirements).
+    stock_pool = {
+        b.id: _totals_by_def_key([ResourceTotal(e.resource, e.quantity) for e in entries])
+        for b, entries in stock_by_building.items()
+    }
     chain_targets = sorted(catalog_targets, key=lambda x: crud.resolve_resource_name(x[0], catalog_lang))
     # Pass the full target here, not the already-subtracted `deficit` —
     # stock_pool still holds this resource's full current stock, and
@@ -387,6 +392,7 @@ def build_recommendation_block(
     result = material_chain.resolve_requirements(
         [(r.resource_def_key, targets[r.id]) for r, _current, _deficit in chain_targets],
         stock_pool,
+        stock_by_building.keys(),
         preferred_recipes,
         farmable_keys,
         imported_keys,
