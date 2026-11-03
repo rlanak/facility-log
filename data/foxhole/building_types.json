@@ -2557,7 +2557,7 @@
     "wiki_url": "https://foxhole.wiki.gg/wiki/Resource_Transfer_Station",
     "queue_slots": 0,
     "recipes": [],
-    "icon": "/assets/foxhole/structures/MaterialTransferStation.png",
+    "icon": "/assets/foxhole/structures/ResourceTransferStation.png",
     "name_pt": "Estação de Transferência de Recursos",
     "storage": true,
     "codename": "FacilityTransferResource",
