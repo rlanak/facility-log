@@ -74,3 +74,16 @@ def me(request: Request):
         auth_enabled=auth.config.enabled,
         user=schemas.UserOut(id=user.id, name=user.name, avatar_url=user.avatar_url) if user else None,
     )
+
+
+@router.get("/api/users", response_model=list[schemas.UserOut])
+def list_users(db: Session = Depends(get_db)):
+    """Everyone who has logged in (web mode) — to pick a facility's new owner.
+    Empty in local mode (no accounts)."""
+    if not auth.config.enabled:
+        return []
+    users = db.scalars(select(models.User)).all()
+    out = [
+        schemas.UserOut(id=u.id, name=u.display_name or u.username, avatar_url=u.avatar_url) for u in users
+    ]
+    return sorted(out, key=lambda u: u.name.lower())

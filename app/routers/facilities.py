@@ -143,6 +143,30 @@ def dashboard(facility_id: int, lang: str = "pt-BR", catalog_lang: str | None = 
     return projection.facility_dashboard(db, facility_id, datetime.now(timezone.utc), catalog_lang or lang)
 
 
+class OwnerIn(BaseModel):
+    user_id: int
+
+
+@router.put("/{facility_id}/owner", response_model=schemas.FacilityOut)
+def transfer_owner(request: Request, facility_id: int, data: OwnerIn, lang: str = "pt-BR", db: Session = Depends(get_db)):
+    """Hand the facility to someone else (web mode). Only the owner can, and
+    it's one way: the old owner loses delete / private / webhook and only
+    gets it back if someone hands it back. A private facility goes with it
+    (the old owner stops seeing it)."""
+    facility = crud.get_facility(db, facility_id)
+    if not facility:
+        raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
+    if not auth.config.enabled:
+        raise HTTPException(status_code=400, detail=err("owner_web_only", lang))
+    _require_owner(request, facility, lang)
+    if not db.get(models.User, data.user_id):
+        raise HTTPException(status_code=404, detail=err("user_not_found", lang))
+    facility.owner_id = data.user_id
+    db.commit()
+    db.refresh(facility)
+    return facility
+
+
 class WebhookIn(BaseModel):
     url: str = ""  # empty = keep the saved one (changing only the thread)
     thread: str | None = None  # thread (tópico) ID or link; empty = the channel

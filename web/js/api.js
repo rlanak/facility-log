@@ -51,6 +51,8 @@ const api = (() => {
     setFacilityTarget: (id, data) => request("PUT", `/api/facilities/${id}/targets`, data),
     // Live estimate (Ao vivo tab) — computed on the server, never stored.
     getDashboard: (id) => request("GET", `/api/facilities/${id}/dashboard`),
+    listUsers: () => request("GET", "/api/users"),
+    transferFacility: (id, userId) => request("PUT", `/api/facilities/${id}/owner`, { user_id: userId }),
     getDiscordWebhook: (id) => request("GET", `/api/facilities/${id}/discord-webhook`),
     setDiscordWebhook: (id, url, thread) => request("PUT", `/api/facilities/${id}/discord-webhook`, { url, thread }),
     sendDiscordWebhook: (id) => request("POST", `/api/facilities/${id}/discord-webhook/send`),
