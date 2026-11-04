@@ -72,5 +72,5 @@ def me(request: Request):
     user = getattr(request.state, "user", None)
     return schemas.MeOut(
         auth_enabled=auth.config.enabled,
-        user=schemas.UserOut(name=user.name, avatar_url=user.avatar_url) if user else None,
+        user=schemas.UserOut(id=user.id, name=user.name, avatar_url=user.avatar_url) if user else None,
     )

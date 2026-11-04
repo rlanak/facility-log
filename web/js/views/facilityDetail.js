@@ -147,12 +147,28 @@ views.facilityDetail = (() => {
       return;
     }
 
+    // Private/shared only means something with login on (web mode); the
+    // owner (or anyone, for a facility without owner yet) can switch it.
+    const me = window.appMe || {};
+    const myId = me.user ? me.user.id : null;
+    const isOwner = !facility.owner_id || facility.owner_id === myId;
+    const sharing = me.auth_enabled
+      ? `<button id="toggle-private" ${isOwner ? "" : "disabled"}
+            title="${i18n.t(facility.private ? "facilityDetail.privateHint" : "facilityDetail.sharedHint")}"
+            class="text-xs border border-zinc-700 rounded px-2 py-1 ${isOwner ? "hover:border-zinc-500" : "opacity-60 cursor-default"}">${
+            facility.private ? i18n.t("facilityDetail.private") : i18n.t("facilityDetail.shared")
+          }</button>`
+      : "";
     app.innerHTML = `
-      <div class="flex items-center justify-between mb-2">
-        <h1 class="text-xl font-bold">${ui.escapeHtml(facility.name)}</h1>
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <div class="min-w-0">
+          <h1 class="text-xl font-bold">${ui.escapeHtml(facility.name)}</h1>
+          ${facility.owner_name ? `<div class="text-xs text-zinc-500">${i18n.t("facilities.owner", { name: ui.escapeHtml(facility.owner_name) })}</div>` : ""}
+        </div>
         <div class="flex gap-2">
+          ${sharing}
           <button id="rename-facility" class="text-xs text-zinc-300 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded px-2 py-1">${i18n.t("facilityDetail.rename")}</button>
-          <button id="delete-facility" class="text-xs text-red-400 hover:text-red-300 border border-red-900 hover:border-red-600 rounded px-2 py-1">${i18n.t("facilityDetail.deleteFacility")}</button>
+          <button id="delete-facility" ${isOwner ? "" : "hidden"} class="text-xs text-red-400 hover:text-red-300 border border-red-900 hover:border-red-600 rounded px-2 py-1">${i18n.t("facilityDetail.deleteFacility")}</button>
         </div>
       </div>
       <div class="flex flex-wrap gap-2 mb-6">
@@ -174,9 +190,27 @@ views.facilityDetail = (() => {
 
     document.getElementById("delete-facility").addEventListener("click", async () => {
       if (!confirm(i18n.t("facilityDetail.deleteConfirm"))) return;
-      await api.deleteFacility(facilityId);
-      location.hash = "#/";
+      try {
+        await api.deleteFacility(facilityId);
+        location.hash = "#/";
+      } catch (err) {
+        ui.toast(err.message, true);
+      }
     });
+
+    const togglePrivate = document.getElementById("toggle-private");
+    if (togglePrivate && isOwner) {
+      togglePrivate.addEventListener("click", async () => {
+        const next = !facility.private;
+        if (!confirm(i18n.t(next ? "facilityDetail.makePrivateConfirm" : "facilityDetail.makeSharedConfirm"))) return;
+        try {
+          await api.updateFacility(facilityId, { private: next });
+          render(app, facilityId, activeTab);
+        } catch (err) {
+          ui.toast(err.message, true);
+        }
+      });
+    }
 
     allResources = await api.listResources(facilityId);
     foxholeBuildingTypes = await api.listFoxholeBuildingTypes();

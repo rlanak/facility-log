@@ -49,6 +49,12 @@ class Facility(Base):
     name: Mapped[str] = mapped_column(String(200))
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
+    # Web mode only (see app/auth.py): who created it, and whether only that
+    # person sees it. NULL owner = created in local mode or before this
+    # existed: shared, and whoever marks it private becomes the owner.
+    owner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), default=None)
+    private: Mapped[bool] = mapped_column(default=False)
+    owner: Mapped["User | None"] = relationship()
 
     buildings: Mapped[list["Building"]] = relationship(
         back_populates="facility", cascade="all, delete-orphan", order_by="Building.position"
@@ -59,6 +65,10 @@ class Facility(Base):
     targets: Mapped[list["FacilityTarget"]] = relationship(back_populates="facility", cascade="all, delete-orphan")
     item_origins: Mapped[list["FacilityItemOrigin"]] = relationship(cascade="all, delete-orphan")
     webhook: Mapped["FacilityWebhook | None"] = relationship(cascade="all, delete-orphan")
+
+    @property
+    def owner_name(self) -> str | None:
+        return (self.owner.display_name or self.owner.username) if self.owner else None
 
 
 class FacilityItemOrigin(Base):

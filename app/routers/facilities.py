@@ -1,10 +1,10 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app import crud, models, schemas
+from app import auth, crud, models, schemas
 from app.database import get_db
 from app.services import discord_dashboard, foxhole_data, projection
 from app.services.errors_i18n import err
@@ -13,13 +13,22 @@ router = APIRouter(prefix="/api/facilities", tags=["facilities"])
 
 
 @router.get("", response_model=list[schemas.FacilityOut])
-def list_facilities(db: Session = Depends(get_db)):
-    return crud.get_facilities(db)
+def list_facilities(request: Request, db: Session = Depends(get_db)):
+    return crud.get_facilities(db, auth.current_user_id(request), auth.config.enabled)
 
 
 @router.post("", response_model=schemas.FacilityOut, status_code=201)
-def create_facility(data: schemas.FacilityCreate, db: Session = Depends(get_db)):
-    return crud.create_facility(db, data)
+def create_facility(request: Request, data: schemas.FacilityCreate, db: Session = Depends(get_db)):
+    return crud.create_facility(db, data, owner_id=auth.current_user_id(request))
+
+
+def _require_owner(request: Request, facility: models.Facility, lang: str) -> None:
+    """Deleting and making private/shared: owner only, in web mode. A
+    facility without owner (local mode, older data) is anyone's."""
+    if not auth.config.enabled or facility.owner_id is None:
+        return
+    if facility.owner_id != auth.current_user_id(request):
+        raise HTTPException(status_code=403, detail=err("owner_only", lang, owner=facility.owner_name or "?"))
 
 
 @router.get("/{facility_id}", response_model=schemas.FacilityOut)
@@ -31,18 +40,28 @@ def get_facility(facility_id: int, lang: str = "pt-BR", db: Session = Depends(ge
 
 
 @router.put("/{facility_id}", response_model=schemas.FacilityOut)
-def update_facility(facility_id: int, data: schemas.FacilityUpdate, lang: str = "pt-BR", db: Session = Depends(get_db)):
+def update_facility(
+    request: Request, facility_id: int, data: schemas.FacilityUpdate, lang: str = "pt-BR", db: Session = Depends(get_db)
+):
     facility = crud.get_facility(db, facility_id)
     if not facility:
         raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
+    if data.private is not None and data.private != facility.private:
+        if not auth.config.enabled:
+            data.private = None  # no users locally: nothing to hide from
+        else:
+            _require_owner(request, facility, lang)
+            if facility.owner_id is None:
+                facility.owner_id = auth.current_user_id(request)  # claiming an ownerless one
     return crud.update_facility(db, facility, data)
 
 
 @router.delete("/{facility_id}", status_code=204)
-def delete_facility(facility_id: int, lang: str = "pt-BR", db: Session = Depends(get_db)):
+def delete_facility(request: Request, facility_id: int, lang: str = "pt-BR", db: Session = Depends(get_db)):
     facility = crud.get_facility(db, facility_id)
     if not facility:
         raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
+    _require_owner(request, facility, lang)
     crud.delete_facility(db, facility)
 
 

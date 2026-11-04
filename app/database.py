@@ -56,6 +56,8 @@ _ADDED_COLUMNS = [
     ("buildings", "upgrade", "VARCHAR(80)"),
     ("buildings", "location", "VARCHAR(120)"),
     ("facility_webhooks", "thread_id", "VARCHAR(40)"),
+    ("facilities", "owner_id", "INTEGER REFERENCES users(id)"),
+    ("facilities", "private", "BOOLEAN DEFAULT 0"),
 ]
 
 

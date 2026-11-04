@@ -154,16 +154,20 @@ def delete_resource(db: Session, resource: models.Resource) -> None:
     db.commit()
 
 
-def get_facilities(db: Session) -> list[models.Facility]:
-    return list(db.scalars(select(models.Facility).order_by(models.Facility.name)))
+def get_facilities(db: Session, viewer_id: int | None = None, logged_in: bool = False) -> list[models.Facility]:
+    """With login on, private facilities only show to their owner."""
+    query = select(models.Facility).order_by(models.Facility.name)
+    if logged_in:
+        query = query.where((models.Facility.private.is_(False)) | (models.Facility.owner_id == viewer_id))
+    return list(db.scalars(query))
 
 
 def get_facility(db: Session, facility_id: int) -> models.Facility | None:
     return db.get(models.Facility, facility_id)
 
 
-def create_facility(db: Session, data: schemas.FacilityCreate) -> models.Facility:
-    facility = models.Facility(**data.model_dump())
+def create_facility(db: Session, data: schemas.FacilityCreate, owner_id: int | None = None) -> models.Facility:
+    facility = models.Facility(**data.model_dump(), owner_id=owner_id)
     db.add(facility)
     db.commit()
     db.refresh(facility)
@@ -171,7 +175,7 @@ def create_facility(db: Session, data: schemas.FacilityCreate) -> models.Facilit
 
 
 def update_facility(db: Session, facility: models.Facility, data: schemas.FacilityUpdate) -> models.Facility:
-    for field, value in data.model_dump(exclude_unset=True).items():
+    for field, value in data.model_dump(exclude_unset=True, exclude_none=True).items():
         setattr(facility, field, value)
     db.commit()
     db.refresh(facility)

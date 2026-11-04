@@ -23,6 +23,7 @@ Environment:
 
 import json
 import os
+import re
 import secrets
 import time
 import urllib.error
@@ -213,6 +214,51 @@ def _load_user(request) -> SessionUser | None:
         return SessionUser(id=user.id, name=user.name, avatar_url=user.avatar_url)
 
 
+# Paths that name one facility's data, directly or through a building, a
+# print or a report. Private facilities are checked against these, so every
+# route under them (now and future ones with the same shape) is covered.
+_FACILITY_PATHS = [
+    (re.compile(r"^/api/facilities/(\d+)(?:/|$)"), "facility"),
+    (re.compile(r"^/api/buildings/(\d+)(?:/|$)"), "building"),
+    (re.compile(r"^/api/images/(\d+)(?:/|$)"), "image"),
+    (re.compile(r"^/api/reports/(\d+)(?:/|$)"), "report"),
+]
+
+
+def _private_facility_blocked(path: str, query_params, user_id: int) -> bool:
+    """True when the request touches a private facility that isn't this
+    user's. Unknown ids pass through (the route answers 404 itself)."""
+    from app import models
+    from app.database import SessionLocal
+
+    with SessionLocal() as db:
+        facility_id = None
+        for pattern, kind in _FACILITY_PATHS:
+            m = pattern.match(path)
+            if not m:
+                continue
+            obj_id = int(m.group(1))
+            if kind == "facility":
+                facility_id = obj_id
+            elif kind == "building":
+                b = db.get(models.Building, obj_id)
+                facility_id = b.facility_id if b else None
+            elif kind == "image":
+                img = db.get(models.UploadImage, obj_id)
+                b = db.get(models.Building, img.building_id) if img else None
+                facility_id = b.facility_id if b else None
+            else:
+                r = db.get(models.Report, obj_id)
+                facility_id = r.facility_id if r else None
+            break
+        if facility_id is None and query_params.get("facility_id", "").isdigit():
+            facility_id = int(query_params["facility_id"])
+        if facility_id is None:
+            return False
+        facility = db.get(models.Facility, facility_id)
+        return bool(facility and facility.private and facility.owner_id != user_id)
+
+
 async def gate(request, call_next):
     """Every /api/* and /uploads/* request needs a logged-in user with the
     role when login is on. Static files (the SPA itself) stay public so the
@@ -228,6 +274,14 @@ async def gate(request, call_next):
     protected = path.startswith("/api/") or path.startswith("/uploads/")
     if protected and path != "/api/me" and request.state.user is None:
         return JSONResponse({"detail": "login_required"}, status_code=401)
+    if path.startswith("/api/") and await run_in_threadpool(
+        _private_facility_blocked, path, request.query_params, request.state.user.id
+    ):
+        # Same answer as a facility that doesn't exist: a private one isn't
+        # even confirmed to others.
+        from app.services.errors_i18n import err
+
+        return JSONResponse({"detail": err("facility_not_found", request.query_params.get("lang", "pt-BR"))}, status_code=404)
     return await call_next(request)
 
 

@@ -6,6 +6,7 @@ showing up in Portuguese regardless of the selected UI language.
 _STRINGS = {
     "pt-BR": {
         "facility_not_found": "Facility não encontrada.",
+        "owner_only": "Só o dono da facility ({owner}) pode fazer isso.",
         "invalid_thread": "Tópico inválido: cole o link do tópico (botão direito no tópico → Copiar link) ou o ID dele.",
         "invalid_webhook_url": "URL de webhook inválida. Copie em Editar canal → Integrações → Webhooks → Copiar URL do webhook.",
         "building_not_found": "Prédio não encontrado.",
@@ -26,6 +27,7 @@ _STRINGS = {
     },
     "en-US": {
         "facility_not_found": "Facility not found.",
+        "owner_only": "Only the facility's owner ({owner}) can do that.",
         "invalid_thread": "Invalid thread: paste the thread link (right-click the thread → Copy Link) or its ID.",
         "invalid_webhook_url": "Invalid webhook URL. Copy it from Edit Channel → Integrations → Webhooks → Copy Webhook URL.",
         "building_not_found": "Building not found.",
@@ -47,6 +49,7 @@ _STRINGS = {
 }
 
 
-def err(key: str, lang: str = "pt-BR") -> str:
+def err(key: str, lang: str = "pt-BR", **kwargs) -> str:
     table = _STRINGS.get(lang, _STRINGS["pt-BR"])
-    return table.get(key, _STRINGS["pt-BR"][key])
+    text = table.get(key, _STRINGS["pt-BR"][key])
+    return text.format(**kwargs) if kwargs else text
