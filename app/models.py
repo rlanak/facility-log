@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy import ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.crypto import EncryptedText
 from app.database import Base
 
 
@@ -49,6 +50,12 @@ class Facility(Base):
     name: Mapped[str] = mapped_column(String(200))
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
+    # Web mode only (see app/auth.py): who created it, and whether only that
+    # person sees it. NULL owner = created in local mode or before this
+    # existed: shared, and whoever marks it private becomes the owner.
+    owner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), default=None)
+    private: Mapped[bool] = mapped_column(default=False)
+    owner: Mapped["User | None"] = relationship()
 
     buildings: Mapped[list["Building"]] = relationship(
         back_populates="facility", cascade="all, delete-orphan", order_by="Building.position"
@@ -58,6 +65,11 @@ class Facility(Base):
     )
     targets: Mapped[list["FacilityTarget"]] = relationship(back_populates="facility", cascade="all, delete-orphan")
     item_origins: Mapped[list["FacilityItemOrigin"]] = relationship(cascade="all, delete-orphan")
+    webhook: Mapped["FacilityWebhook | None"] = relationship(cascade="all, delete-orphan")
+
+    @property
+    def owner_name(self) -> str | None:
+        return (self.owner.display_name or self.owner.username) if self.owner else None
 
 
 class FacilityItemOrigin(Base):
@@ -74,6 +86,26 @@ class FacilityItemOrigin(Base):
     facility_id: Mapped[int] = mapped_column(ForeignKey("facilities.id"))
     resource_id: Mapped[int] = mapped_column(ForeignKey("resources.id"))
     origin: Mapped[str] = mapped_column(String(20))
+
+
+class FacilityWebhook(Base):
+    """Discord webhook that keeps one message in a channel showing the
+    facility's "Ao vivo" estimate — see services/discord_dashboard.py. The
+    URL works like a password (anyone with it can post there), so the API
+    never sends it back whole. `message_id` is the message being edited;
+    when it's gone (deleted in Discord) a new one is posted."""
+
+    __tablename__ = "facility_webhooks"
+
+    facility_id: Mapped[int] = mapped_column(ForeignKey("facilities.id"), primary_key=True)
+    url: Mapped[str] = mapped_column(EncryptedText)  # encrypted at rest (app/crypto.py)
+    message_id: Mapped[str | None] = mapped_column(String(40), default=None)
+    # Thread (tópico) inside the webhook's channel to post in; NULL = the channel itself.
+    thread_id: Mapped[str | None] = mapped_column(String(40), default=None)
+    lang: Mapped[str] = mapped_column(String(10), default="pt-BR")
+    catalog_lang: Mapped[str] = mapped_column(String(10), default="pt-BR")
+    last_sent_at: Mapped[datetime | None] = mapped_column(default=None)
+    last_error: Mapped[str | None] = mapped_column(Text, default=None)
 
 
 class FacilityTarget(Base):
@@ -181,8 +213,8 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(100), default="")
     display_name: Mapped[str] = mapped_column(String(100), default="")
     avatar_url: Mapped[str | None] = mapped_column(String(300), default=None)
-    access_token: Mapped[str] = mapped_column(String(200), default="")
-    refresh_token: Mapped[str] = mapped_column(String(200), default="")
+    access_token: Mapped[str] = mapped_column(EncryptedText, default="")  # encrypted at rest (app/crypto.py)
+    refresh_token: Mapped[str] = mapped_column(EncryptedText, default="")
     token_expires_at: Mapped[int] = mapped_column(default=0)
     roles_checked_at: Mapped[int] = mapped_column(default=0)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
@@ -200,7 +232,7 @@ class AppSetting(Base):
     __tablename__ = "app_settings"
 
     key: Mapped[str] = mapped_column(String(80), primary_key=True)
-    value: Mapped[str] = mapped_column(Text, default="")
+    value: Mapped[str] = mapped_column(EncryptedText, default="")  # holds the API key: encrypted at rest
 
 
 class CodenameAlias(Base):

@@ -64,6 +64,7 @@ class FacilityCreate(FacilityBase):
 
 class FacilityUpdate(BaseModel):
     name: str | None = None
+    private: bool | None = None  # web mode, owner only
 
 
 class FacilityOut(FacilityBase):
@@ -71,6 +72,9 @@ class FacilityOut(FacilityBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    owner_id: int | None = None
+    owner_name: str | None = None
+    private: bool = False
 
 
 class BuildingBase(BaseModel):
@@ -287,6 +291,7 @@ class CaptureSettingsOut(BaseModel):
 
 
 class UserOut(BaseModel):
+    id: int
     name: str
     avatar_url: str | None
 

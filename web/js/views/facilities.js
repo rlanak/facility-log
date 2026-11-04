@@ -40,7 +40,8 @@ views.facilities = (() => {
         .map(
           (f) => `
         <a href="#/facilities/${f.id}" class="block bg-zinc-900 border border-zinc-800 rounded-lg p-4 hover:border-emerald-600 transition">
-          <div class="font-semibold">${ui.escapeHtml(f.name)}</div>
+          <div class="font-semibold">${f.private ? `<span title="${i18n.t("facilities.privateHint")}">🔒</span> ` : ""}${ui.escapeHtml(f.name)}</div>
+          ${f.owner_name ? `<div class="text-xs text-zinc-500 mt-1">${i18n.t("facilities.owner", { name: ui.escapeHtml(f.owner_name) })}</div>` : ""}
           <div class="text-xs text-zinc-500 mt-1">${i18n.t("facilities.updatedAt", { date: new Date(f.updated_at).toLocaleString(i18n.getLang()) })}</div>
         </a>
       `

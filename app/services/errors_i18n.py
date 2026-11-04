@@ -6,6 +6,11 @@ showing up in Portuguese regardless of the selected UI language.
 _STRINGS = {
     "pt-BR": {
         "facility_not_found": "Facility não encontrada.",
+        "owner_only": "Só o dono da facility ({owner}) pode fazer isso.",
+        "owner_web_only": "Dono de facility só existe no modo web (login pelo Discord).",
+        "user_not_found": "Usuário não encontrado (a pessoa precisa ter entrado no app pelo menos uma vez).",
+        "invalid_thread": "Tópico inválido: cole o link do tópico (botão direito no tópico → Copiar link) ou o ID dele.",
+        "invalid_webhook_url": "URL de webhook inválida. Copie em Editar canal → Integrações → Webhooks → Copiar URL do webhook.",
         "building_not_found": "Prédio não encontrado.",
         "resource_not_found": "Recurso não encontrado.",
         "report_not_found": "Relatório não encontrado.",
@@ -24,6 +29,11 @@ _STRINGS = {
     },
     "en-US": {
         "facility_not_found": "Facility not found.",
+        "owner_only": "Only the facility's owner ({owner}) can do that.",
+        "owner_web_only": "Facility owners only exist in web mode (Discord login).",
+        "user_not_found": "User not found (they need to have logged in to the app at least once).",
+        "invalid_thread": "Invalid thread: paste the thread link (right-click the thread → Copy Link) or its ID.",
+        "invalid_webhook_url": "Invalid webhook URL. Copy it from Edit Channel → Integrations → Webhooks → Copy Webhook URL.",
         "building_not_found": "Building not found.",
         "resource_not_found": "Resource not found.",
         "report_not_found": "Report not found.",
@@ -43,6 +53,7 @@ _STRINGS = {
 }
 
 
-def err(key: str, lang: str = "pt-BR") -> str:
+def err(key: str, lang: str = "pt-BR", **kwargs) -> str:
     table = _STRINGS.get(lang, _STRINGS["pt-BR"])
-    return table.get(key, _STRINGS["pt-BR"][key])
+    text = table.get(key, _STRINGS["pt-BR"][key])
+    return text.format(**kwargs) if kwargs else text

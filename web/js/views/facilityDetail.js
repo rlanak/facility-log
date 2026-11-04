@@ -132,9 +132,54 @@ views.facilityDetail = (() => {
   function tabLink(tab, label, activeTab) {
     const isActive = tab === activeTab;
     const href = tab === "buildings" ? `#/facilities/${facilityId}` : `#/facilities/${facilityId}/${tab}`;
-    return `<a href="${href}" class="px-3 py-1.5 rounded text-sm font-medium ${
+    return `<a href="${href}" class="px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${
       isActive ? "bg-emerald-700 text-white" : "bg-zinc-900 text-zinc-400 hover:text-zinc-200"
     }">${label}</a>`;
+  }
+
+  // Hand the facility to another member (web mode). One way: the old owner
+  // only becomes owner again if someone hands it back.
+  async function openTransfer(app, facility, myId, activeTab) {
+    let users;
+    try {
+      users = (await api.listUsers()).filter((u) => u.id !== myId && u.id !== facility.owner_id);
+    } catch (err) {
+      ui.toast(err.message, true);
+      return;
+    }
+    ui.openModal(i18n.t("facilityDetail.transferTitle", { name: facility.name }), (body, close) => {
+      if (!users.length) {
+        body.innerHTML = `<p class="text-sm text-zinc-400">${i18n.t("facilityDetail.transferNoUsers")}</p>`;
+        return;
+      }
+      body.innerHTML = `
+        <p class="text-sm text-zinc-400 mb-3">${i18n.t(facility.private ? "facilityDetail.transferHelpPrivate" : "facilityDetail.transferHelp")}</p>
+        <select class="transfer-user w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-sm mb-3">
+          <option value="">${i18n.t("facilityDetail.transferPick")}</option>
+          ${users.map((u) => `<option value="${u.id}">${ui.escapeHtml(u.name)}</option>`).join("")}
+        </select>
+        <div class="flex justify-end gap-2">
+          <button class="transfer-cancel px-3 py-1 rounded text-sm bg-zinc-800 hover:bg-zinc-700">${i18n.t("dashboard.webhookCancel")}</button>
+          <button class="transfer-ok px-3 py-1 rounded text-sm bg-red-800 hover:bg-red-700 font-semibold" disabled>${i18n.t("facilityDetail.transferConfirmBtn")}</button>
+        </div>`;
+      const select = body.querySelector(".transfer-user");
+      const ok = body.querySelector(".transfer-ok");
+      select.addEventListener("change", () => (ok.disabled = !select.value));
+      body.querySelector(".transfer-cancel").addEventListener("click", close);
+      ok.addEventListener("click", async () => {
+        const name = select.options[select.selectedIndex].text;
+        if (!confirm(i18n.t("facilityDetail.transferConfirm", { name }))) return;
+        try {
+          await api.transferFacility(facility.id, Number(select.value));
+          close();
+          ui.toast(i18n.t("facilityDetail.transferDone", { name }));
+          if (facility.private) location.hash = "#/";
+          else render(app, facility.id, activeTab);
+        } catch (err) {
+          ui.toast(err.message, true);
+        }
+      });
+    });
   }
 
   async function render(app, id, activeTab = "buildings") {
@@ -147,17 +192,35 @@ views.facilityDetail = (() => {
       return;
     }
 
+    // Private/shared only means something with login on (web mode); the
+    // owner (or anyone, for a facility without owner yet) can switch it.
+    const me = window.appMe || {};
+    const myId = me.user ? me.user.id : null;
+    const isOwner = !me.auth_enabled || !facility.owner_id || facility.owner_id === myId;
+    const sharing = me.auth_enabled
+      ? `<button id="toggle-private" ${isOwner ? "" : "disabled"}
+            title="${i18n.t(facility.private ? "facilityDetail.privateHint" : "facilityDetail.sharedHint")}"
+            class="text-xs border border-zinc-700 rounded px-2 py-1 ${isOwner ? "hover:border-zinc-500" : "opacity-60 cursor-default"}">${
+            facility.private ? i18n.t("facilityDetail.private") : i18n.t("facilityDetail.shared")
+          }</button>`
+      : "";
     app.innerHTML = `
-      <div class="flex items-center justify-between mb-2">
-        <h1 class="text-xl font-bold">${ui.escapeHtml(facility.name)}</h1>
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <div class="min-w-0">
+          <h1 class="text-xl font-bold">${ui.escapeHtml(facility.name)}</h1>
+          ${facility.owner_name ? `<div class="text-xs text-zinc-500">${i18n.t("facilities.owner", { name: ui.escapeHtml(facility.owner_name) })}</div>` : ""}
+        </div>
         <div class="flex gap-2">
+          ${sharing}
+          ${me.auth_enabled && isOwner ? `<button id="transfer-facility" class="text-xs text-zinc-300 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded px-2 py-1">${i18n.t("facilityDetail.transfer")}</button>` : ""}
           <button id="rename-facility" class="text-xs text-zinc-300 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded px-2 py-1">${i18n.t("facilityDetail.rename")}</button>
-          <button id="delete-facility" class="text-xs text-red-400 hover:text-red-300 border border-red-900 hover:border-red-600 rounded px-2 py-1">${i18n.t("facilityDetail.deleteFacility")}</button>
+          <button id="delete-facility" ${isOwner ? "" : "hidden"} class="text-xs text-red-400 hover:text-red-300 border border-red-900 hover:border-red-600 rounded px-2 py-1">${i18n.t("facilityDetail.deleteFacility")}</button>
         </div>
       </div>
-      <div class="flex gap-2 mb-6">
+      <div class="flex flex-wrap gap-2 mb-6">
         ${tabLink("buildings", i18n.t("facilityDetail.tabBuildings"), activeTab)}
         ${tabLink("targets", i18n.t("facilityDetail.tabTargets"), activeTab)}
+        ${tabLink("live", i18n.t("facilityDetail.tabLive"), activeTab)}
         ${tabLink("report", i18n.t("facilityDetail.tabReport"), activeTab)}
         ${tabLink("history", i18n.t("facilityDetail.tabHistory"), activeTab)}
       </div>
@@ -173,9 +236,30 @@ views.facilityDetail = (() => {
 
     document.getElementById("delete-facility").addEventListener("click", async () => {
       if (!confirm(i18n.t("facilityDetail.deleteConfirm"))) return;
-      await api.deleteFacility(facilityId);
-      location.hash = "#/";
+      try {
+        await api.deleteFacility(facilityId);
+        location.hash = "#/";
+      } catch (err) {
+        ui.toast(err.message, true);
+      }
     });
+
+    const transferBtn = document.getElementById("transfer-facility");
+    if (transferBtn) transferBtn.addEventListener("click", () => openTransfer(app, facility, myId, activeTab));
+
+    const togglePrivate = document.getElementById("toggle-private");
+    if (togglePrivate && isOwner) {
+      togglePrivate.addEventListener("click", async () => {
+        const next = !facility.private;
+        if (!confirm(i18n.t(next ? "facilityDetail.makePrivateConfirm" : "facilityDetail.makeSharedConfirm"))) return;
+        try {
+          await api.updateFacility(facilityId, { private: next });
+          render(app, facilityId, activeTab);
+        } catch (err) {
+          ui.toast(err.message, true);
+        }
+      });
+    }
 
     allResources = await api.listResources(facilityId);
     foxholeBuildingTypes = await api.listFoxholeBuildingTypes();
@@ -187,6 +271,7 @@ views.facilityDetail = (() => {
     const tabContent = document.getElementById("tab-content");
     if (activeTab === "buildings") await renderBuildingsTab(tabContent);
     else if (activeTab === "targets") await views.targets.renderTargetsTab(tabContent, facilityId);
+    else if (activeTab === "live") await views.dashboard.renderDashboardTab(tabContent, facilityId);
     else if (activeTab === "report") await views.report.renderReportTab(tabContent, facilityId);
     else if (activeTab === "history") await views.report.renderHistoryTab(tabContent, facilityId);
   }

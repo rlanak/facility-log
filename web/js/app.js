@@ -47,6 +47,7 @@
       } catch (_) {
         me = { auth_enabled: false, user: null };
       }
+      window.appMe = me; // views read it for owner-only controls (private facility)
       renderUserBox();
     }
     if (me.auth_enabled && !me.user) {

@@ -3,6 +3,7 @@ __pycache__/
 .venv/
 venv/
 data/facility_log.db
+data/secret.key
 data/uploads/*
 !data/uploads/.gitkeep
 .env
