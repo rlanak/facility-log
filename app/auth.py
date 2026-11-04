@@ -8,9 +8,13 @@ one of the allowed roles get in.
 
 No bot is needed: the `guilds.members.read` scope lets the logged-in user's
 own token read their membership/roles in that one guild
-(GET /users/@me/guilds/{guild_id}/member). Roles are re-checked every
-ROLE_RECHECK_SECONDS with the stored token, so losing the role in Discord
-logs the person out here too.
+(GET /users/@me/guilds/{guild_id}/member).
+
+Nothing of the Discord account is kept (03/11/2026, so users don't have to
+trust whoever runs the server with it): the token is used once at login
+(role + name/avatar), then revoked at Discord and thrown away. The role is
+therefore checked at login only; the session lasts SESSION_SECONDS (7 days)
+from that login, so someone who loses the role is out within a week.
 
 Environment:
     DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET   — from the Discord Developer Portal app
@@ -36,7 +40,7 @@ from fastapi.responses import JSONResponse
 DISCORD_API = "https://discord.com/api/v10"
 DISCORD_AUTHORIZE_URL = "https://discord.com/oauth2/authorize"
 SCOPES = "identify guilds.members.read"
-ROLE_RECHECK_SECONDS = 6 * 3600
+SESSION_SECONDS = 7 * 24 * 3600
 
 
 class Config:
@@ -124,17 +128,22 @@ def exchange_code(code: str) -> dict:
     )
 
 
-def refresh_token(refresh: str) -> dict:
-    return _request(
-        "POST",
-        f"{DISCORD_API}/oauth2/token",
-        data={
-            "client_id": config.client_id,
-            "client_secret": config.client_secret,
-            "grant_type": "refresh_token",
-            "refresh_token": refresh,
-        },
-    )
+def revoke_token(token: str) -> None:
+    """Best effort: after login the token is useless to anyone, even if it
+    leaked somewhere in between."""
+    try:
+        _request(
+            "POST",
+            f"{DISCORD_API}/oauth2/token/revoke",
+            data={
+                "client_id": config.client_id,
+                "client_secret": config.client_secret,
+                "token": token,
+                "token_type_hint": "access_token",
+            },
+        )
+    except DiscordError:
+        pass
 
 
 def fetch_user(access_token: str) -> dict:
@@ -153,10 +162,6 @@ def has_allowed_role(access_token: str) -> bool:
     return bool(set(member.get("roles", [])) & config.allowed_role_ids)
 
 
-def token_expiry(token_response: dict) -> int:
-    return int(time.time()) + int(token_response.get("expires_in", 0))
-
-
 def avatar_url(user_json: dict) -> str | None:
     if not user_json.get("avatar"):
         return None
@@ -164,11 +169,6 @@ def avatar_url(user_json: dict) -> str | None:
 
 
 # --- Request gate ------------------------------------------------------------
-
-# Retry a role check this soon when Discord itself is unreachable, instead of
-# locking everyone out during a Discord outage or hammering it per request.
-_DISCORD_DOWN_RETRY_SECONDS = 300
-
 
 @dataclass
 class SessionUser:
@@ -181,37 +181,26 @@ class SessionUser:
 
 
 def _load_user(request) -> SessionUser | None:
+    """The session's user, or None. No Discord call here: nothing about the
+    Discord account is stored (see the module docstring), so the role was
+    checked at login and the session simply expires SESSION_SECONDS after it."""
     from app import models
     from app.database import SessionLocal
 
     user_id = request.session.get("user_id")
     if not user_id:
+        return None  # not logged in (keep the session: it may hold the OAuth state mid-login)
+    if time.time() - request.session.get("login_at", 0) > SESSION_SECONDS:
+        # The cookie is re-sent on every response, so its own max-age slides;
+        # the login time inside it doesn't.
+        request.session.clear()
         return None
     with SessionLocal() as db:
         user = db.get(models.User, user_id)
         if not user:
             request.session.clear()
             return None
-        now = int(time.time())
-        if now - user.roles_checked_at > ROLE_RECHECK_SECONDS:
-            try:
-                if user.token_expires_at - now < 60 and user.refresh_token:
-                    token = refresh_token(user.refresh_token)
-                    user.access_token = token["access_token"]
-                    user.refresh_token = token.get("refresh_token", user.refresh_token)
-                    user.token_expires_at = token_expiry(token)
-                allowed = has_allowed_role(user.access_token)
-            except (DiscordError, KeyError):
-                user.roles_checked_at = now - ROLE_RECHECK_SECONDS + _DISCORD_DOWN_RETRY_SECONDS
-                db.commit()
-                allowed = True
-            else:
-                user.roles_checked_at = now
-                db.commit()
-            if not allowed:
-                request.session.clear()
-                return None
-        return SessionUser(id=user.id, name=user.name, avatar_url=user.avatar_url)
+        return SessionUser(id=user.id, name=user.display_name or user.username, avatar_url=user.avatar_url)
 
 
 # Paths that name one facility's data, directly or through a building, a
@@ -274,7 +263,7 @@ async def gate(request, call_next):
     protected = path.startswith("/api/") or path.startswith("/uploads/")
     if protected and path != "/api/me" and request.state.user is None:
         return JSONResponse({"detail": "login_required"}, status_code=401)
-    if path.startswith("/api/") and await run_in_threadpool(
+    if request.state.user is not None and path.startswith("/api/") and await run_in_threadpool(
         _private_facility_blocked, path, request.query_params, request.state.user.id
     ):
         # Same answer as a facility that doesn't exist: a private one isn't

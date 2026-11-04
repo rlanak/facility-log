@@ -71,8 +71,6 @@ _ADDED_COLUMNS = [
 # before encryption existed are plain text — encrypt them once.
 _ENCRYPTED_COLUMNS = [
     ("facility_webhooks", "facility_id", "url"),
-    ("users", "id", "access_token"),
-    ("users", "id", "refresh_token"),
     ("app_settings", "key", "value"),
 ]
 
@@ -95,6 +93,11 @@ def _encrypt_plain_secrets(conn) -> int:
 def apply_migrations() -> None:
     with engine.connect() as conn:
         encrypted_now = _encrypt_plain_secrets(conn)
+        # Discord tokens aren't kept any more (app/auth.py): wipe any left
+        # from before. secure_delete zeroes the old bytes.
+        conn.exec_driver_sql(
+            "UPDATE users SET access_token = '', refresh_token = '' WHERE access_token != '' OR refresh_token != ''"
+        )
         for table, column, definition in _ADDED_COLUMNS:
             existing = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")}
             if column not in existing:

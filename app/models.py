@@ -203,8 +203,7 @@ class StockEntry(Base):
 
 class User(Base):
     """A Discord account that logged in (web mode only — see app/auth.py).
-    Tokens are kept server-side so roles can be re-checked without asking
-    the user to log in again; they never reach the browser."""
+    Only id, name and avatar: no Discord token is kept."""
 
     __tablename__ = "users"
 
@@ -213,7 +212,9 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(100), default="")
     display_name: Mapped[str] = mapped_column(String(100), default="")
     avatar_url: Mapped[str | None] = mapped_column(String(300), default=None)
-    access_token: Mapped[str] = mapped_column(EncryptedText, default="")  # encrypted at rest (app/crypto.py)
+    # Unused since 03/11/2026 and always empty: no Discord token is kept
+    # (app/auth.py). Columns left so old databases don't need a rebuild.
+    access_token: Mapped[str] = mapped_column(EncryptedText, default="")
     refresh_token: Mapped[str] = mapped_column(EncryptedText, default="")
     token_expires_at: Mapped[int] = mapped_column(default=0)
     roles_checked_at: Mapped[int] = mapped_column(default=0)

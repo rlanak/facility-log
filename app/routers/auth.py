@@ -32,14 +32,18 @@ def callback(request: Request, code: str = "", state: str = "", error: str = "",
     expected = request.session.pop("oauth_state", None)
     if error or not code or not state or state != expected:
         return _fail("cancelled")
+    access = None
     try:
-        token = auth.exchange_code(code)
-        access = token["access_token"]
+        access = auth.exchange_code(code)["access_token"]
         if not auth.has_allowed_role(access):
             return _fail("no_role")
         profile = auth.fetch_user(access)
     except (auth.DiscordError, KeyError):
         return _fail("discord")
+    finally:
+        # Used once, never stored: revoke it right away (see app/auth.py).
+        if access:
+            auth.revoke_token(access)
 
     user = db.scalar(select(models.User).where(models.User.discord_id == profile["id"]))
     if not user:
@@ -48,15 +52,12 @@ def callback(request: Request, code: str = "", state: str = "", error: str = "",
     user.username = profile.get("username", "")
     user.display_name = profile.get("global_name") or ""
     user.avatar_url = auth.avatar_url(profile)
-    user.access_token = access
-    user.refresh_token = token.get("refresh_token", "")
-    user.token_expires_at = auth.token_expiry(token)
-    user.roles_checked_at = int(datetime.now(timezone.utc).timestamp())
     user.last_login_at = datetime.now(timezone.utc)
     db.commit()
 
     request.session.clear()
     request.session["user_id"] = user.id
+    request.session["login_at"] = int(datetime.now(timezone.utc).timestamp())
     return RedirectResponse("/")
 
 

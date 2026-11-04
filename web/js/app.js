@@ -5,6 +5,17 @@
   // auth_enabled is false and nothing below changes how the app behaves.
   let me = null;
 
+  // What the server keeps about people (web mode) — so whoever logs in
+  // knows what they're trusting the server's admin with.
+  function showPrivacy() {
+    ui.openModal(i18n.t("privacy.title"), (body) => {
+      const items = ["discord", "entries", "webhook", "apiKey", "private", "none"];
+      body.innerHTML = `<ul class="space-y-3 text-sm text-zinc-300">${items
+        .map((k) => `<li><span class="font-semibold">${i18n.t(`privacy.${k}Title`)}</span> — ${i18n.t(`privacy.${k}`)}</li>`)
+        .join("")}</ul>`;
+    });
+  }
+
   function renderLogin() {
     const params = new URLSearchParams(location.search);
     const error = params.get("auth_error");
@@ -14,7 +25,9 @@
         <p class="text-sm text-zinc-400 mb-4">${i18n.t("auth.intro")}</p>
         ${error ? `<p class="text-sm text-amber-400 mb-4">${ui.escapeHtml(i18n.t(`auth.error.${error}`))}</p>` : ""}
         <a href="/auth/login" class="inline-block bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded text-sm font-semibold">${i18n.t("auth.login")}</a>
+        <div class="mt-4"><button id="privacy-link" class="text-xs text-zinc-500 hover:text-zinc-300 underline">${i18n.t("privacy.title")}</button></div>
       </div>`;
+    document.getElementById("privacy-link").addEventListener("click", showPrivacy);
   }
 
   function renderUserBox() {
@@ -23,6 +36,9 @@
     box.innerHTML = "";
     if (me.user.avatar_url) box.appendChild(ui.el("img", { src: me.user.avatar_url, class: "w-6 h-6 rounded-full" }));
     box.appendChild(ui.el("span", { class: "text-xs text-zinc-300" }, me.user.name));
+    box.appendChild(
+      ui.el("button", { class: "text-xs text-zinc-500 hover:text-zinc-200", title: i18n.t("privacy.title"), onclick: showPrivacy }, "🔒")
+    );
     box.appendChild(
       ui.el(
         "button",

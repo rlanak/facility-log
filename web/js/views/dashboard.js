@@ -156,6 +156,7 @@ views.dashboard = (() => {
     if (!status.configured || editing) {
       box.innerHTML = `
         <p class="text-xs text-zinc-400 mb-2">${i18n.t("dashboard.webhookHelp", { interval })}</p>
+        <p class="text-xs text-zinc-500 mb-2">${i18n.t("dashboard.webhookTrust")}</p>
         <form class="flex flex-wrap gap-2">
           <input name="url" type="password" autocomplete="off" ${status.configured ? "" : "required"}
             placeholder="${status.configured ? i18n.t("dashboard.webhookKeepUrl") : i18n.t("dashboard.webhookPlaceholder")}"
@@ -197,6 +198,7 @@ views.dashboard = (() => {
             : ""
         }
       </div>
+      <p class="text-xs text-zinc-500 mt-2">${i18n.t("dashboard.webhookTrust")}</p>
       ${status.last_error ? `<p class="text-xs text-red-400 mt-1 break-words">${ui.escapeHtml(i18n.t("dashboard.webhookError", { error: status.last_error }))}</p>` : ""}`;
     box.querySelector(".wh-send").addEventListener("click", async () => {
       try {

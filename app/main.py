@@ -80,7 +80,7 @@ if auth.config.enabled:
         SessionMiddleware,
         secret_key=auth.config.session_secret,
         session_cookie="facility_log_session",
-        max_age=30 * 24 * 3600,
+        max_age=auth.SESSION_SECONDS,
         same_site="lax",
         https_only=auth.config.redirect_uri.startswith("https://"),
     )
