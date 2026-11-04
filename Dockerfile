@@ -31,6 +31,9 @@ ENV FOXHOLE_SAVE_PARSER=/usr/local/bin/foxhole-save-parser
 # The user's data (SQLite + uploads) goes to a volume, not /app/data (that
 # would hide the bundled catalog) — see docker-compose.yml.
 ENV FACILITY_LOG_DATA_DIR=/data
+# On a server the app refuses to start without the Discord login configured
+# (app/main.py) — never open to the internet by a missing .env.
+ENV FACILITY_LOG_REQUIRE_LOGIN=1
 EXPOSE 8000
 # --proxy-headers: behind Cloudflare Tunnel / a reverse proxy, so the app sees
 # the real scheme and client (the session cookie is https-only when

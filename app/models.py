@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy import ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.crypto import EncryptedText
 from app.database import Base
 
 
@@ -97,7 +98,7 @@ class FacilityWebhook(Base):
     __tablename__ = "facility_webhooks"
 
     facility_id: Mapped[int] = mapped_column(ForeignKey("facilities.id"), primary_key=True)
-    url: Mapped[str] = mapped_column(String(300))
+    url: Mapped[str] = mapped_column(EncryptedText)  # encrypted at rest (app/crypto.py)
     message_id: Mapped[str | None] = mapped_column(String(40), default=None)
     # Thread (tópico) inside the webhook's channel to post in; NULL = the channel itself.
     thread_id: Mapped[str | None] = mapped_column(String(40), default=None)
@@ -212,8 +213,8 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(100), default="")
     display_name: Mapped[str] = mapped_column(String(100), default="")
     avatar_url: Mapped[str | None] = mapped_column(String(300), default=None)
-    access_token: Mapped[str] = mapped_column(String(200), default="")
-    refresh_token: Mapped[str] = mapped_column(String(200), default="")
+    access_token: Mapped[str] = mapped_column(EncryptedText, default="")  # encrypted at rest (app/crypto.py)
+    refresh_token: Mapped[str] = mapped_column(EncryptedText, default="")
     token_expires_at: Mapped[int] = mapped_column(default=0)
     roles_checked_at: Mapped[int] = mapped_column(default=0)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
@@ -231,7 +232,7 @@ class AppSetting(Base):
     __tablename__ = "app_settings"
 
     key: Mapped[str] = mapped_column(String(80), primary_key=True)
-    value: Mapped[str] = mapped_column(Text, default="")
+    value: Mapped[str] = mapped_column(EncryptedText, default="")  # holds the API key: encrypted at rest
 
 
 class CodenameAlias(Base):

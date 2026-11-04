@@ -1,10 +1,12 @@
 from app import envfile  # noqa: F401  (must run before app.auth reads the environment)
 
 import asyncio
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.responses import PlainTextResponse
 from starlette.staticfiles import StaticFiles
 from starlette.types import Scope
 
@@ -39,6 +41,32 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="Facility Log", lifespan=lifespan)
+
+# Minimum security (03/11/2026): the app must never end up open to the
+# internet without login by accident.
+# - FACILITY_LOG_REQUIRE_LOGIN=1 (set in the Dockerfile): refuse to start
+#   without the Discord login configured — a server deploy with a missing
+#   .env would otherwise serve everything to anyone.
+# - Local mode (no login) only answers this same PC: a request through a
+#   tunnel/proxy (cloudflared, Caddy) or from another machine gets 403.
+#   FACILITY_LOG_ALLOW_OPEN=1 lifts this (trusted LAN), on purpose only.
+if not auth.config.enabled and os.environ.get("FACILITY_LOG_REQUIRE_LOGIN") == "1":
+    raise RuntimeError("FACILITY_LOG_REQUIRE_LOGIN=1 but the Discord login isn't configured (see .env.example)")
+
+
+@app.middleware("http")
+async def security_headers(request, call_next):
+    if not auth.config.enabled and os.environ.get("FACILITY_LOG_ALLOW_OPEN") != "1" and not auth.is_local_request(request):
+        return PlainTextResponse(
+            "facility-log em modo local só responde neste PC. Pra acessar de fora, ligue o login pelo Discord (.env).",
+            status_code=403,
+        )
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "same-origin")
+    return response
+
 
 # Web mode (Discord login) only when configured — see app/auth.py. Local
 # mode stays exactly as it was: no login, no session cookie.

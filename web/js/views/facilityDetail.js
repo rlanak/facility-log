@@ -151,7 +151,7 @@ views.facilityDetail = (() => {
     // owner (or anyone, for a facility without owner yet) can switch it.
     const me = window.appMe || {};
     const myId = me.user ? me.user.id : null;
-    const isOwner = !facility.owner_id || facility.owner_id === myId;
+    const isOwner = !me.auth_enabled || !facility.owner_id || facility.owner_id === myId;
     const sharing = me.auth_enabled
       ? `<button id="toggle-private" ${isOwner ? "" : "disabled"}
             title="${i18n.t(facility.private ? "facilityDetail.privateHint" : "facilityDetail.sharedHint")}"

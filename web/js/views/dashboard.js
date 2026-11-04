@@ -149,6 +149,10 @@ views.dashboard = (() => {
   async function drawWebhook(box, facilityId, status, editing = false) {
     const interval = status.interval_seconds;
     const btn = "px-2 py-1 rounded text-xs";
+    if (!status.configured && !status.can_manage) {
+      box.innerHTML = `<p class="text-xs text-zinc-500">${i18n.t("dashboard.webhookOwnerOnly")}</p>`;
+      return;
+    }
     if (!status.configured || editing) {
       box.innerHTML = `
         <p class="text-xs text-zinc-400 mb-2">${i18n.t("dashboard.webhookHelp", { interval })}</p>
@@ -186,8 +190,12 @@ views.dashboard = (() => {
         }
           <span class="text-xs text-zinc-500">· ${last}</span></span>
         <button class="wh-send ${btn} bg-zinc-800 hover:bg-zinc-700">${i18n.t("dashboard.webhookSendNow")}</button>
-        <button class="wh-change ${btn} bg-zinc-800 hover:bg-zinc-700">${i18n.t("dashboard.webhookChange")}</button>
-        <button class="wh-remove ${btn} bg-zinc-800 hover:bg-red-900">${i18n.t("dashboard.webhookRemove")}</button>
+        ${
+          status.can_manage
+            ? `<button class="wh-change ${btn} bg-zinc-800 hover:bg-zinc-700">${i18n.t("dashboard.webhookChange")}</button>
+        <button class="wh-remove ${btn} bg-zinc-800 hover:bg-red-900">${i18n.t("dashboard.webhookRemove")}</button>`
+            : ""
+        }
       </div>
       ${status.last_error ? `<p class="text-xs text-red-400 mt-1 break-words">${ui.escapeHtml(i18n.t("dashboard.webhookError", { error: status.last_error }))}</p>` : ""}`;
     box.querySelector(".wh-send").addEventListener("click", async () => {
@@ -199,6 +207,7 @@ views.dashboard = (() => {
         ui.toast(err.message, true);
       }
     });
+    if (!status.can_manage) return;
     box.querySelector(".wh-change").addEventListener("click", () => drawWebhook(box, facilityId, status, true));
     box.querySelector(".wh-remove").addEventListener("click", async () => {
       if (!confirm(i18n.t("dashboard.webhookRemoveConfirm"))) return;

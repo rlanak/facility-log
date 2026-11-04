@@ -22,12 +22,14 @@ def create_facility(request: Request, data: schemas.FacilityCreate, db: Session 
     return crud.create_facility(db, data, owner_id=auth.current_user_id(request))
 
 
+def _is_owner(request: Request, facility: models.Facility) -> bool:
+    """Owner-only actions (delete, private/shared, the Discord webhook) in web
+    mode. A facility without owner (local mode, older data) is anyone's."""
+    return not auth.config.enabled or facility.owner_id is None or facility.owner_id == auth.current_user_id(request)
+
+
 def _require_owner(request: Request, facility: models.Facility, lang: str) -> None:
-    """Deleting and making private/shared: owner only, in web mode. A
-    facility without owner (local mode, older data) is anyone's."""
-    if not auth.config.enabled or facility.owner_id is None:
-        return
-    if facility.owner_id != auth.current_user_id(request):
+    if not _is_owner(request, facility):
         raise HTTPException(status_code=403, detail=err("owner_only", lang, owner=facility.owner_name or "?"))
 
 
@@ -146,13 +148,16 @@ class WebhookIn(BaseModel):
     thread: str | None = None  # thread (tópico) ID or link; empty = the channel
 
 
-def _webhook_status(hook: models.FacilityWebhook | None) -> dict:
-    """Never the URL itself: it works like a password for the channel."""
+def _webhook_status(hook: models.FacilityWebhook | None, can_manage: bool) -> dict:
+    """Never the URL itself: it works like a password for the channel (posts
+    as anyone, pings everyone). Stored encrypted (app/crypto.py); only the
+    owner may set, replace or remove it."""
     if not hook:
-        return {"configured": False, "interval_seconds": discord_dashboard.INTERVAL_SECONDS}
+        return {"configured": False, "can_manage": can_manage, "interval_seconds": discord_dashboard.INTERVAL_SECONDS}
     token = hook.url.rstrip("/").rsplit("/", 1)[-1]
     return {
         "configured": True,
+        "can_manage": can_manage,
         "url_hint": f"…{token[-4:]}",
         "message_id": hook.message_id,
         "thread_id": hook.thread_id,
@@ -162,29 +167,37 @@ def _webhook_status(hook: models.FacilityWebhook | None) -> dict:
     }
 
 
-def _send_now(db: Session, hook: models.FacilityWebhook) -> dict:
+def _send_now(db: Session, hook: models.FacilityWebhook, can_manage: bool) -> dict:
     try:
         discord_dashboard.send(db, hook)
     except discord_dashboard.WebhookError:
         pass  # recorded in hook.last_error, shown by the page
-    return _webhook_status(hook)
+    return _webhook_status(hook, can_manage)
 
 
 @router.get("/{facility_id}/discord-webhook")
-def get_discord_webhook(facility_id: int, lang: str = "pt-BR", db: Session = Depends(get_db)):
-    if not crud.get_facility(db, facility_id):
+def get_discord_webhook(request: Request, facility_id: int, lang: str = "pt-BR", db: Session = Depends(get_db)):
+    facility = crud.get_facility(db, facility_id)
+    if not facility:
         raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
-    return _webhook_status(db.get(models.FacilityWebhook, facility_id))
+    return _webhook_status(db.get(models.FacilityWebhook, facility_id), _is_owner(request, facility))
 
 
 @router.put("/{facility_id}/discord-webhook")
 def put_discord_webhook(
-    facility_id: int, data: WebhookIn, lang: str = "pt-BR", catalog_lang: str | None = None, db: Session = Depends(get_db)
+    request: Request,
+    facility_id: int,
+    data: WebhookIn,
+    lang: str = "pt-BR",
+    catalog_lang: str | None = None,
+    db: Session = Depends(get_db),
 ):
     """Save the channel's webhook and post/edit the message right away. The
     message keeps the language the page had when it was saved."""
-    if not crud.get_facility(db, facility_id):
+    facility = crud.get_facility(db, facility_id)
+    if not facility:
         raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
+    _require_owner(request, facility, lang)
     hook = db.get(models.FacilityWebhook, facility_id)
     url = data.url.strip() or (hook.url if hook else "")
     if not discord_dashboard.WEBHOOK_URL_RE.match(url):
@@ -202,23 +215,26 @@ def put_discord_webhook(
         hook.url, hook.thread_id, hook.message_id = url, thread_id, None
     hook.lang, hook.catalog_lang = lang, catalog_lang or lang
     db.commit()
-    return _send_now(db, hook)
+    return _send_now(db, hook, True)
 
 
 @router.post("/{facility_id}/discord-webhook/send")
-def send_discord_webhook(facility_id: int, lang: str = "pt-BR", db: Session = Depends(get_db)):
+def send_discord_webhook(request: Request, facility_id: int, lang: str = "pt-BR", db: Session = Depends(get_db)):
+    """Anyone who sees the facility may refresh the message now (it posts
+    nothing the loop wouldn't)."""
     hook = db.get(models.FacilityWebhook, facility_id)
     if not hook:
         raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
-    return _send_now(db, hook)
+    return _send_now(db, hook, _is_owner(request, crud.get_facility(db, facility_id)))
 
 
 @router.delete("/{facility_id}/discord-webhook", status_code=204)
-def delete_discord_webhook(facility_id: int, db: Session = Depends(get_db)):
+def delete_discord_webhook(request: Request, facility_id: int, lang: str = "pt-BR", db: Session = Depends(get_db)):
     """Stops the updates and deletes the message from the channel (best
     effort — if Discord refuses, the message just stays, frozen)."""
     hook = db.get(models.FacilityWebhook, facility_id)
     if hook:
+        _require_owner(request, crud.get_facility(db, facility_id), lang)
         discord_dashboard.delete_message(hook)
         db.delete(hook)
         db.commit()

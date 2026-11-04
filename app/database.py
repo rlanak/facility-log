@@ -2,7 +2,7 @@ import json
 import os
 from pathlib import Path
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from app.paths import APP_DIR
@@ -18,6 +18,12 @@ UPLOADS_DIR.mkdir(exist_ok=True)
 DATABASE_URL = f"sqlite:///{DATA_DIR / 'facility_log.db'}"
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+
+
+@event.listens_for(engine, "connect")
+def _sqlite_pragmas(dbapi_conn, _record):
+    # Overwritten/deleted data is zeroed, not left in free pages (secrets, see app/crypto.py).
+    dbapi_conn.execute("PRAGMA secure_delete = ON")
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -61,8 +67,34 @@ _ADDED_COLUMNS = [
 ]
 
 
+# Secret columns (models use app.crypto.EncryptedText): values written
+# before encryption existed are plain text — encrypt them once.
+_ENCRYPTED_COLUMNS = [
+    ("facility_webhooks", "facility_id", "url"),
+    ("users", "id", "access_token"),
+    ("users", "id", "refresh_token"),
+    ("app_settings", "key", "value"),
+]
+
+
+def _encrypt_plain_secrets(conn) -> int:
+    from app import crypto
+
+    count = 0
+    for table, pk, column in _ENCRYPTED_COLUMNS:
+        rows = conn.exec_driver_sql(
+            f"SELECT {pk}, {column} FROM {table} WHERE {column} IS NOT NULL AND {column} != '' "
+            f"AND {column} NOT LIKE '{crypto.PREFIX}%'"
+        ).fetchall()
+        for key, value in rows:
+            conn.exec_driver_sql(f"UPDATE {table} SET {column} = ? WHERE {pk} = ?", (crypto.encrypt(value), key))
+            count += 1
+    return count
+
+
 def apply_migrations() -> None:
     with engine.connect() as conn:
+        encrypted_now = _encrypt_plain_secrets(conn)
         for table, column, definition in _ADDED_COLUMNS:
             existing = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")}
             if column not in existing:
@@ -109,3 +141,7 @@ def apply_migrations() -> None:
                 "UPDATE buildings SET production_slots = ? WHERE id = ?", (slots_json, building_id)
             )
         conn.commit()
+    if encrypted_now:
+        # The plain values would still sit in free pages of the file: rewrite it once.
+        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            conn.exec_driver_sql("VACUUM")
