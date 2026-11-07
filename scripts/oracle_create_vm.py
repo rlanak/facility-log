@@ -147,6 +147,11 @@ def main() -> None:
                     time.sleep(INTERVAL * 2)
                     continue
                 sys.exit(f"erro que não é de capacidade, parando: {text}")
+            except (oci.exceptions.RequestException, oci.exceptions.ConnectTimeout, OSError) as exc:
+                # Internet dropped (DNS, Wi-Fi): not Oracle's answer, just wait and retry.
+                log(f"tentativa {attempt}: sem conexão ({type(exc).__name__}), tentando de novo")
+                time.sleep(INTERVAL)
+                continue
 
             log(f"CRIADA com {ocpus} OCPU / {memory} GB, esperando ficar RUNNING")
             instance = oci.wait_until(compute, compute.get_instance(instance.id), "lifecycle_state", "RUNNING", max_wait_seconds=900).data
