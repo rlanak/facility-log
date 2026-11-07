@@ -1,6 +1,8 @@
 # Web-mode image for facility-log:
 #
-#   docker compose up -d --build        (see docker-compose.yml)
+#   docker build -t ghcr.io/rlanak/facility-log:latest .
+#
+# Published automatically for each version tag by .github/workflows/docker-image.yml.
 
 # --- 1. Build the Rust save reader (tools/save-parser) for Linux -------------
 FROM rust:1-slim AS parser

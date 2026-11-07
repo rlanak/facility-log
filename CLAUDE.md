@@ -36,7 +36,7 @@ sem console via `pythonw`, com ícone na bandeja; como `pythonw` não tem stdout
 redireciona os dois pra `data/facility_log.log` antes de subir o servidor. Abrir o atalho com o app já
 rodando só abre a página.
 
-Modo web: `.env` (ver `.env.example`) ou Docker (`docker compose up -d --build`). Ver "Modo web".
+Modo web: `.env` (ver `.env.example`) ou Docker (`docker compose up -d`, imagem publicada). Ver "Modo web".
 
 ## Stack e estrutura
 
@@ -308,7 +308,10 @@ Desligado por padrão; liga com `DISCORD_CLIENT_ID` (env ou `.env`; env real ven
 **Deploy:**
 1. PC + Cloudflare Tunnel (`.env` + `cloudflared` → `http://127.0.0.1:8000`); única opção em que a IA
    local funciona pra quem acessa pela web.
-2. Docker (`docker compose up -d --build`): compila o parser num estágio Rust; dados em `./data-docker`
+2. Docker: `docker compose up -d` usa a imagem `ghcr.io/rlanak/facility-log` (publicada pelo
+   workflow `.github/workflows/docker-image.yml` só quando uma tag `vX.Y.Z` é enviada; só amd64). Build
+   local: `docker build -t ghcr.io/rlanak/facility-log:latest .`. O Dockerfile compila o parser num
+   estágio Rust; dados em `./data-docker`
    via `FACILITY_LOG_DATA_DIR` (nunca sobre `/app/data`, que esconderia o catálogo).
 3. Sem abrir porta: opção 2 numa VM pequena (2 vCPU / 2 GB) + **Tailscale Funnel**
    (`sudo tailscale funnel --bg 8000`) — HTTPS e endereço `*.ts.net` fixos, grátis. Isolar com tag na

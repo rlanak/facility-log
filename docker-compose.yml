@@ -1,8 +1,12 @@
-# Web mode: `docker compose up -d --build` from this folder, with a filled-in
-# .env next to this file (copy .env.example).
+# Web mode with Docker. Fill in a .env next to this file (copy .env.example), then:
+#
+#   docker compose up -d          # uses the published image
+#   docker compose pull && docker compose up -d   # update to the latest release
+#
+# To build from source instead: docker build -t ghcr.io/rlanak/facility-log:latest .
 services:
   facility-log:
-    build: .
+    image: ghcr.io/rlanak/facility-log:latest
     env_file: .env
     environment:
       FACILITY_LOG_DATA_DIR: /data

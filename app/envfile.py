@@ -1,7 +1,7 @@
-"""Loads `.env` from the app folder (next to run.py, or next to the .exe) into
+"""Loads `.env` from the app folder (next to run.py) into
 os.environ at import time, so web mode can be switched on by dropping a file
 there instead of setting system environment variables — same experience for
-`python run.py`, the packaged .exe and Docker (where real env vars win).
+`python run.py` and Docker (where real env vars win).
 
 Plain KEY=VALUE lines; `#` comments and blank lines ignored; values may be
 wrapped in quotes. Variables already set in the environment are never
