@@ -1,24 +1,24 @@
 # facility-log — contexto do projeto
 
-> Este arquivo existe pra qualquer sessão nova do Claude Code (ou o próprio the author) conseguir
+> Este arquivo existe pra qualquer sessão nova do Claude Code (ou o próprio autor) conseguir
 > retomar o trabalho aqui sem depender do histórico de chat. Mantenha atualizado conforme o
 > projeto evolui — é a fonte de verdade, não o histórico de conversas.
 
 ## ⚠️ Repositório público — leia isso primeiro
 
-Projeto pessoal do the author (`github.com/rlanak/facility-log`), **público** desde 07/11/2026. Este
+Projeto pessoal (`github.com/rlanak/facility-log`), **público** desde 07/11/2026. Este
 arquivo é versionado: só entra aqui o que pode ser lido por qualquer um. Contexto pessoal, onde o app
 está rodando, IDs do Discord, nomes do regimento e detalhes de infra ficam no **`CLAUDE.local.md`**
-(gitignored, existe só no PC do the author — leia ele também, se existir). Commits sempre com o e-mail
+(gitignored, existe só no PC do autor — leia ele também, se existir). Commits sempre com o e-mail
 noreply do GitHub, nunca um e-mail pessoal ou de trabalho.
 
 ## O que é / por quê
 
 App 100% local que transforma prints do painel "STOCKPILE" do jogo **Foxhole** em relatório de
 estoque formatado em Markdown, pronto pra colar no Discord — com recomendação de foco de farm.
-the author usa pra acompanhar o estoque das facilities do regimento dele sem fazer isso à mão.
+O autor usa pra acompanhar o estoque das facilities do regimento dele sem fazer isso à mão.
 
-É o **app único** dos projetos Foxhole do the author (decisão de 31/10/2026): o `foxhole-msupps-tray`
+É o **app único** dos projetos Foxhole do autor (decisão de 31/10/2026): o `foxhole-msupps-tray`
 e todo o acompanhamento de mSupps/túneis foram **aposentados de vez** — não reintroduzir. Do
 ecossistema antigo só sobrou o parser do save, movido pra `tools/save-parser/` (os repos
 `foxhole-msupps-parser` e `foxhole-msupps-tray` foram apagados), usado como leitor do save do
@@ -74,7 +74,7 @@ Pontos não óbvios:
 - Tudo roda do código-fonte: atualizar é só editar/`git pull` e reabrir pelo atalho. Não tem
   build.
 
-**O `.exe` (PyInstaller) foi aposentado nessa mesma data** a pedido do the author: dava trabalho
+**O `.exe` (PyInstaller) foi aposentado nessa mesma data** a pedido do autor: dava trabalho
 recompilar a cada mudança e deixava a janela de console aberta. Foram removidos `facility_log.spec`,
 `requirements-build.txt`, `scripts/prepare_tesseract_vendor.py`, o Tesseract embutido e o modo
 "frozen" de `app/paths.py` (que agora só tem `APP_DIR`, a pasta do projeto). Pra outros membros do
@@ -87,7 +87,7 @@ app funciona sem.
 
 ## Modo web — login pelo Discord (`app/auth.py`, `app/routers/auth.py`)
 
-Pedido do the author (31/10/2026): acessar pela web, login pelo Discord, só quem tem um cargo no
+Pedido do autor (31/10/2026): acessar pela web, login pelo Discord, só quem tem um cargo no
 servidor do regimento. **Desligado por padrão** — liga quando `DISCORD_CLIENT_ID` existe no ambiente
 (ou num `.env` ao lado do `run.py`, carregado por `app/envfile.py`; variável de ambiente real
 vence). Se ligar faltando alguma das outras (`DISCORD_CLIENT_SECRET`, `DISCORD_REDIRECT_URI`,
@@ -99,7 +99,7 @@ meio configurado poderia deixar todo mundo entrar).
 - Sessão em cookie assinado (`SessionMiddleware` + `itsdangerous`), `https_only` quando o redirect é
   https. Vale **7 dias a partir do login** (`auth.SESSION_SECONDS`, conferido pelo `login_at` dentro do
   cookie — o max-age do cookie desliza a cada resposta, o `login_at` não).
-- **Nenhum token do Discord é guardado** (03/11/2026, pedido do the author: quem usa não precisa confiar
+- **Nenhum token do Discord é guardado** (03/11/2026, pedido do autor: quem usa não precisa confiar
   a conta Discord a quem administra o servidor). No login o token serve pra conferir o cargo e pegar
   nome/avatar, e é **revogado na hora** (`auth.revoke_token`). `users` guarda só ID, nome e avatar
   (`access_token`/`refresh_token` ficaram como colunas sempre vazias; a migração apaga os antigos).
@@ -118,7 +118,7 @@ meio configurado poderia deixar todo mundo entrar).
   porque o cloudflared também conecta via localhost). Usuário remoto envia o próprio `.sav`.
 - Configurações (motor de captura, chave de API) são globais: qualquer um com o cargo muda.
 - **Facility privada ou compartilhada** (03/11/2026): `facilities.owner_id` (quem
-  criou, no modo web) + `facilities.private`. Decisões do the author: **compartilhada** (padrão) = todos com o
+  criou, no modo web) + `facilities.private`. Decisões do autor: **compartilhada** (padrão) = todos com o
   cargo veem e editam; **privada** = só o dono vê; só o dono exclui ou troca privada/compartilhada.
   Facility sem dono (criada no modo local ou antes disso) é de todos, e quem marcar como privada vira o
   dono. O bloqueio fica no `auth.gate` (`_private_facility_blocked`): todo `/api/facilities/<id>`,
@@ -128,14 +128,14 @@ meio configurado poderia deixar todo mundo entrar).
   local (sem login) nada disso aparece nem vale. O webhook do Discord de uma privada continua postando
   no canal (é escolha do dono). Arquivos em `/uploads/` não são filtrados (nome é UUID aleatório).
   Testado com dois usuários simulados (`TestClient` + `_load_user` trocado) e as telas no navegador.
-- **Transferir a facility** (pedido do the author, mesmo dia): botão "Transferir" (só pro dono, modo web) →
+- **Transferir a facility** (pedido do autor, mesmo dia): botão "Transferir" (só pro dono, modo web) →
   escolhe alguém da lista de quem já fez login (`GET /api/users`) → `PUT /api/facilities/<id>/owner`.
   É **sem volta**: o antigo dono perde excluir/privada/webhook e só volta a ser dono se alguém passar de
   volta (pedir de volta não existe). Privada vai junto: o antigo dono deixa de ver. A pessoa precisa ter
   entrado no app pelo menos uma vez pra aparecer na lista.
 
 **Deploy — duas opções, as duas prontas:**
-1. **PC do the author + Cloudflare Tunnel** (grátis, só online com o PC ligado): `.env` ao lado do
+1. **PC do autor + Cloudflare Tunnel** (grátis, só online com o PC ligado): `.env` ao lado do
    `run.py` (rodando pelo atalho da bandeja), `cloudflared tunnel` apontando pra `http://127.0.0.1:8000`,
    `DISCORD_REDIRECT_URI=https://<domínio do túnel>/auth/callback`. Única opção em que a IA local
    (GPU dele) funciona pra quem acessa pela web.
@@ -144,7 +144,7 @@ meio configurado poderia deixar todo mundo entrar).
    `FACILITY_LOG_DATA_DIR`, nunca sobre `/app/data`, que esconderia o catálogo). Lá não tem GPU:
    captura por RapidOCR ou API.
 
-Pré-requisito que só o the author pode fazer: criar a aplicação no Discord Developer Portal (client
+Pré-requisito que só o dono do app pode fazer: criar a aplicação no Discord Developer Portal (client
 id/secret, cadastrar a redirect URI) e pegar o ID do servidor e do(s) cargo(s).
 
 **Publicar sem abrir porta (o que está em uso, detalhes no `CLAUDE.local.md`):** opção 2 numa VM
@@ -164,7 +164,7 @@ Discord de verdade e o `docker build` (Docker não está instalado nesta máquin
 
 ## Segurança mínima (03/11/2026)
 
-Pedido do the author: sem segurança rigorosa, mas um mínimo pra entrada e pros dados sensíveis (o webhook
+Pedido do autor: sem segurança rigorosa, mas um mínimo pra entrada e pros dados sensíveis (o webhook
 do Discord posta qualquer coisa no canal, inclusive @everyone).
 - **Segredos criptografados no banco** (`app/crypto.py`, Fernet, coluna `EncryptedText`): URL do
   webhook e `app_settings` (tem a chave de API). Tokens do Discord nem são mais guardados (ver "Modo
@@ -234,7 +234,7 @@ data/
   foxhole/resources.json, building_types.json   — catálogo Foxhole, versionado no git
 tools/save-parser/   — leitor do save do jogo em Rust (CLI, `--json`), ver "Leitura do save do jogo"
 print/   — prints reais pra medir a captura (mod/, vanilla/, truth.json, boxes.json), gitignored (nomes reais)
-FacilityIcons/   — pasta de trabalho onde the author larga ícones novos antes de eu copiar pra
+FacilityIcons/   — pasta de trabalho onde o autor larga ícones novos antes de eu copiar pra
                     web/assets/foxhole/structures/ (pode ser esvaziada a qualquer momento)
 ```
 
@@ -248,7 +248,7 @@ FacilityIcons/   — pasta de trabalho onde the author larga ícones novos antes
   obtido de fora, de um aliado/coalizão, em vez de farmado ou produzido localmente; tem
   prioridade sobre `farmable` se os dois estiverem marcados). Os dois flags controlam a cadeia
   de recomendação — ver seção "Recomendação de Farm virou cálculo de cadeia" abaixo.
-  `unlimited` (bool, origem "Abundante (∞)" no painel do item — pedido do the author em 01/11/2026):
+  `unlimited` (bool, origem "Abundante (∞)" no painel do item — pedido do autor em 01/11/2026):
   recurso que **sobra** na facility, ex: Água (poucas filas de bomba já enchem e transbordam).
   Conta como **sempre disponível**: nunca limita a estimativa de ciclos (`production.estimate_production`
   ignora o insumo, então nunca aparece "Faltando: Água"), a cadeia da Meta não pede produzir/farmar
@@ -256,7 +256,7 @@ FacilityIcons/   — pasta de trabalho onde the author larga ícones novos antes
   as entradas: sem linha de estoque, de tanque, de total nem Meta). O card do prédio esconde o
   tanque dele. Prioridade sobre `farmable`/`imported`. Padrão do catálogo: `"unlimited": true` só na
   Água (`resources.json`; aplicado uma vez nos recursos já existentes quando a coluna foi criada).
-  the author comentou que Óleo Pesado também costuma sobrar e só o Petróleo Enriquecido fica escasso —
+  O autor comentou que Óleo Pesado também costuma sobrar e só o Petróleo Enriquecido fica escasso —
   marcar Óleo Pesado (ou outros) é decisão dele, no painel do item. `crud.unlimited_resource_keys()` dá o
   conjunto de chaves (linha do usuário vence o padrão do catálogo).
 - `facilities` — nome, timestamps.
@@ -267,7 +267,7 @@ FacilityIcons/   — pasta de trabalho onde the author larga ícones novos antes
   `position` (ordem no grid, drag-to-reorder).
   `upgrade` (nome do módulo instalado, ex: `"Forge Upgrade"`; NULL = só base) — ver "Upgrade do
   prédio" abaixo.
-  `location` (texto livre, onde o prédio fica dentro da facility — ex: "FF", "PORTO"; NULL = sem
+  `location` (texto livre, onde o prédio fica dentro da facility — ex: "Norte", "Porto"; NULL = sem
   local) — ver "Local do prédio" abaixo.
 - `stock_entries` — **log append-only**, nunca dá update. "Estoque atual" de um
   prédio+recurso+`storage` = a linha mais recente daquela combinação. É isso que permite comparar
@@ -405,7 +405,7 @@ criou (não funde ali, só na exibição da estimativa).
 
 Estimativa é "ballpark", não simulação precisa — cada slot é calculado contra o mesmo snapshot de
 estoque atual; se duas receitas ativas competem pelo mesmo insumo, os números podem superestimar
-o tempo de vida combinado. Decisão consciente (the author: "não precisa ser preciso").
+o tempo de vida combinado. Decisão consciente (do autor: "não precisa ser preciso").
 
 ## Tanques de líquido
 
@@ -464,7 +464,7 @@ existente da facility em **cada nível** da cadeia (não só no topo), até cheg
 - Recurso marcado `farmable` → vira "🌾 Farm necessário" — reportado como está, **nunca**
   decomposto numa receita mesmo que uma exista tecnicamente (ex: Components tem uma receita de
   reciclagem de Damaged Components, mas se está marcado farmable o relatório sempre recomenda
-  "farmar mais Components", não reciclar). Foi um pedido explícito do the author depois de ver a
+  "farmar mais Components", não reciclar). Foi um pedido explícito do autor depois de ver a
   recomendação sugerir "Damaged Components" quando ele nem produz por reciclagem.
 - Recurso marcado `imported` → vira "📦 Importar (produção externa)" — mesma lógica de folha, pro
   caso de o regimento importar um item pronto de um aliado/coalizão em vez de produzir
@@ -473,7 +473,7 @@ existente da facility em **cada nível** da cadeia (não só no topo), até cheg
 - Qualquer outro recurso → soma ciclos de produção em "🏭 Produção necessária" e recursa nos
   insumos da receita escolhida.
 
-**De onde vem o estoque abatido (03/11/2026, pedido do the author — um prédio não usa o recurso de
+**De onde vem o estoque abatido (03/11/2026, pedido do autor — um prédio não usa o recurso de
 outro):** o produto da Meta conta em **qualquer** prédio da facility (MTS inclusive). Já os
 **insumos** de uma receita só abatem o estoque dos prédios que **rodam aquela receita**
 (mesmo tipo + mesma receita nas filas — duas Fábricas de Munição fazendo 3C dividem; a que faz 120mm
@@ -486,7 +486,7 @@ usado primeiro, depois as estações). Estoque em outra fábrica **não** conta 
 
 **Meta antiga incluía recursos não-farmáveis?** Não — a recomendação antiga excluía por completo
 qualquer recurso com `farmable=False`, então uma Meta cadastrada num item produzido (ex: Assembly
-Materials IV) nunca aparecia. Esse é o motivo de toda essa seção existir: the author queria saber "o
+Materials IV) nunca aparecia. Esse é o motivo de toda essa seção existir: o autor queria saber "o
 que falta produzir pra bater essa Meta", não só sugestão de farm.
 
 **Desambiguação de receita:** 15 recursos do catálogo podem ser produzidos por mais de uma
@@ -499,7 +499,7 @@ ordem de prioridade:
    o jogador escolheria à mão. Assim que o prédio certo tiver a receita configurada em produção,
    o cálculo passa a usar ela automaticamente.
 
-**Deliberadamente não modelado (the author confirmou que é aceitável por ora):**
+**Deliberadamente não modelado (o autor confirmou que é aceitável por ora):**
 - Produção **já em andamento** não é creditada contra o déficit — só estoque já logado abate.
   Creditar produção em andamento precisaria casar timing de ciclo contra o alvo, problema bem
   maior. **Por quê, na prática:** isso exigiria o app virar um *tracker ao vivo* (saber a hora
@@ -510,7 +510,7 @@ ordem de prioridade:
   a Meta só pode confiar no que já foi logado, nunca no que uma fila *vai* produzir. Se um dia
   isso mudar de decisão, é uma mudança de escopo do projeto inteiro, não um ajuste pontual no
   resolver.
-- Liquid Transfer Stations movendo líquido entre prédios — the author mencionou como possível próximo
+- Liquid Transfer Stations movendo líquido entre prédios — o autor mencionou como possível próximo
   passo pra deixar o cálculo de líquidos mais preciso.
 
 **Bug já corrigido aqui, cuidado se mexer de novo:** o resolver recebe o alvo (a Meta)
@@ -524,7 +524,7 @@ estoque. A subtração "quanto falta" deve acontecer uma única vez, dentro de `
 
 `material_chain.compute_production_time()` — não é o tempo unitário por fila (isso já existe por
 prédio em `production.estimate_building_slots()`, mostrado no bloco Estoque Atual). É o tempo da
-árvore inteira, calculado **duas vezes** (refeito em 02/11/2026, pedido do the author: "a FAC normalmente
+árvore inteira, calculado **duas vezes** (refeito em 02/11/2026, pedido do autor: "a FAC normalmente
 roda com 5 filas, o mais importante é ver o tempo com as 5"):
 - **Com 5 filas** (`FULL_QUEUES`) — o número de referência, sempre mostrado. Nó que já roda mais de 5
   filas (vários prédios) usa o número real.
@@ -541,7 +541,7 @@ roda com 5 filas, o mais importante é ver o tempo com as 5"):
   cai proporcional ao déficit de energia). Ciclos de um insumo pedidos por dois produtos diferentes
   são arredondados pra cima em cada um (pode sobrar 1 ciclo a mais por produto).
 
-### Como o relatório explica ciclos/tempo (the author achava confuso — reescrito em 31/10/2026)
+### Como o relatório explica ciclos/tempo (o autor achava confuso — reescrito em 31/10/2026)
 
 Modelo (confirmado na wiki, página Facilities): até 5 ordens de produção rodam **em paralelo** por
 prédio; cada ordem repete a receita enquanto houver insumo. **1 ciclo = 1 execução da receita.**
@@ -582,7 +582,7 @@ Ver seção "Recomendação de Farm virou cálculo de cadeia" acima pro flag `im
 
 A mensagem de "estoque insuficiente pra 1 ciclo" (tanto no relatório quanto no card do prédio)
 antes listava **todos** os insumos da receita, mesmo que só um estivesse baixo — isso confundiu o
-the author uma vez, achando que o líquido não estava sendo contabilizado quando na real era outro
+autor uma vez, achando que o líquido não estava sendo contabilizado quando na real era outro
 insumo zerado. Agora só lista os insumos **realmente** abaixo do necessário, comparando
 `inputs_per_cycle[i].available` contra `.qty`. Isso exigiu adicionar `available` no schema
 `ProductionEstimateItem` (Pydantic filtra silenciosamente campos não declarados no
@@ -647,7 +647,7 @@ Assembly Materials trocando de nível. Mudanças, cada uma medida nos 12 prints 
      **confirmou**, não o que o detector chutou). Máximo 8 por item.
    - `scripts/seed_icon_exemplars.py` gera exemplos dos prints confirmados no passado (rotula o
      slot pelo valor confirmado que bate com o número lido). Rodado em 01/11: 28 exemplos.
-   - Níveis sem nenhum exemplo ainda (no caso do the author, Assembly Materials III e IV) continuam
+   - Níveis sem nenhum exemplo ainda (no caso do autor, Assembly Materials III e IV) continuam
      dependendo do aviso "confira" até a primeira confirmação.
    - **Exemplos também são usados pra *achar* itens**, não só desempatar: cada recorte salvo vira um
      template extra (em brancura). É o único jeito de achar ícones que o mod **redesenha** — Typhon,
@@ -660,7 +660,7 @@ Assembly Materials trocando de nível. Mudanças, cada uma medida nos 12 prints 
    cadastrados), e ao salvar o recorte vira exemplo. Precisa de ≥ 2 slots reconhecidos pra deduzir
    a grade.
 
-**Ícones com mod:** o the author usa o mod `War-WindowsNoEditor_CleanIconsEssential_FULLPACKAGE_v2.5.0.pak`,
+**Ícones com mod:** o autor usa o mod `War-WindowsNoEditor_CleanIconsEssential_FULLPACKAGE_v2.5.0.pak`,
 que **colore** os ícones (fundo amarelo no Sulfur, losango azul + selinho colorido por nível nos
 Assembly Materials, e redesenha algumas armas/munições com o nome escrito). No jogo sem mod os
 ícones são desenhos brancos sem cor (estilo dos ícones da wiki). Medido nos dois estilos em
@@ -698,7 +698,7 @@ banco e a API devolve só `api_key_set` + os 4 últimos caracteres.
 | qwen3-vl:4b | 29/30 | 40/47 | 29/29 | 98 | 708s |
 | qwen3-vl:8b | estoura o timeout de 120s por número (não cabe nos 8GB da RTX 5060) | | | | |
 
-**`glm-ocr` é o modelo local recomendado** (e o configurado no PC do the author): mesmo acerto na
+**`glm-ocr` é o modelo local recomendado** (e o configurado no PC do autor): mesmo acerto na
 prática, ~3x mais rápido que o qwen3.5 e 9x que o qwen3-vl:4b, e ocupa ~2,7GB de VRAM (o Foxhole
 roda na mesma placa; qwen3.5 ocupa 6,3GB). O `qwen3-vl` "pensa" antes de responder mesmo com
 `think: false` (~110 tokens por número) — por isso é lento. `num_predict: 32` nas opções do Ollama:
@@ -706,7 +706,7 @@ sem isso o glm-ocr às vezes entrava em loop num recorte sem número e o Ollama 
 "token repeat limit reached".
 
 Bases de teste: (1) `data/uploads` + `stock_entries` com `source='ocr'` (12 prints antigos, valores
-que o the author confirmou no app); (2) `print/mod/` e `print/vanilla/` com gabarito em
+que o autor confirmou no app); (2) `print/mod/` e `print/vanilla/` com gabarito em
 `print/truth.json` + caixas do painel em `print/boxes.json` (20 prints de 01/11/2026, gabarito
 montado olhando cada print; um slot de Assembly Materials com selinho não identificado ficou de
 fora, e o 224 é inventário de caminhão — itens repetidos em vários slots, fora do escopo).
@@ -764,12 +764,12 @@ pro squad e ver o estoque dela no tooltip — então ela aparece no save. Fluxo:
 `crud.get_or_create_resource()` agora casa primeiro por `resource_def_key` (antes só pelo nome) —
 evita criar "Construction Materials" duplicado quando o usuário já tem o recurso salvo como "Cmat".
 
-**Validado com save real em 02/11/2026:** o the author importou as MTSs da FAC de Westgate pelo
+**Validado com save real em 02/11/2026:** o autor importou as MTSs de uma FAC pelo
 save — o pin da MTS é reconhecido pelo tipo de prédio (aparece como "Estação de Transferência de
 Materiais — Westgate G5"). Ainda não conferido: se `Quantity` é item ou caixa em stockpile que
 guarda caixa (MTS guarda item solto, então não afeta MTS).
 
-**Prédio "travado" no pin (02/11/2026, pedido do the author — MTS quase nunca muda de lugar):** com
+**Prédio "travado" no pin (02/11/2026, pedido do autor — MTS quase nunca muda de lugar):** com
 `save_pin_key` preenchido e o pin presente no save, o modal **não mostra o seletor de pin** — mostra
 "📌 Vinculado a <pin> · atualizado há X" e um botão **Desvincular** (confirma, grava `pin_key: null`,
 volta o seletor). Se o pin vinculado sumiu do save (despinado no jogo), avisa e mostra o seletor. O
@@ -830,14 +830,14 @@ upgrade **inferido** da receita não-base que já está em produção. Uma recei
 upgrade escolhido não oferece continua na lista marcada ⚠ (trocar o upgrade nunca apaga fila
 calado). O card mostra "⬆ <upgrade>" embaixo do nome.
 
-**Agrupamento:** padrão continua "por tipo" (pedido do the author: segmentar demais atrapalha). Um
+**Agrupamento:** padrão continua "por tipo" (pedido do autor: segmentar demais atrapalha). Um
 seletor "Agrupar: por tipo / por tipo e upgrade" acima da lista troca pra um grupo por
 tipo+upgrade; preferência por navegador (`localStorage["buildingGrouping"]`). Arrastar continua
 só dentro do grupo exibido.
 
 ### Local do prédio (02/11/2026)
 
-Pedido do the author: a FAC de Westgate tem MTSs em dois lugares (ele nomeava "MTS01 - Norte",
+Pedido do autor: uma FAC tem MTSs em dois lugares (nomeadas tipo "MTS01 - Norte",
 "MTS01 - Sul"). `buildings.location` é texto livre, editado no ✎ do card (que virou um modal com
 apelido + local, em vez do `prompt()`) e no formulário de novo prédio (o campo **mantém** o valor
 depois de adicionar, pra cadastrar vários do mesmo lugar em seguida). Os dois campos sugerem os locais
@@ -856,7 +856,7 @@ vezes); toda linha nova com texto precisa de `min-w-0`/`truncate`.
 
 ## Metas por facility e fim do Catálogo de Recursos (02/11/2026)
 
-Pedido do the author: a aba "Catálogo de Recursos" confundia (a "Meta" não dizia o que era, 3 caixinhas
+Pedido do autor: a aba "Catálogo de Recursos" confundia (a "Meta" não dizia o que era, 3 caixinhas
 repetidas em toda linha) e a Meta era global — agora há duas FACs que querem quantidades diferentes.
 - **A aba saiu do menu** (`resources.js` apagado). Ela não era necessária: recurso é criado sozinho
   ao lançar estoque/print/save, e o catálogo já dá a origem certa de quase todo item.
@@ -900,11 +900,11 @@ trocada, falta de energia, nem material levado entre prédios. Não reintroduz n
 
 Decisão de arquitetura (ver "Deliberadamente não modelado" na cadeia): isso **não** transforma o app num
 tracker ao vivo — não há escrita automática de estoque; é uma conta feita na leitura.
-Juntada na main em 03/11/2026, a pedido do the author; a projeção ainda não foi comparada com o jogo por vários dias.
+Juntada na main em 03/11/2026, a pedido do autor; a projeção ainda não foi comparada com o jogo por vários dias.
 
 ### Painel no Discord por webhook (sem bot)
 
-Pedido do the author no mesmo dia: o painel aparecendo e se atualizando num canal, como o bot do regimento, mas
+Pedido do autor no mesmo dia: o painel aparecendo e se atualizando num canal, como o bot do regimento, mas
 **sem bot** — um webhook do canal posta uma mensagem e depois só **edita** a mesma
 (`app/services/discord_dashboard.py`). Configurado por facility na caixa "📣 No Discord" da aba Ao vivo
 (tabela `facility_webhooks`: URL, id da mensagem, idioma da página na hora de salvar, último envio/erro).
@@ -958,8 +958,8 @@ privado — abrir PR pela web também não dá. **O que funciona:** merge local 
 PR sem passar pela UI do GitHub. Sempre `git fetch` + comparar `main` local com `origin/main`
 antes de mergear (`main` local pode estar desatualizada mesmo com a branch de feature em dia).
 
-Padrão atual: features maiores (ex: detecção automática de OCR) ganham branch própria até the author
-validar num teste real; correções pequenas/testadas vão direto pra `main`. the author já disse "já
+Padrão atual: features maiores (ex: detecção automática de OCR) ganham branch própria até o autor
+validar num teste real; correções pequenas/testadas vão direto pra `main`. O autor já disse "já
 podemos trabalhar na main" — não precisa mais perguntar antes de commitar ali quando o trabalho
 já foi testado no navegador.
 
@@ -971,7 +971,7 @@ camadas, detecção automática de item via template matching, refatoração pra
 ícones de prédio errados/duplicados, correção do ícone de Construction Materials.
 
 Sessão mais recente (a que motivou a seção "Recomendação de Farm virou cálculo de cadeia" acima)
-foi um retrabalho grande em cima de feedback de uso real do the author: tanque e caixa de líquido
+foi um retrabalho grande em cima de feedback de uso real do autor: tanque e caixa de líquido
 virando quantidades independentes (`StockEntry.storage`), cap de 5000L com bug de arredondamento
 corrigido, mensagens de "produção insuficiente" apontando só o insumo realmente baixo, a
 Recomendação de Farm reescrita como um resolvedor recursivo de cadeia de produção
@@ -982,7 +982,7 @@ excluir relatório no Histórico. Um bug real de double-counting de estoque na M
 corrigido durante essa sessão — ver o aviso na seção da cadeia de recomendação antes de mexer ali
 de novo.
 
-Sessão de 31/10/2026 (grande): the author aposentou o tray e os mSupps de vez; o facility-log virou o
+Sessão de 31/10/2026 (grande): o autor aposentou o tray e os mSupps de vez; o facility-log virou o
 app único e ganhou, em commits separados: leitura do save do jogo (`--json` novo no parser, depois
 movido pra `tools/save-parser/`), relatório explicando a conta de ciclos/filas/tempo, Material Transfer
 Station + "Importar do save", motor de captura escolhível (RapidOCR/IA local/API/Tesseract, medido
@@ -1006,10 +1006,10 @@ redes de cano ligadas a facilities) e Liquid Silo ligando em Liquid Silo — mes
 - Desambiguação de receita quando mais de uma produz o mesmo recurso e nenhuma está ativa em
   produção (usa módulo Base ou primeiro candidato — pode não bater com a escolha real do
   jogador). Liquid Transfer Stations (mover líquido entre prédios) ainda não existem no catálogo —
-  the author cogitou incluir pra deixar esse cálculo mais preciso.
+  O autor cogitou incluir pra deixar esse cálculo mais preciso.
 - Cadeia de recomendação não credita produção **em andamento** contra o déficit, só estoque já
   logado (decisão consciente, ver seção da cadeia).
 - Ponto decimal perdido na leitura OCR de quantidade — limitação conhecida, sem solução fácil
   (possível saída: ler estoque de pins do save em vez de OCR, ver "Leitura do save do jogo").
-- Base de teste ainda pequena pra Assembly Materials (the author saiu da main base) — quando tiver prints
+- Base de teste ainda pequena pra Assembly Materials (o autor saiu da facility que tinha esses itens) — quando tiver prints
   com AM II-V, acrescentar em `print/` + `print/truth.json` e rodar `scripts/benchmark_capture.py`.

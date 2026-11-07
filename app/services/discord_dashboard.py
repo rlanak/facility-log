@@ -1,5 +1,5 @@
 """Keeps one Discord message per facility showing the "Ao vivo" estimate
-(03/11/2026, the regiment's command wanted it in the channel, like the regiment
+(03/11/2026, the regiment's command wanted it in the channel, like the regiment's
 mSupps bot — but without a bot: a channel webhook can post a message and
 then keep editing it).
 
