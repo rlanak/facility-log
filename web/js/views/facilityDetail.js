@@ -507,6 +507,7 @@ views.facilityDetail = (() => {
     const card = ui.el("div", { class: "building-card bg-zinc-900 border border-zinc-800 rounded-lg flex flex-col min-w-0 h-full transition" });
     const stock = await api.getBuildingStock(building.id);
     const foxholeType = building.building_type_key ? getFoxholeType(building.building_type_key) : null;
+    const canImportSave = !foxholeType || Boolean(foxholeType.storage);
     const liquidKeys = activeLiquidKeys(building, foxholeType);
     const liquidResourceIds = new Set(
       liquidKeys
@@ -597,7 +598,13 @@ views.facilityDetail = (() => {
       <div class="flex gap-1 px-3 py-2 border-t border-zinc-800 mt-auto">
         <button class="open-stock-modal ${actionBtn}" title="${i18n.t("facilityDetail.launchStock")}">${i18n.t("facilityDetail.btnStock")}</button>
         <button class="open-print-modal ${actionBtn}" title="${i18n.t("facilityDetail.sendPrint")}">${i18n.t("facilityDetail.btnPrint")}</button>
-        <button class="open-save-import-modal ${actionBtn}" title="${i18n.t("facilityDetail.importSave")}">${i18n.t("facilityDetail.btnSave")}</button>
+        ${
+          // The game only caches stock in the save for pinned stockpiles (MTS, RTS…), never
+          // for a factory: production buildings don't get the button. Untyped ones keep it.
+          canImportSave
+            ? `<button class="open-save-import-modal ${actionBtn}" title="${i18n.t("facilityDetail.importSave")}">${i18n.t("facilityDetail.btnSave")}</button>`
+            : ""
+        }
         ${
           foxholeType && foxholeType.recipes.length > 0
             ? `<button class="open-production-modal ${actionBtn}" title="${i18n.t("facilityDetail.production")}">${i18n.t("facilityDetail.btnProduction")}</button>`
@@ -732,7 +739,7 @@ views.facilityDetail = (() => {
       );
     });
 
-    card.querySelector(".open-save-import-modal").addEventListener("click", () => {
+    card.querySelector(".open-save-import-modal")?.addEventListener("click", () => {
       ui.openModal(
         `${i18n.t("facilityDetail.importSave")} — ${buildingDisplayName}`,
         (body, close) => {
