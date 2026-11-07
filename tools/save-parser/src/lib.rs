@@ -14,8 +14,7 @@ pub enum ParseError {
 }
 
 /// High-level entry point: bytes in, pinned-location list out.
-/// This is what the Tauri app (and the CLI below) call after reading the
-/// .sav file from disk.
+/// Used by the CLI (`main.rs`) after reading the .sav file from disk.
 pub fn parse_save(data: &[u8]) -> Result<Vec<model::PinnedLocation>, ParseError> {
     if data.len() < 4 || &data[0..4] != b"GVAS" {
         return Err(ParseError::BadMagic);

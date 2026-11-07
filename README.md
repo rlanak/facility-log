@@ -1,21 +1,16 @@
 # facility-log
 
-App local para gerar relatórios de estoque de facilities do Foxhole, formatados em Markdown
-prontos para colar no Discord.
+Relatórios de estoque das facilities do **Foxhole**, prontos pra colar no Discord: estoque por prédio,
+total da facility, estimativa de produção e o que falta produzir ou farmar pra bater as Metas.
 
-Projeto pessoal — roda 100% local, sem serviços pagos, sem deploy.
+- Lançamento de estoque à mão, por **print** do painel STOCKPILE (detecção automática dos itens) ou
+  pelo **save do jogo** (locais pinados no mapa). Valor lido nunca salva sem você confirmar.
+- Aba "Ao vivo" com estimativa do estoque pelas filas de produção, e painel no Discord por webhook.
+- Roda **local** (sem conta, sem serviço pago) ou na **web** com login pelo Discord, liberado por cargo.
 
-## Como rodar
+## Rodar local (Windows)
 
-### Pré-requisito
-
-Python 3.11 ou 3.12 instalado (baixe em [python.org/downloads](https://www.python.org/downloads/) —
-marque "Add python.exe to PATH" na instalação). Confirme com `python --version` antes de seguir;
-se o comando não for reconhecido, o Python não está instalado ou não está no PATH.
-
-### Rodar
-
-Windows (PowerShell ou Git Bash):
+Precisa de Python 3.11+.
 
 ```bash
 python -m venv .venv
@@ -23,34 +18,27 @@ python -m venv .venv
 .venv/Scripts/python.exe run.py
 ```
 
-Abra http://localhost:8000
+Abra http://localhost:8000.
 
-### OCR automático (opcional)
+Opcionais:
+- `scripts/create_shortcut.py` — atalho na área de trabalho que abre o app com ícone na bandeja, sem
+  janela de console.
+- `scripts/build_save_parser.py` — compila o leitor do save (precisa do Rust/`cargo`). Só o "Importar
+  do save" depende dele.
+- Leitura de prints: RapidOCR já vem instalado. Dá pra trocar em ⚙️ Configurações por IA local
+  (Ollama), IA por API (com a sua chave) ou Tesseract.
 
-O recorte manual de prints funciona sem nenhuma dependência extra. Se você também quiser que o
-valor do recorte venha pré-preenchido via OCR, instale o Tesseract:
+## Rodar na web
+
+Copie `.env.example` para `.env` e preencha (app do Discord, servidor, cargos e segredos), depois:
 
 ```bash
-winget install UB-Mannheim.TesseractOCR
+docker compose up -d --build
 ```
 
-Reinicie o `run.py` depois de instalar. Sem o Tesseract, o app detecta isso automaticamente e
-mostra um aviso — o fluxo de recorte + digitação manual continua funcionando normalmente.
+O app sobe em `127.0.0.1:8000`; publique por um túnel (Cloudflare Tunnel, Tailscale Funnel) ou proxy
+reverso com HTTPS. Sem o login do Discord configurado, a imagem Docker se recusa a subir.
 
-## Estrutura
+## Licença
 
-- `app/` — backend FastAPI (SQLite via SQLAlchemy)
-  - `models.py` / `schemas.py` / `crud.py` — dados
-  - `routers/` — endpoints da API (`images.py` cuida de upload de prints e OCR)
-  - `services/report_generator.py` — geração do relatório em Markdown e recomendação de farm
-  - `services/number_parser.py` — interpreta valores tipo `25.7k`, `1,8k`, `32000`
-  - `services/ocr_service.py` — leitura de recortes via Tesseract, com fallback gracioso se não estiver instalado
-- `web/` — frontend estático (HTML/JS puro + Tailwind via CDN), servido pelo próprio FastAPI
-  - `js/views/print.js` — upload de print + ferramenta de recorte (drag-to-crop) + confirmação manual do valor lido
-- `data/` — banco SQLite e uploads de prints (gitignored)
-
-## Status
-
-- [x] Fase 1 — CRUD de facilities/prédios/catálogo de recursos + lançamento manual de estoque
-- [x] Fase 2 — geração de relatório em Markdown, recomendação de farm, split automático pro limite de 2000 caracteres do Discord, histórico
-- [x] Fase 3 — upload de print, recorte manual (drag-to-crop) com valor sempre confirmável antes de salvar, OCR automático via Tesseract quando disponível
+MIT — ver [LICENSE](LICENSE).

@@ -3,14 +3,12 @@ local map save (`%LOCALAPPDATA%\\Foxhole\\Saved\\SaveGames\\<steamid>_MapData.sa
 — exact numbers, no screenshot/OCR involved.
 
 The save is a binary UE4 GVAS file. Parsing it is delegated to the Rust CLI
-in tools/save-parser/ (`--json` mode; originally the foxhole-msupps-parser
-repo, moved in here when that repo was retired), which was
+in tools/save-parser/ (`--json` mode), which was
 validated end to end against real saves — reimplementing GVAS here would just
 be a second, untested copy. Build it once with scripts/build_save_parser.py;
 the Docker image builds it for Linux.
 
-What the save does and doesn't have (learned in the retired tray app — see
-tools/save-parser/CLAUDE.md): only locations the player *pinned* on the map
+What the save does and doesn't have (see tools/save-parser/CLAUDE.md): only locations the player *pinned* on the map
 (Ctrl+A in game, max 25 per faction) appear, each with the stockpile the game
 last cached for it and the game's own `LastUpdated` time — the cache only
 refreshes when the player opens that pin's tooltip in game.
@@ -124,7 +122,7 @@ def read_pinned_locations(save_bytes: bytes | None = None) -> list[dict]:
 def pin_key(location: dict) -> str:
     """The game gives a pin no name or ID — only hex + normalized position,
     which doesn't move between readings. Rounded to tolerate float noise
-    between parses (same format the tray app's `tunnel_key.rs` used)."""
+    between parses."""
     x, y = location["coords_normalized"]
     return f"{location['map_id']}:{x:.4f}:{y:.4f}"
 

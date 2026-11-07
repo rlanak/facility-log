@@ -1,7 +1,6 @@
 """Keeps one Discord message per facility showing the "Ao vivo" estimate
-(03/11/2026, the regiment's command wanted it in the channel, like the regiment's
-mSupps bot — but without a bot: a channel webhook can post a message and
-then keep editing it).
+— without a bot: a channel webhook can post a message and then keep
+editing it.
 
 Opt-in: only facilities with a webhook configured (FacilityWebhook) are
 touched; without one this module does nothing. A background task in the

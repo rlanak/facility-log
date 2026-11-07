@@ -19,8 +19,8 @@ def get_building_type_defs() -> dict:
 @lru_cache(maxsize=1)
 def resource_keys_by_codename() -> dict[str, str]:
     """Game-internal item name (what the map save stores, e.g.
-    "MaintenanceSupplies") -> catalog resource key. Filled in by
-    scripts/map_resource_codenames.py."""
+    "FacilityMaterials1") -> catalog resource key. Filled in by
+    a catalog maintenance script (kept outside the repo)."""
     return {d["codename"]: key for key, d in get_resource_defs().items() if d.get("codename")}
 
 

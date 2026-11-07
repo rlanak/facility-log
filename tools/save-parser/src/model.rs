@@ -2,7 +2,7 @@ use crate::gvas::Value;
 use serde::Serialize;
 use std::collections::BTreeMap;
 
-/// One stockpile line item cached inside a pinned location (e.g. "MaintenanceSupplies": 4820).
+/// One stockpile line item cached inside a pinned location (e.g. "FacilityMaterials1": 820).
 #[derive(Debug, Clone, Serialize)]
 pub struct StockpileItem {
     pub code_name: String,
@@ -27,13 +27,6 @@ pub struct PinnedLocation {
 }
 
 impl PinnedLocation {
-    pub fn maintenance_supplies(&self) -> Option<i64> {
-        self.stockpile
-            .iter()
-            .find(|i| i.code_name == "MaintenanceSupplies")
-            .map(|i| i.quantity)
-    }
-
     /// Converte a coordenada normalizada (0.0-1.0 dentro do hex) pro
     /// sistema de grade do próprio jogo, tipo "G6k1": segundo a wiki
     /// oficial (Map_Screen > Map Coordinates), cada região tem uma grade
@@ -46,10 +39,10 @@ impl PinnedLocation {
     /// mais direta da documentação oficial aplicada ao
     /// `coords_normalized` que já temos, mas nunca comparamos um valor
     /// convertido aqui com o que o jogo mostra pra um pin conhecido.
-    /// Antes de confiar 100%, vale conferir: pegue um túnel com
+    /// Antes de confiar 100%, vale conferir: pegue um pin com
     /// coordenada conhecida no jogo (Ctrl+clique no mapa copia a
     /// coordenada pro chat) e compare com o que essa função devolve pra
-    /// aquele mesmo túnel.
+    /// aquele mesmo pin.
     pub fn grid_coordinate(&self) -> String {
         const COLUMNS: usize = 17; // A a Q
         const ROWS: usize = 15; // 1 a 15
@@ -74,22 +67,6 @@ impl PinnedLocation {
         let letter = (b'A' + col as u8) as char;
         format!("{letter}{}k{keypad}", row + 1)
     }
-}
-
-/// Foxhole's internal name for a maintenance tunnel pin.
-const MAINTENANCE_TUNNEL_CODE_NAME: &str = "MaintenanceTunnel";
-
-/// Narrows the full pinned-location list down to maintenance tunnels that
-/// have a cached mSupps reading. Other pin types (Seaport, ComponentsField,
-/// StorageFacility, ...) are dropped — the dashboard only cares about mSupps
-/// tunnels for now. Kept as a filter over the generic parse (rather than
-/// baked into the parser itself) so widening scope later is just calling
-/// `extract_pinned_locations` directly instead of this helper.
-pub fn maintenance_tunnels_with_msupps(locations: &[PinnedLocation]) -> Vec<&PinnedLocation> {
-    locations
-        .iter()
-        .filter(|l| l.code_name == MAINTENANCE_TUNNEL_CODE_NAME && l.maintenance_supplies().is_some())
-        .collect()
 }
 
 const TICKS_PER_SECOND: i64 = 10_000_000;
@@ -121,8 +98,8 @@ fn extract_stockpile(detail: &BTreeMap<String, Value>) -> Vec<StockpileItem> {
 }
 
 /// Walks the parsed root property map and extracts every pinned location
-/// under `PinnedMapToolTipsC`, flattening the parts a mSupps dashboard cares
-/// about (stockpile snapshot, coords, hex, last-seen time).
+/// under `PinnedMapToolTipsC`, flattening what the app needs (stockpile
+/// snapshot, coords, hex, last-seen time).
 pub fn extract_pinned_locations(root: &BTreeMap<String, Value>) -> Vec<PinnedLocation> {
     let Some(entries) = root.get("PinnedMapToolTipsC").and_then(Value::as_array) else {
         return Vec::new();
@@ -172,9 +149,7 @@ pub fn extract_pinned_locations(root: &BTreeMap<String, Value>) -> Vec<PinnedLoc
         .collect()
 }
 
-/// Minimal UTC ISO-8601 formatter so the crate doesn't need `chrono` just
-/// for this one conversion in non-CLI (Tauri) builds. Good enough for
-/// display; not calendar-accurate for dates far outside normal play sessions.
+/// UTC ISO-8601 string for display.
 fn unix_to_iso(unix_seconds: i64) -> String {
     use std::time::{Duration, UNIX_EPOCH};
     let t = UNIX_EPOCH + Duration::from_secs(unix_seconds.max(0) as u64);
