@@ -1,4 +1,4 @@
-"""Keeps one Discord message per facility showing the "Ao vivo" estimate
+"""Keeps one Discord message per facility showing the Dashboard estimate
 — without a bot: a channel webhook can post a message and then keep
 editing it.
 
@@ -40,7 +40,7 @@ _MAX_BUILDING_FIELDS = 22
 
 _STRINGS = {
     "pt-BR": {
-        "title": "📊 {facility} — ao vivo",
+        "title": "📊 {facility} — dashboard",
         "intro": "Estimativa pelas filas configuradas, contando desde o último lançamento de cada prédio.",
         "updated": "🔄 Atualizado {when} · a cada {interval}",
         "targets": "🎯 Metas (estimado)",
@@ -61,7 +61,7 @@ _STRINGS = {
         "minute": "1 min",
     },
     "en-US": {
-        "title": "📊 {facility} — live",
+        "title": "📊 {facility} — dashboard",
         "intro": "Estimate from the configured queues, counting from each building's last log.",
         "updated": "🔄 Updated {when} · every {interval}",
         "targets": "🎯 Targets (estimated)",

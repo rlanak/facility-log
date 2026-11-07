@@ -90,7 +90,7 @@ class FacilityItemOrigin(Base):
 
 class FacilityWebhook(Base):
     """Discord webhook that keeps one message in a channel showing the
-    facility's "Ao vivo" estimate — see services/discord_dashboard.py. The
+    facility's Dashboard estimate — see services/discord_dashboard.py. The
     URL works like a password (anyone with it can post there), so the API
     never sends it back whole. `message_id` is the message being edited;
     when it's gone (deleted in Discord) a new one is posted."""

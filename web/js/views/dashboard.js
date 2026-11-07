@@ -1,12 +1,14 @@
 window.views = window.views || {};
 
-// "Ao vivo" tab of a facility: the dashboard the command asked for
-// (03/11/2026). Asks the server every 30s for a live *estimate* — stock as
-// it probably is now if the queues kept running since the last log (see
-// app/services/projection.py). Nothing here is saved; reports and Metas
+// Dashboard tab of a facility. Asks the server every 30s for an *estimate* —
+// stock as it probably is now if the queues kept running since the last log
+// (see app/services/projection.py). Nothing here is saved; reports and Metas
 // keep using logged stock.
 views.dashboard = (() => {
   const REFRESH_MS = 30000;
+  // A log older than this makes the estimate unreliable (queues get changed,
+  // material moved): the building gets a warning.
+  const STALE_SECONDS = 24 * 3600;
   let refreshTimer = null;
   let tickTimer = null;
   let defs = null;
@@ -34,8 +36,17 @@ views.dashboard = (() => {
     return `${seconds}s`;
   }
 
-  function clock(date) {
-    return date.toLocaleTimeString(i18n.getLang(), { hour: "2-digit", minute: "2-digit" });
+  // "21:37" today, "02/11 21:37" any other day — a bare time is ambiguous
+  // once the log is days old.
+  function when(date) {
+    const lang = i18n.getLang();
+    const time = date.toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" });
+    if (date.toDateString() === new Date().toDateString()) return time;
+    return `${date.toLocaleDateString(lang, { day: "2-digit", month: "2-digit" })} ${time}`;
+  }
+
+  function pct(part, whole) {
+    return whole > 0 ? Math.round((part / whole) * 100) : 0;
   }
 
   function itemLabel(key) {
@@ -47,20 +58,26 @@ views.dashboard = (() => {
     if (!targets.length) return "";
     const rows = targets
       .map((t) => {
-        const pct = t.target > 0 ? Math.min(100, (t.projected / t.target) * 100) : 0;
+        const k = t.resource_def_key;
         const done = t.projected >= t.target;
-        const gained = t.projected - t.logged;
+        const gained = Math.max(0, t.projected - t.logged);
+        const p = pct(t.projected, t.target);
         return `
         <div class="bg-zinc-900 border border-zinc-800 rounded p-3">
           <div class="flex items-baseline justify-between gap-2">
             <span class="text-sm font-medium truncate min-w-0" title="${ui.escapeHtml(t.name)}">${ui.escapeHtml(t.name)}</span>
-            <span class="text-sm tabular-nums whitespace-nowrap ${done ? "text-emerald-400" : ""}">≈ ${formatQty(t.projected, t.resource_def_key)} / ${formatQty(t.target, t.resource_def_key)}</span>
+            <span class="text-xs whitespace-nowrap ${done ? "text-emerald-400" : "text-amber-400"}">${
+              done ? i18n.t("dashboard.targetDone") : `${p}%`
+            }</span>
           </div>
-          <div class="h-2 bg-zinc-800 rounded mt-2 overflow-hidden"><div class="h-full ${done ? "bg-emerald-500" : "bg-amber-500"}" style="width:${pct}%"></div></div>
+          <div class="text-sm tabular-nums mt-1">≈ ${formatQty(t.projected, k)} <span class="text-zinc-500">${i18n.t("dashboard.of")} ${formatQty(t.target, k)}</span>${
+            done ? "" : ` <span class="text-zinc-400">· ${i18n.t("dashboard.missing", { qty: formatQty(t.target - t.projected, k) })}</span>`
+          }</div>
+          <div class="h-2 bg-zinc-800 rounded mt-2 overflow-hidden"><div class="h-full ${done ? "bg-emerald-500" : "bg-amber-500"}" style="width:${Math.min(100, p)}%"></div></div>
           <div class="text-xs text-zinc-500 mt-1">${i18n.t("dashboard.loggedVsProjected", {
-            logged: formatQty(t.logged, t.resource_def_key),
-            gained: gained > 0 ? `+${formatQty(gained, t.resource_def_key)}` : "0",
-          })}${done ? "" : ` · ${i18n.t("dashboard.missing", { qty: formatQty(t.target - t.projected, t.resource_def_key) })}`}</div>
+            logged: formatQty(t.logged, k),
+            gained: `+${formatQty(gained, k)}`,
+          })}</div>
         </div>`;
       })
       .join("");
@@ -69,34 +86,61 @@ views.dashboard = (() => {
       <div class="grid gap-2 mb-6" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">${rows}</div>`;
   }
 
-  function slotHtml(slot, now) {
+  // Where else in the facility a missing input is sitting (stations first):
+  // the estimate never moves material, but the player can.
+  function elsewhere(key, building, buildings) {
+    return buildings
+      .filter((o) => o.id !== building.id && (o.projected[key] || 0) >= 1)
+      .sort((a, c) => Number(c.storage) - Number(a.storage) || c.projected[key] - a.projected[key])
+      .slice(0, 2)
+      .map((o) => `${formatQty(o.projected[key], key)} ${i18n.t("dashboard.inBuilding", { name: ui.escapeHtml(o.location ? `${o.name} (${o.location})` : o.name) })}`);
+  }
+
+  function slotHtml(slot, now, building, buildings) {
     const outputs = slot.produced.map((p) => p.name).join(", ") || slot.recipe_key;
     const made = slot.produced.map((p) => `+${formatQty(p.qty, p.resource)} ${ui.escapeHtml(p.name)}`).join(", ");
     let status;
+    let hint = "";
     if (slot.running && slot.empty_at) {
       const at = new Date(slot.empty_at);
       status = `<span class="text-emerald-400">● ${i18n.t("dashboard.running")}</span> · ${i18n.t("dashboard.emptyIn", {
         span: formatSpan((at - now) / 1000),
-        time: clock(at),
+        time: when(at),
       })}`;
     } else if (slot.running) {
-      status = `<span class="text-emerald-400">● ${i18n.t("dashboard.running")}</span>`;
+      status = `<span class="text-emerald-400">● ${i18n.t("dashboard.running")}</span> · ${i18n.t("dashboard.noLimit")}`;
     } else {
-      const since = slot.empty_at ? ` ${i18n.t("dashboard.since", { time: clock(new Date(slot.empty_at)) })}` : "";
+      const since = slot.empty_at ? ` ${i18n.t("dashboard.since", { time: when(new Date(slot.empty_at)) })}` : "";
       status = `<span class="text-red-400">● ${i18n.t("dashboard.stopped")}</span>${since}${
         slot.missing.length ? ` · ${i18n.t("dashboard.lacks", { items: ui.escapeHtml(slot.missing.join(", ")) })}` : ""
       }`;
+      const found = (slot.missing_keys || []).flatMap((k) => {
+        const where = elsewhere(k, building, buildings);
+        return where.length ? [`${ui.escapeHtml(itemLabel(k))}: ${where.join(", ")}`] : [];
+      });
+      if (found.length) hint = `<div class="text-xs text-sky-300 mt-0.5">💡 ${i18n.t("dashboard.availableElsewhere", { list: found.join(" · ") })}</div>`;
     }
     return `
       <div class="border-t border-zinc-800 pt-2 mt-2">
         <div class="text-sm"><span class="font-medium">${ui.escapeHtml(outputs)}</span>
           <span class="text-zinc-500">· ${i18n.t(slot.queue_count === 1 ? "dashboard.queue" : "dashboard.queues", { n: slot.queue_count })}</span></div>
         <div class="text-xs mt-0.5">${status}</div>
+        ${hint}
         ${slot.cycles_done ? `<div class="text-xs text-zinc-400 mt-0.5">${i18n.t("dashboard.sinceLog", { made, cycles: slot.cycles_done })}</div>` : ""}
       </div>`;
   }
 
-  function buildingHtml(b, now) {
+  function lastLogHtml(b) {
+    if (!b.last_logged_at) return `<div class="text-xs text-zinc-500 mb-2">${i18n.t("dashboard.neverLogged")}</div>`;
+    const text = i18n.t("dashboard.lastLog", { span: formatSpan(b.elapsed_seconds), time: when(new Date(b.last_logged_at)) });
+    // Stations aren't projected, so an old log there is just "old", not a warning.
+    if (b.elapsed_seconds < STALE_SECONDS || b.storage) {
+      return `<div class="text-xs text-zinc-500 mb-2" title="${i18n.t("dashboard.lastLogHint")}">${text}</div>`;
+    }
+    return `<div class="text-xs text-amber-400 mb-2" title="${i18n.t("dashboard.lastLogHint")}">⚠ ${text} · ${i18n.t("dashboard.stale")}</div>`;
+  }
+
+  function buildingHtml(b, now, buildings) {
     const keys = Object.keys(b.projected).filter((k) => b.projected[k] > 0.5 || (b.logged[k] || 0) > 0.5);
     keys.sort((a, c) => itemLabel(a).localeCompare(itemLabel(c)));
     const lines = keys
@@ -114,32 +158,58 @@ views.dashboard = (() => {
         </div>`;
       })
       .join("");
-    const logged = b.last_logged_at
-      ? i18n.t("dashboard.lastLog", { span: formatSpan(b.elapsed_seconds), time: clock(new Date(b.last_logged_at)) })
-      : i18n.t("dashboard.neverLogged");
     return `
       <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-3 flex flex-col">
         <div class="flex items-baseline justify-between gap-2">
           <span class="font-semibold truncate min-w-0">${ui.escapeHtml(b.name)}</span>
           ${b.location ? `<span class="text-xs text-zinc-500 whitespace-nowrap">📍 ${ui.escapeHtml(b.location)}</span>` : ""}
         </div>
-        <div class="text-xs text-zinc-500 mb-2" title="${i18n.t("dashboard.lastLogHint")}">${logged}</div>
+        ${lastLogHtml(b)}
         <div class="grid gap-1">${lines || `<span class="text-xs text-zinc-500">${i18n.t("dashboard.noStock")}</span>`}</div>
-        ${b.slots.map((s) => slotHtml(s, now)).join("")}
+        ${b.slots.map((s) => slotHtml(s, now, b, buildings)).join("")}
       </div>`;
+  }
+
+  // One line on top: how many queues run, how many stopped and on what.
+  function summaryHtml(producing) {
+    const slots = producing.flatMap((b) => b.slots);
+    if (!slots.length) return "";
+    const running = slots.filter((s) => s.running).length;
+    const stopped = slots.length - running;
+    const lacking = [...new Set(slots.filter((s) => !s.running).flatMap((s) => s.missing))];
+    const stale = producing.filter((b) => b.last_logged_at && b.elapsed_seconds >= STALE_SECONDS).length;
+    const parts = [
+      `<span class="${running ? "text-emerald-400" : "text-zinc-500"}">● ${i18n.t("dashboard.summaryRunning", { n: running })}</span>`,
+      `<span class="${stopped ? "text-red-400" : "text-zinc-500"}">● ${i18n.t("dashboard.summaryStopped", { n: stopped })}</span>`,
+    ];
+    if (lacking.length) parts.push(i18n.t("dashboard.summaryLacking", { items: ui.escapeHtml(lacking.join(", ")) }));
+    if (stale) parts.push(`<span class="text-amber-400">⚠ ${i18n.t("dashboard.summaryStale", { n: stale })}</span>`);
+    return `<div class="bg-zinc-900 border border-zinc-800 rounded px-3 py-2 mb-4 text-sm flex flex-wrap gap-x-4 gap-y-1">${parts.join("")}</div>`;
   }
 
   function draw(container, data) {
     const now = new Date(data.now);
     const producing = data.buildings.filter((b) => b.slots.length);
+    const allStations = data.buildings.filter((b) => b.storage && !b.slots.length);
+    const stations = allStations.filter((b) => Object.values(b.logged).some((q) => q >= 0.5));
+    const emptyStations = allStations.filter((b) => !stations.includes(b)).map((b) => ui.escapeHtml(b.location ? `${b.name} (${b.location})` : b.name));
+    const grid = (list) =>
+      `<div class="grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">${list
+        .map((b) => buildingHtml(b, now, data.buildings))
+        .join("")}</div>`;
     container.querySelector(".dash-body").innerHTML = `
+      ${summaryHtml(producing)}
       ${targetsHtml(data.targets)}
-      <h2 class="text-sm font-semibold text-zinc-300 mb-2">${i18n.t("dashboard.productionTitle")}</h2>
+      <h2 class="text-sm font-semibold text-zinc-300 mb-1">${i18n.t("dashboard.productionTitle")}</h2>
+      <p class="text-xs text-zinc-500 mb-2">${i18n.t("dashboard.legend")}</p>
+      ${producing.length ? grid(producing) : `<p class="text-sm text-zinc-500">${i18n.t("dashboard.noProduction")}</p>`}
       ${
-        producing.length
-          ? `<div class="grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">${producing.map((b) => buildingHtml(b, now)).join("")}</div>`
-          : `<p class="text-sm text-zinc-500">${i18n.t("dashboard.noProduction")}</p>`
+        stations.length
+          ? `<h2 class="text-sm font-semibold text-zinc-300 mt-6 mb-1">${i18n.t("dashboard.stationsTitle")}</h2>
+             <p class="text-xs text-zinc-500 mb-2">${i18n.t("dashboard.stationsHint")}</p>${grid(stations)}`
+          : ""
       }
+      ${emptyStations.length ? `<p class="text-xs text-zinc-500 mt-2">${i18n.t("dashboard.emptyStations", { list: emptyStations.join(", ") })}</p>` : ""}
       <p class="text-xs text-zinc-600 mt-4">${i18n.t("dashboard.footer")}</p>`;
   }
 
@@ -249,7 +319,7 @@ views.dashboard = (() => {
 
     async function refresh() {
       // Left the tab (or the page re-rendered): stop polling.
-      if (!document.body.contains(container) || !location.hash.endsWith("/live")) return stop();
+      if (!document.body.contains(container) || !/\/(dashboard|live)$/.test(location.hash)) return stop();
       try {
         draw(container, await api.getDashboard(facilityId));
         // Refresh "último envio" too — unless the URL form is open (would wipe the typing).

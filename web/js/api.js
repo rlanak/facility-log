@@ -49,7 +49,7 @@ const api = (() => {
     getFacilityStock: (id) => request("GET", `/api/facilities/${id}/stock`),
     listFacilityTargets: (id) => request("GET", `/api/facilities/${id}/targets`),
     setFacilityTarget: (id, data) => request("PUT", `/api/facilities/${id}/targets`, data),
-    // Live estimate (Ao vivo tab) — computed on the server, never stored.
+    // Live estimate (Dashboard tab) — computed on the server, never stored.
     getDashboard: (id) => request("GET", `/api/facilities/${id}/dashboard`),
     listUsers: () => request("GET", "/api/users"),
     transferFacility: (id, userId) => request("PUT", `/api/facilities/${id}/owner`, { user_id: userId }),

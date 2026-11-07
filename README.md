@@ -6,7 +6,7 @@ total da facility, estimativa de produção e o que falta produzir ou farmar pra
 - Lançamento de estoque à mão, por **print** do painel STOCKPILE (os itens são reconhecidos
   automaticamente) ou pelo **save do jogo** (locais fixados no mapa). Valor lido nunca é salvo sem
   você confirmar.
-- Aba **Ao vivo** com a estimativa do estoque pelas filas de produção, e painel no Discord que se
+- Aba **Dashboard** com a estimativa do estoque pelas filas de produção, e painel no Discord que se
   atualiza sozinho por webhook (sem bot).
 - Roda **local** (sem conta, sem serviço pago) ou na **web**, com login pelo Discord liberado por cargo.
 

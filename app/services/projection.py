@@ -90,6 +90,9 @@ def project_building(building, entries, now: datetime, unlimited_keys: set, lang
                     for io in inputs
                     if stock.get(io["resource"], 0) < foxhole_data.recipe_io_qty(io)
                 ],
+                "missing_keys": [
+                    io["resource"] for io in inputs if stock.get(io["resource"], 0) < foxhole_data.recipe_io_qty(io)
+                ],
             }
         )
 
@@ -103,7 +106,7 @@ def project_building(building, entries, now: datetime, unlimited_keys: set, lang
 
 
 def facility_dashboard(db, facility_id: int, now: datetime, catalog_lang: str = "pt-BR") -> dict:
-    """Everything the "Ao vivo" tab and the Discord webhook show: each
+    """Everything the Dashboard tab and the Discord webhook show: each
     building projected, plus the facility's Metas against the projected
     total. Shared so the two never disagree."""
     from app import crud  # crud doesn't import this module, but keep services import-light

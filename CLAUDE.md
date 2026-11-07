@@ -52,7 +52,7 @@ app/
     report_generator.py   relatório Markdown + versão Discord
     material_chain.py     cadeia de produção pra bater uma Meta + tempo total
     production.py         estimativa de ciclos/tempo por prédio
-    projection.py         estimativa "Ao vivo" (estoque projetado pelas filas)
+    projection.py         estimativa do Dashboard (estoque projetado pelas filas)
     discord_dashboard.py  painel no Discord por webhook + laço de 60s
     icon_match_service.py detecção de itens no print (template matching)
     capture/              quem lê o número: RapidOCR, Ollama, API ou Tesseract
@@ -259,14 +259,18 @@ Não conferido: se `Quantity` é item ou caixa em stockpile que guarda caixa.
 - **Painel do item** (`itemPanel.js`): apelido (global) + origem de escolha única, gravada por facility
   (`PUT /api/facilities/{id}/item-origins`).
 - **Histórico**: relatórios com "Excluir".
-- **Ao vivo** (`dashboard.js`, `projection.py`): estoque projetado supondo que as filas rodaram sem parar
-  desde o último lançamento de cada prédio (só rodadas completas; para quando um insumo acaba). **Nunca é
-  gravado** — conta feita na leitura, a cada 30s; o próximo lançamento real zera a projeção.
+- **Dashboard** (`dashboard.js`, `projection.py`; rota `#/facilities/<id>/dashboard`, o antigo `/live`
+  ainda abre): estoque projetado supondo que as filas rodaram sem parar desde o último lançamento de cada
+  prédio (só rodadas completas; para quando um insumo acaba). **Nunca é gravado** — conta feita na leitura,
+  a cada 30s; o próximo lançamento real zera a projeção. Mostra resumo (filas rodando/paradas, o que
+  falta), Metas com %, horários com data quando não são de hoje, aviso em prédio com lançamento de mais
+  de 24h, onde mais na facility tem o insumo que acabou (`missing_keys`) e as estações (MTS/RTS) com o
+  estoque lançado.
 
 ## Painel no Discord por webhook (`discord_dashboard.py`)
 
 Sem bot: o webhook posta uma mensagem e depois só a **edita**. Configurado por facility (caixa "📣 No
-Discord" da aba Ao vivo; `facility_webhooks`). Único processo em segundo plano do app: tarefa asyncio
+Discord" da aba Dashboard; `facility_webhooks`). Único processo em segundo plano do app: tarefa asyncio
 no `lifespan` que a cada 60s edita a mensagem de cada facility com webhook (pula webhook enviado há
 menos de 55s). Contagens usam `<t:unix:R>`, que o Discord redesenha sozinho. PATCH 404 → posta outra;
 "Parar" apaga a mensagem; erro vai pra `last_error`, nunca derruba o laço. Tópico opcional

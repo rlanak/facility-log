@@ -184,6 +184,7 @@ views.facilityDetail = (() => {
 
   async function render(app, id, activeTab = "buildings") {
     facilityId = id;
+    if (activeTab === "live") activeTab = "dashboard"; // old name of the tab, kept for saved links
     let facility;
     try {
       facility = await api.getFacility(facilityId);
@@ -220,7 +221,7 @@ views.facilityDetail = (() => {
       <div class="flex flex-wrap gap-2 mb-6">
         ${tabLink("buildings", i18n.t("facilityDetail.tabBuildings"), activeTab)}
         ${tabLink("targets", i18n.t("facilityDetail.tabTargets"), activeTab)}
-        ${tabLink("live", i18n.t("facilityDetail.tabLive"), activeTab)}
+        ${tabLink("dashboard", i18n.t("facilityDetail.tabDashboard"), activeTab)}
         ${tabLink("report", i18n.t("facilityDetail.tabReport"), activeTab)}
         ${tabLink("history", i18n.t("facilityDetail.tabHistory"), activeTab)}
       </div>
@@ -271,7 +272,7 @@ views.facilityDetail = (() => {
     const tabContent = document.getElementById("tab-content");
     if (activeTab === "buildings") await renderBuildingsTab(tabContent);
     else if (activeTab === "targets") await views.targets.renderTargetsTab(tabContent, facilityId);
-    else if (activeTab === "live") await views.dashboard.renderDashboardTab(tabContent, facilityId);
+    else if (activeTab === "dashboard") await views.dashboard.renderDashboardTab(tabContent, facilityId);
     else if (activeTab === "report") await views.report.renderReportTab(tabContent, facilityId);
     else if (activeTab === "history") await views.report.renderHistoryTab(tabContent, facilityId);
   }
