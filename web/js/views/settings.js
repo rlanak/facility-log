@@ -95,10 +95,35 @@ views.settings = (() => {
       .join("");
     steps.appendChild(list);
 
+    // Shown as soon as the box is ticked: the one step people miss. The
+    // address is this page's own origin — whatever server runs the app.
+    const originCmd = `setx OLLAMA_ORIGINS "${origin}"`;
+    const copyBtn = el("button", { type: "button", class: "px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 shrink-0" }, i18n.t("settings.myAI.copy"));
+    copyBtn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(originCmd);
+        ui.toast(i18n.t("settings.myAI.copied"));
+      } catch (_) {
+        ui.toast(originCmd);
+      }
+    });
+    const originBox = el("div", { class: "bg-zinc-950 border border-amber-900 rounded p-3 mb-3 text-xs text-zinc-300" }, [
+      el("p", { class: "mb-2" }, i18n.t("settings.myAI.originIntro")),
+      el("div", { class: "flex gap-2 items-center" }, [
+        el("code", { class: "flex-1 min-w-0 break-all bg-zinc-900 px-2 py-1 rounded select-all" }, originCmd),
+        copyBtn,
+      ]),
+      el("p", { class: "mt-2 text-zinc-500" }, i18n.t("settings.myAI.originAfter")),
+    ]);
+    const syncOrigin = () => originBox.classList.toggle("hidden", !enabled.checked);
+    enabled.addEventListener("change", syncOrigin);
+    syncOrigin();
+
     const box = el("div", { class: "bg-zinc-900 border border-sky-900 rounded-lg p-4 mb-6" }, [
       el("h2", { class: "font-semibold text-sm mb-1" }, i18n.t("settings.myAI.title")),
       el("p", { class: "text-xs text-zinc-400 mb-3" }, i18n.t("settings.myAI.intro")),
       el("label", { class: "flex gap-2 items-start text-sm mb-3 cursor-pointer" }, [enabled, i18n.t("settings.myAI.enable")]),
+      originBox,
       field(i18n.t("settings.ollamaUrl"), url),
       field(i18n.t("settings.ollamaModel"), model),
       el("div", { class: "flex flex-wrap gap-2 items-center" }, [testBtn, saveBtn]),

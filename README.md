@@ -175,6 +175,9 @@ de ninguém. Precisa do Ollama com `glm-ocr` e de liberar o endereço do site no
 (`setx OLLAMA_ORIGINS "https://seu-endereco"` e reabrir o Ollama); o passo a passo aparece na própria
 tela. Se a IA da pessoa não responder, a leitura do servidor assume.
 
+Se o seu servidor tiver placa de vídeo e Ollama, `FACILITY_LOG_SERVER_OLLAMA=1` no `.env` libera a opção
+"IA local" do próprio servidor pra todo mundo (fica escondida por padrão na web).
+
 ### Atualizar
 
 ```bash
