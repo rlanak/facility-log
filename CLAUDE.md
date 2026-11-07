@@ -8,8 +8,8 @@
 
 Projeto pessoal (`github.com/rlanak/facility-log`), **público** desde 07/11/2026. Este
 arquivo é versionado: só entra aqui o que pode ser lido por qualquer um. Contexto pessoal, onde o app
-está rodando, IDs do Discord, nomes do regimento e detalhes de infra ficam no **`CLAUDE.local.md`**
-(gitignored, existe só no PC do autor — leia ele também, se existir). Commits sempre com o e-mail
+está rodando, IDs do Discord, nomes do regimento, localização no mapa do jogo, hardware e detalhes de
+infra **não entram** aqui nem em nenhum outro arquivo versionado. Commits sempre com o e-mail
 noreply do GitHub, nunca um e-mail pessoal ou de trabalho.
 
 ## O que é / por quê
@@ -135,10 +135,10 @@ meio configurado poderia deixar todo mundo entrar).
   entrado no app pelo menos uma vez pra aparecer na lista.
 
 **Deploy — duas opções, as duas prontas:**
-1. **PC do autor + Cloudflare Tunnel** (grátis, só online com o PC ligado): `.env` ao lado do
+1. **Um PC comum + Cloudflare Tunnel** (grátis, só online com o PC ligado): `.env` ao lado do
    `run.py` (rodando pelo atalho da bandeja), `cloudflared tunnel` apontando pra `http://127.0.0.1:8000`,
    `DISCORD_REDIRECT_URI=https://<domínio do túnel>/auth/callback`. Única opção em que a IA local
-   (GPU dele) funciona pra quem acessa pela web.
+   (a placa de vídeo desse PC) funciona pra quem acessa pela web.
 2. **VPS/nuvem com Docker**: `docker compose up -d --build` nesta pasta (o build compila
    `tools/save-parser` pra Linux num estágio Rust; dados em `./data-docker` via
    `FACILITY_LOG_DATA_DIR`, nunca sobre `/app/data`, que esconderia o catálogo). Lá não tem GPU:
@@ -147,7 +147,7 @@ meio configurado poderia deixar todo mundo entrar).
 Pré-requisito que só o dono do app pode fazer: criar a aplicação no Discord Developer Portal (client
 id/secret, cadastrar a redirect URI) e pegar o ID do servidor e do(s) cargo(s).
 
-**Publicar sem abrir porta (o que está em uso, detalhes no `CLAUDE.local.md`):** opção 2 numa VM
+**Publicar sem abrir porta:** opção 2 numa VM
 pequena (2 vCPU / 2 GB bastam) + **Tailscale Funnel** (`sudo tailscale funnel --bg 8000`): HTTPS e
 endereço `*.ts.net` fixos, grátis, sem domínio, sem porta aberta nem proxy reverso. Quem acessa não
 instala nada. Pra isolar: tag na VM e política do Tailscale em que ela não é origem de nenhuma regra
@@ -687,18 +687,25 @@ banco e a API devolve só `api_key_set` + os 4 últimos caracteres.
 
 **Medição (01/11/2026, com o detector novo)** — 32 prints reais, 106 valores conferidos:
 
-| Leitor | 12 antigos (mod) | 10 novos com mod | 10 novos sem mod | Total | Tempo (12 prints) |
-|---|---|---|---|---|---|
-| Tesseract | 5/30 | 8/47 | 5/29 | 18 | — |
-| RapidOCR | 28/30 | 35/47 | 28/29 | 91 | 70s |
-| **glm-ocr** | 28/30 | 40/47 | 29/29 | 97 | 77s |
-| qwen3.5:9b | 29/30 | 40/47 | 29/29 | 98 | 223s |
-| qwen3-vl:4b | 29/30 | 40/47 | 29/29 | 98 | 708s |
-| qwen3-vl:8b | estoura o timeout de 120s por número (não cabe nos 8GB da RTX 5060) | | | | |
+| Leitor | Roda em | Memória de vídeo | 12 antigos (mod) | 10 novos com mod | 10 novos sem mod | Total | Tempo (12 prints) |
+|---|---|---|---|---|---|---|---|
+| Tesseract | CPU | — | 5/30 | 8/47 | 5/29 | 18 | — |
+| RapidOCR | CPU | — | 28/30 | 35/47 | 28/29 | 91 | 70s |
+| **glm-ocr** | placa de vídeo (Ollama) | ~2,7 GB | 28/30 | 40/47 | 29/29 | 97 | 77s |
+| qwen3.5:9b | placa de vídeo (Ollama) | ~6,3 GB | 29/30 | 40/47 | 29/29 | 98 | 223s |
+| qwen3-vl:4b | placa de vídeo (Ollama) | não medida | 29/30 | 40/47 | 29/29 | 98 | 708s |
+| qwen3-vl:8b | placa de vídeo (Ollama) | mais de 8 GB | não terminou: passou do limite de 120s por número | | | | |
 
-**`glm-ocr` é o modelo local recomendado** (e o configurado no PC do autor): mesmo acerto na
-prática, ~3x mais rápido que o qwen3.5 e 9x que o qwen3-vl:4b, e ocupa ~2,7GB de VRAM (o Foxhole
-roda na mesma placa; qwen3.5 ocupa 6,3GB). O `qwen3-vl` "pensa" antes de responder mesmo com
+Os tempos são de uma única máquina de teste — servem pra comparar os leitores entre si, não como
+promessa de velocidade. **Qual escolher, pela memória de vídeo livre** (o Foxhole costuma rodar na
+mesma placa e também ocupa memória):
+- **Sem placa de vídeo, ou sem Ollama:** RapidOCR (o padrão; acerto perto da IA, nada a instalar).
+- **Placa com uns 4 GB livres:** `glm-ocr` — o modelo local recomendado: mesmo acerto que os maiores
+  na prática, ~3x mais rápido que o qwen3.5 e 9x que o qwen3-vl:4b.
+- **Placa com 8 GB ou mais livres:** `qwen3.5:9b` também cabe e acerta igual, só é ~3x mais lento.
+- `qwen3-vl:8b` precisa de mais de 8 GB; numa placa com 8 GB ele não terminou a tempo.
+
+O `qwen3-vl` "pensa" antes de responder mesmo com
 `think: false` (~110 tokens por número) — por isso é lento. `num_predict: 32` nas opções do Ollama:
 sem isso o glm-ocr às vezes entrava em loop num recorte sem número e o Ollama abortava com HTTP 500
 "token repeat limit reached".
