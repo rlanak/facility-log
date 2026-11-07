@@ -275,7 +275,9 @@ no `lifespan` que a cada 60s edita a mensagem de cada facility com webhook (pula
 menos de 55s). Contagens usam `<t:unix:R>`, que o Discord redesenha sozinho. PATCH 404 → posta outra;
 "Parar" apaga a mensagem; erro vai pra `last_error`, nunca derruba o laço. Tópico opcional
 (`thread_id`, `?thread_id=` em toda chamada). Texto no idioma da interface, nomes no do catálogo. Embed
-passa de ~5800 caracteres → tira as linhas de estoque; máx. 22 prédios. Só aceita URL
+mostra o mesmo que a aba (resumo, Metas com %, aviso de lançamento antigo, onde mais tem o insumo que
+acabou, estações com estoque); cor verde = tudo rodando, âmbar = algo parado, vermelho = nada rodando.
+Passou de ~5800 caracteres → tira primeiro as estações, depois as linhas de estoque; máx. 22 prédios. Só aceita URL
 `https://discord.com/api/webhooks/...` (e ptb/canary/discordapp).
 
 ## Modo web (`auth.py`, `routers/auth.py`)
