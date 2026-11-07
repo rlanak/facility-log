@@ -154,8 +154,6 @@ instala nada. Pra isolar: tag na VM e política do Tailscale em que ela não é 
 (não alcança os outros aparelhos) e só ela tem o atributo `funnel`. O app do Discord não precisa de bot
 nem de verificação (verificação só é exigida de bot em 100+ servidores) e não precisa estar no
 servidor do regimento: quem entra é decidido só por `DISCORD_GUILD_ID` + `DISCORD_ALLOWED_ROLE_IDS`.
-`scripts/oracle_create_vm.py` ficou de registro de uma tentativa na Oracle Always Free (A1 sem
-capacidade em São Paulo).
 
 **Testado:** fluxo inteiro com as chamadas do Discord simuladas (`TestClient` + monkeypatch: sem
 login → 401, sem cargo → recusado (token revogado igual), com cargo → entra sem guardar token,
