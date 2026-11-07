@@ -9,18 +9,38 @@ views.print = (() => {
     let ocrAvailable = false;
     let detectAvailable = false;
     let engineMessage = i18n.t("print.engineNone");
+    // "IA do meu computador" (web version): this browser reads the numbers
+    // with the user's own Ollama; the server reader stays as the fallback.
+    const myAI = window.appMe && window.appMe.auth_enabled ? personalAI.active() : null;
+    let myAIFailed = false;
     try {
       const status = await api.ocrStatus();
-      ocrAvailable = status.available;
+      ocrAvailable = status.available || Boolean(myAI);
       detectAvailable = status.stockpile_detect_available;
       // Which engine reads the numbers is picked in Configurações; say which
       // one is actually in use (it falls back when the chosen one is down).
       const name = (key) => i18n.t(`settings.provider.${key}`);
-      if (!status.effective_provider) engineMessage = i18n.t("print.engineNone");
+      if (myAI) engineMessage = i18n.t("print.engineMyAI", { model: myAI.model });
+      else if (!status.effective_provider) engineMessage = i18n.t("print.engineNone");
       else if (status.effective_provider !== status.provider)
         engineMessage = i18n.t("print.engineFallback", { chosen: name(status.provider), engine: name(status.effective_provider) });
       else engineMessage = i18n.t("print.engine", { engine: name(status.effective_provider) });
     } catch (_) {}
+
+    // One number: with the user's own AI when it's on (falling back to the
+    // server reader if it doesn't answer), else with the server.
+    async function readNumber(box) {
+      if (myAI && !myAIFailed) {
+        try {
+          return await personalAI.read(imgEl, box, myAI);
+        } catch (_) {
+          myAIFailed = true;
+          ui.toast(i18n.t("print.myAIFailed"), true);
+        }
+      }
+      const result = await api.readImageCrop(image.id, box);
+      return result.guess ? result.raw_text || result.guess : "";
+    }
 
     const resources = await api.listResources();
     // The whole Foxhole catalog too, so an unrecognized slot can be named as
@@ -252,9 +272,9 @@ views.print = (() => {
 
       if (ocrAvailable) {
         try {
-          const result = await api.readImageCrop(image.id, box);
-          if (result.guess) {
-            crop.quantityRaw = result.guess;
+          const guess = await readNumber(box);
+          if (guess && !crop.quantityRaw) {
+            crop.quantityRaw = guess;
             renderCropsList();
           }
         } catch (_) {}
@@ -271,7 +291,9 @@ views.print = (() => {
       redrawCanvas();
       ui.toast(i18n.t("print.detecting"));
       try {
-        const result = await api.detectStockpile(image.id, box);
+        // With the user's own AI the server only finds the items; the
+        // numbers are read below, from this browser.
+        const result = await api.detectStockpile(image.id, box, !myAI);
         if (!result.available) {
           ui.toast(i18n.t("print.detectUnavailable"), true);
           return;
@@ -280,10 +302,22 @@ views.print = (() => {
           ui.toast(i18n.t("print.detectNone"), true);
           return;
         }
-        result.items.forEach(addDetectedCrop);
+        const added = result.items.map(addDetectedCrop);
         redrawCanvas();
         renderCropsList();
         ui.toast(i18n.t("print.detected", { n: result.items.length }));
+        if (myAI) {
+          for (const crop of added) {
+            if (!crop.numberBox || !crop.numberBox.width) continue;
+            try {
+              const guess = await readNumber(crop.numberBox);
+              if (guess && !crop.quantityRaw) {
+                crop.quantityRaw = guess;
+                renderCropsList();
+              }
+            } catch (_) {}
+          }
+        }
       } catch (err) {
         ui.toast(err.message || i18n.t("print.detectFailed"), true);
       }
@@ -304,9 +338,10 @@ views.print = (() => {
       const catalogName = i18n.getCatalogLang() === "en-US" ? item.name_en : item.name_pt || item.name_en;
       const detectedName = existing ? existing.name : catalogName || "";
 
-      crops.push({
+      const crop = {
         detectedName,
         iconBox: box,
+        numberBox: { x: item.number_x, y: item.number_y, width: item.number_width, height: item.number_height },
         localId: nextLocalId++,
         displayX: box.x / scaleX,
         displayY: box.y / scaleY,
@@ -321,12 +356,14 @@ views.print = (() => {
         // pre-fill would silently save a value 1000x too small. Prefer the
         // full raw OCR text (keeps the suffix) whenever it found a real
         // digit at all; quantity_guess is only truthy in that same case
-        // (see ocr_service.read_crop), so this never shows raw garbage.
+        // (see readers.sanitize), so this never shows raw garbage.
         quantityRaw: item.quantity_guess ? item.quantity_raw : "",
         ambiguous: item.ambiguous,
         unknown: !item.resource_def_key,
         rivalNameEn: item.rival_name_en,
-      });
+      };
+      crops.push(crop);
+      return crop;
     }
 
     function renderCropsList() {

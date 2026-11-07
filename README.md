@@ -64,7 +64,6 @@ Configurações** dá pra trocar:
   fique no RapidOCR.
 - **IA por API** — Anthropic ou qualquer serviço compatível com OpenAI, com a **sua** chave (cobrado
   por uso pelo serviço).
-- **Tesseract** — o leitor antigo, bem menos preciso (`winget install UB-Mannheim.TesseractOCR`).
 
 ### 4. Importar do save do jogo (opcional)
 
@@ -166,6 +165,15 @@ Quem acessa não instala nada: só abre o link no navegador.
 
 **Cloudflare Tunnel** é a alternativa se você tem um domínio no Cloudflare: aponte o túnel pra
 `http://127.0.0.1:8000`. Um proxy reverso com HTTPS (Caddy, Nginx) também funciona.
+
+### Leitura de prints na web
+
+O servidor lê os números com o **RapidOCR** (ou com IA por API, se configurada). Além disso, **cada
+pessoa** pode usar a IA do **próprio computador**: em ⚙️ Configurações → **"IA do meu computador"**, o
+navegador manda os recortes dos números pro Ollama do PC dela — o servidor nunca acessa o computador
+de ninguém. Precisa do Ollama com `glm-ocr` e de liberar o endereço do site no Ollama
+(`setx OLLAMA_ORIGINS "https://seu-endereco"` e reabrir o Ollama); o passo a passo aparece na própria
+tela. Se a IA da pessoa não responder, a leitura do servidor assume.
 
 ### Atualizar
 

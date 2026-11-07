@@ -1,29 +1,47 @@
-"""Which engine reads stockpile quantities from a screenshot — chosen by the
-user in Configurações, stored in the app_settings table:
+"""Which engine reads stockpile quantities from a screenshot on the server —
+chosen in Configurações, stored in the app_settings table:
 
-- "tesseract": the original OCR (needs Tesseract; bundled in the .exe).
-- "rapidocr":  free local OCR (PaddleOCR models on onnxruntime, CPU) — much
-               better than Tesseract on this font, no setup.
-- "local_vlm": a vision model on the user's own GPU via Ollama.
+- "rapidocr":  free local OCR (PaddleOCR models on onnxruntime, CPU), no setup.
+- "local_vlm": a vision model through Ollama on the machine running the app.
+               That's the user's own PC in local mode; on a web server it's
+               hidden (a server rarely has a GPU) unless
+               FACILITY_LOG_SERVER_OLLAMA=1. Web users can instead have their
+               *browser* read with the AI on their own PC (web/js/personalAI.js).
 - "api_vlm":   a vision model through a cloud API with the user's own key
                (Anthropic, or any OpenAI-compatible endpoint). Costs money
                per call, so never the default.
 
 Whatever the engine, the value only pre-fills the form — the user confirms
 before anything is saved (unchanged project rule). If the chosen engine is
-unavailable (Ollama not running, no key), reading falls back to the best
-local OCR and the status says so, rather than failing the whole capture.
+unavailable (Ollama not running, no key), reading falls back to RapidOCR and
+the status says so, rather than failing the whole capture.
 """
 
+import os
 from pathlib import Path
 
 from sqlalchemy.orm import Session
 
 from app import models
-from app.services import ocr_service
 from app.services.capture import readers
 
-PROVIDERS = ("tesseract", "rapidocr", "local_vlm", "api_vlm")
+PROVIDERS = ("rapidocr", "local_vlm", "api_vlm")
+
+
+def server_local_ai_allowed() -> bool:
+    """Ollama on the server only makes sense where the server is the user's
+    own PC (local mode), or where the operator says the server has one."""
+    from app import auth
+
+    return not auth.config.enabled or os.environ.get("FACILITY_LOG_SERVER_OLLAMA", "").strip() == "1"
+
+
+def effective_provider_choice(settings: dict) -> str:
+    """The saved choice, with a hidden server Ollama read as RapidOCR."""
+    chosen = settings["capture_provider"] if settings["capture_provider"] in PROVIDERS else DEFAULTS["capture_provider"]
+    if chosen == "local_vlm" and not server_local_ai_allowed():
+        return DEFAULTS["capture_provider"]
+    return chosen
 
 DEFAULTS = {
     "capture_provider": "rapidocr",
@@ -56,8 +74,11 @@ def save_settings(db: Session, values: dict) -> None:
 def provider_status(settings: dict, check_ollama: bool = True) -> dict:
     """{provider: {"available": bool, "detail": str}} plus the Ollama vision
     models found (for the settings dropdown)."""
-    vision_models = readers.ollama_vision_models(settings["ollama_url"]) if check_ollama else None
-    if vision_models is None:
+    allowed = server_local_ai_allowed()
+    vision_models = readers.ollama_vision_models(settings["ollama_url"]) if check_ollama and allowed else None
+    if not allowed:
+        local_detail = "server_hidden"
+    elif vision_models is None:
         local_detail = "no_ollama"
     elif not vision_models:
         local_detail = "no_vision_model"
@@ -66,7 +87,6 @@ def provider_status(settings: dict, check_ollama: bool = True) -> dict:
     else:
         local_detail = ""
     status = {
-        "tesseract": {"available": ocr_service.is_available(), "detail": ""},
         "rapidocr": {"available": readers.rapidocr_available(), "detail": ""},
         "local_vlm": {"available": local_detail == "", "detail": local_detail},
         "api_vlm": {
@@ -74,13 +94,13 @@ def provider_status(settings: dict, check_ollama: bool = True) -> dict:
             "detail": "" if settings["api_key"] else "no_key",
         },
     }
-    return {"providers": status, "ollama_vision_models": vision_models or []}
+    return {"providers": status, "ollama_vision_models": vision_models or [], "server_local_ai": allowed}
 
 
 def resolve_reader(db: Session) -> tuple[str, str, callable]:
     """(chosen provider, provider actually used, reader(image_path, box))."""
     settings = get_settings(db)
-    chosen = settings["capture_provider"] if settings["capture_provider"] in PROVIDERS else DEFAULTS["capture_provider"]
+    chosen = effective_provider_choice(settings)
     status = provider_status(settings, check_ollama=chosen == "local_vlm")["providers"]
 
     def reader_for(provider: str):
@@ -90,11 +110,9 @@ def resolve_reader(db: Session) -> tuple[str, str, callable]:
             return lambda path, box: readers.read_api(
                 path, box, settings["api_kind"], settings["api_base_url"], settings["api_model"], settings["api_key"]
             )
-        if provider == "rapidocr":
-            return readers.read_rapidocr
-        return lambda path, box: ocr_service.read_crop(path, box, psm=11)
+        return readers.read_rapidocr
 
-    for provider in (chosen, "rapidocr", "tesseract"):
+    for provider in (chosen, "rapidocr"):
         if status[provider]["available"]:
             return chosen, provider, reader_for(provider)
     return chosen, "", lambda path, box: {"available": False, "raw_text": "", "guess": ""}

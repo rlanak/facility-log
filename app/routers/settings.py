@@ -13,7 +13,7 @@ def _to_out(db: Session) -> schemas.CaptureSettingsOut:
     status = capture.provider_status(settings)
     key = settings["api_key"]
     return schemas.CaptureSettingsOut(
-        capture_provider=settings["capture_provider"],
+        capture_provider=capture.effective_provider_choice(settings),
         ollama_url=settings["ollama_url"],
         ollama_model=settings["ollama_model"],
         api_kind=settings["api_kind"],
@@ -25,6 +25,7 @@ def _to_out(db: Session) -> schemas.CaptureSettingsOut:
         api_key_hint=f"…{key[-4:]}" if len(key) >= 8 else "",
         providers=status["providers"],
         ollama_vision_models=status["ollama_vision_models"],
+        server_local_ai=status["server_local_ai"],
     )
 
 
@@ -36,7 +37,9 @@ def get_capture_settings(db: Session = Depends(get_db)):
 @router.put("/capture", response_model=schemas.CaptureSettingsOut)
 def update_capture_settings(data: schemas.CaptureSettingsIn, db: Session = Depends(get_db)):
     values = data.model_dump(exclude_unset=True, exclude={"api_key", "clear_api_key"})
-    if values.get("capture_provider") not in (None, *capture.PROVIDERS):
+    if values.get("capture_provider") not in (None, *capture.PROVIDERS) or (
+        values.get("capture_provider") == "local_vlm" and not capture.server_local_ai_allowed()
+    ):
         values.pop("capture_provider")
     # An empty key field means "keep the current key", not "erase it".
     if data.clear_api_key:

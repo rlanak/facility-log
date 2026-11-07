@@ -81,18 +81,23 @@ def read_image_crop(image_id: int, box: schemas.OcrCropRequest, lang: str = "pt-
 
 
 @router.post("/api/images/{image_id}/detect-stockpile", response_model=schemas.StockpileDetectionOut)
-def detect_stockpile(image_id: int, box: schemas.OcrCropRequest, lang: str = "pt-BR", db: Session = Depends(get_db)):
+def detect_stockpile(
+    image_id: int, box: schemas.OcrCropRequest, read: bool = True, lang: str = "pt-BR", db: Session = Depends(get_db)
+):
+    """read=false: find the items only — the browser reads the numbers with
+    the AI on the user's own PC (web/js/personalAI.js)."""
     image = crud.get_upload_image(db, image_id)
     if not image:
         raise HTTPException(status_code=404, detail=err("image_not_found", lang))
     if not icon_match_service.is_available():
         return schemas.StockpileDetectionOut(available=False, items=[])
 
-    _chosen, _effective, reader = capture.resolve_reader(db)
+    read_number = None
+    if read:
+        _chosen, _effective, reader = capture.resolve_reader(db)
+        read_number = lambda path, number_box: capture.read_number(reader, path, number_box)  # noqa: E731
     items = icon_match_service.detect_items(
-        _image_path(image),
-        (box.x, box.y, box.x + box.width, box.y + box.height),
-        read_number=lambda path, number_box: capture.read_number(reader, path, number_box),
+        _image_path(image), (box.x, box.y, box.x + box.width, box.y + box.height), read_number=read_number
     )
     return schemas.StockpileDetectionOut(available=True, items=[schemas.DetectedStockItem(**i) for i in items])
 

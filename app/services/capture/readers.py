@@ -1,13 +1,13 @@
 """Number readers for stockpile quantities — every one takes a screenshot path
-and a pixel box around one quantity, and returns the same shape as
-ocr_service.read_crop(): {"available", "raw_text", "guess"}.
+and a pixel box around one quantity, and returns
+{"available", "raw_text", "guess"}.
 
 Which item a slot holds is always decided by icon template matching
 (icon_match_service) — that part is good (~0.85-0.97 confidence). What
-varies here is only *reading the number*, which is where Tesseract fails
-most (dropped decimal points, "1.4k" -> "14k"). Measured Nov 2026 on 32 real
+varies here is only *reading the number* (the weak spot: dropped decimal
+points, "1.4k" -> "14k"). Measured Nov 2026 on 32 real
 screenshots / 106 confirmed values (with and without an icon mod — see
-CLAUDE.md "Captura"): Tesseract 18, RapidOCR 91, glm-ocr 97, qwen3.5:9b 98,
+CLAUDE.md "Captura"): RapidOCR 91, glm-ocr 97, qwen3.5:9b 98,
 qwen3-vl:4b 98 (3x-9x slower than glm-ocr). glm-ocr is the recommended local
 model: as accurate in practice, by far the fastest, ~2.7GB of VRAM.
 
@@ -25,9 +25,7 @@ import urllib.request
 from functools import lru_cache
 from pathlib import Path
 
-from PIL import Image
-
-from app.services import ocr_service
+from PIL import Image, ImageOps
 
 _KEEP_RE = re.compile(r"[0-9.,kKmM]")
 # A quantity is digits (with . or ,) and at most a trailing k/M — a stray
@@ -57,6 +55,23 @@ def sanitize(raw: str) -> dict:
     text = match.group(0) if match else ""
     has_digit = bool(text)
     return {"available": True, "raw_text": text if has_digit else (raw or ""), "guess": text if has_digit else ""}
+
+
+def _prepare_crop(image_path: Path, box: tuple[int, int, int, int]) -> Image.Image:
+    """Grayscale, high-contrast, 6x crop for the OCR engine. NEAREST, not
+    LANCZOS: stockpile counts are only ~10-15px tall in a thin font, and
+    smoothing blurs the strokes into mush at this size."""
+    with Image.open(image_path) as img:
+        img = img.convert("RGB")
+        width, height = img.size
+        x0, y0, x1, y1 = box
+        x0 = max(0, min(x0, width))
+        y0 = max(0, min(y0, height))
+        x1 = max(x0 + 1, min(x1, width))
+        y1 = max(y0 + 1, min(y1, height))
+        crop = img.crop((x0, y0, x1, y1))
+    crop = crop.resize((crop.width * 6, crop.height * 6), Image.NEAREST)
+    return ImageOps.autocontrast(ImageOps.grayscale(crop))
 
 
 def _crop_png(image_path: Path, box: tuple[int, int, int, int], scale: int = 4) -> bytes:
@@ -99,7 +114,7 @@ def _rapid_engine():
 def read_rapidocr(image_path: Path, box: tuple[int, int, int, int]) -> dict:
     import numpy as np
 
-    crop = ocr_service._prepare_crop(image_path, box)
+    crop = _prepare_crop(image_path, box)
     out = _rapid_engine()(np.array(crop.convert("RGB")), use_det=False, use_cls=False, use_rec=True)
     return sanitize("".join(out.txts) if out.txts else "")
 

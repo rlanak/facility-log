@@ -55,13 +55,13 @@ app/
     projection.py         estimativa do Dashboard (estoque projetado pelas filas)
     discord_dashboard.py  painel no Discord por webhook + laço de 60s
     icon_match_service.py detecção de itens no print (template matching)
-    capture/              quem lê o número: RapidOCR, Ollama, API ou Tesseract
-    ocr_service.py        wrapper do Tesseract
+    capture/              quem lê o número no servidor: RapidOCR, Ollama ou API
     save_reader.py        lê o save via tools/save-parser
     foxhole_data.py       catálogo data/foxhole/*.json, nomes localizados
     number_parser.py      "25.7k", "1,8k", "32000"
     errors_i18n.py        mensagens de erro pt-BR/en-US
 web/js/  api.js (sempre anexa ?lang&catalog_lang), ui.js (toast, el(), openModal()), app.js (router),
+         personalAI.js (leitura com a IA do PC da pessoa, pelo navegador),
          i18n.js, views/ (facilities, facilityDetail, targets, itemPanel, print, report, saveImport,
          settings, dashboard)
 data/foxhole/  resources.json, building_types.json — catálogo versionado
@@ -200,16 +200,30 @@ Decisões do detector (medidas em prints reais — não desfazer sem medir de no
   slots reconhecidos; precisa de ≥ 2).
 - Inventário de veículo (mesmo item em vários slots) não é suportado.
 
-**Quem lê o número** é escolhido em Configurações (`app_settings`, global): `rapidocr` (padrão),
-`local_vlm` (Ollama), `api_vlm` (Anthropic ou endpoint compatível com OpenAI, chave do usuário),
-`tesseract`. Indisponível → `capture.resolve_reader()` cai pro melhor OCR local e o modal avisa. Erro
-vira "não leu", nunca 500. A API devolve só `api_key_set` + 4 últimos caracteres.
+**Quem lê o número no servidor** é escolhido em Configurações (`app_settings`, global): `rapidocr`
+(padrão), `local_vlm` (Ollama na máquina do app) e `api_vlm` (Anthropic ou endpoint compatível com
+OpenAI, chave do usuário). Indisponível → `capture.resolve_reader()` cai pro RapidOCR e o modal avisa.
+Erro vira "não leu", nunca 500. A API devolve só `api_key_set` + 4 últimos caracteres. Tesseract foi
+removido (acertava 18/106).
+
+**A ideia da IA local é a IA do PC de cada pessoa, não a do servidor.** No modo local o servidor É o PC
+dela, então `local_vlm` aparece normal. **No modo web** (login ligado) `local_vlm` some
+(`capture.server_local_ai_allowed()`; `FACILITY_LOG_SERVER_OLLAMA=1` traz de volta, pra um servidor com
+GPU) e uma escolha salva de `local_vlm` é lida como `rapidocr` (`effective_provider_choice`). No lugar,
+cada pessoa pode ligar **"IA do meu computador"** em Configurações (`web/js/personalAI.js`,
+`localStorage["personalAI"]`, só naquele navegador): o servidor só acha os itens
+(`detect-stockpile?read=false`, cada item traz `number_x/y/width/height`) e o **navegador** manda cada
+recorte pro Ollama da pessoa em `http://localhost:11434` — o servidor nunca fala com o PC dela. Mesmo
+prompt, schema e limpeza do `readers.py` (manter os dois iguais). Se o Ollama não responder, a leitura
+cai pro servidor (`readNumber` em `print.js`). Pré-requisito da pessoa: Ollama + `ollama pull glm-ocr` +
+`OLLAMA_ORIGINS` com o endereço do site (senão o Ollama recusa o pedido do navegador); o Chrome pode
+pedir permissão de acesso à rede local. Testado com a página em localhost (origem já liberada por
+padrão no Ollama): leitura pelo navegador igual à do servidor nos 10 números de um print.
 
 Medido em 32 prints reais (106 valores):
 
 | Leitor | Roda em | Memória de vídeo | Acertos | Tempo relativo |
 |---|---|---|---|---|
-| Tesseract | CPU | — | 18 | — |
 | RapidOCR | CPU | — | 91 | 1x |
 | **glm-ocr** | Ollama | ~2,7 GB | 97 | ~1,1x |
 | qwen3.5:9b | Ollama | ~6,3 GB | 98 | ~3x |

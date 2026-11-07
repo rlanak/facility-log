@@ -13,10 +13,9 @@ RUN cargo build --release
 
 # --- 2. The app ----------------------------------------------------------------
 FROM python:3.13-slim
-# tesseract-ocr: the legacy OCR engine (RapidOCR is the default and needs
-# nothing extra). libglib2.0-0 / libgomp1: runtime libs for OpenCV / onnxruntime.
+# libglib2.0-0 / libgomp1: runtime libs for OpenCV / onnxruntime.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends tesseract-ocr libglib2.0-0 libgomp1 \
+    && apt-get install -y --no-install-recommends libglib2.0-0 libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

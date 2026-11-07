@@ -32,7 +32,7 @@ from pathlib import Path
 
 from app.database import DATA_DIR
 from app.paths import APP_DIR
-from app.services import foxhole_data, ocr_service
+from app.services import foxhole_data
 
 WEB_DIR = APP_DIR / "web"
 EXEMPLARS_DIR = DATA_DIR / "icon_exemplars"
@@ -207,7 +207,8 @@ def _exemplar_similarity(patch, crops) -> float:
 def detect_items(image_path: Path, box: tuple[int, int, int, int], read_number=None) -> list[dict]:
     """box is (x0, y0, x1, y1) in the full screenshot's own pixel space,
     covering the STOCKPILE > ITEMS panel the user selected. `read_number(path,
-    box)` reads one quantity (defaults to Tesseract). Returns one dict per
+    box)` reads one quantity (None = don't read: the browser will, see
+    web/js/personalAI.js — every item carries its number box). Returns one dict per
     slot that shows a quantity, sorted top-to-bottom/left-to-right."""
     import cv2
 
@@ -319,9 +320,9 @@ def detect_items(image_path: Path, box: tuple[int, int, int, int], read_number=N
         nb = (x0 + nb[0], y0 + nb[1], x0 + nb[2], y0 + nb[3])
         # read_number: the user's chosen engine (services/capture) — icon
         # matching only decides *which* item; reading the digits is pluggable.
-        if read_number:
-            return read_number(image_path, nb)
-        return ocr_service.read_crop(image_path, nb, psm=11)
+        result = dict(read_number(image_path, nb)) if read_number else {}
+        result["number_box"] = nb
+        return result
 
     used_keys: set[str] = set()
     assigned: list[tuple[tuple[int, int], int]] = []
@@ -355,6 +356,7 @@ def detect_items(image_path: Path, box: tuple[int, int, int, int], read_number=N
                 "box_y": y0 + loc[1],
                 "box_width": size,
                 "box_height": size,
+                **_number_fields(ocr["number_box"]),
             }
         )
 
@@ -389,11 +391,16 @@ def detect_items(image_path: Path, box: tuple[int, int, int, int], read_number=N
                 "box_y": y0 + loc[1],
                 "box_width": size,
                 "box_height": size,
+                **_number_fields(ocr["number_box"]),
             }
         )
 
     detected.sort(key=lambda d: (d["box_y"], d["box_x"]))
     return detected
+
+
+def _number_fields(nb: tuple[int, int, int, int]) -> dict:
+    return {"number_x": nb[0], "number_y": nb[1], "number_width": nb[2] - nb[0], "number_height": nb[3] - nb[1]}
 
 
 def _grid_slots(assigned: list[tuple[tuple[int, int], int]], panel_shape) -> list[tuple[tuple[int, int], int]]:

@@ -198,6 +198,12 @@ class DetectedStockItem(BaseModel):
     box_y: int
     box_width: int
     box_height: int
+    # Where the quantity sits (full screenshot pixels) — lets the browser read
+    # it with the user's own AI when the server didn't (detect with read=false).
+    number_x: int = 0
+    number_y: int = 0
+    number_width: int = 0
+    number_height: int = 0
 
 
 class StockpileDetectionOut(BaseModel):
@@ -288,6 +294,9 @@ class CaptureSettingsOut(BaseModel):
     api_key_hint: str
     providers: dict[str, CaptureProviderStatus]
     ollama_vision_models: list[str]
+    # False on a web server: its Ollama option is hidden and each user can
+    # read with the AI on their own PC instead (in the browser).
+    server_local_ai: bool = True
 
 
 class UserOut(BaseModel):
