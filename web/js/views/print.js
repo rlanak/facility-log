@@ -102,6 +102,19 @@ views.print = (() => {
     }
     stageWrap.appendChild(stage);
     stageWrap.appendChild(dragHintEl);
+    // Detection progress: finding the items, then (with the user's own AI)
+    // reading each number — the slow part, shown as n/total.
+    const progressEl = el("div", { class: "hidden mt-2 flex items-center gap-2 text-sm text-emerald-400" });
+    stageWrap.appendChild(progressEl);
+    function showProgress(text, busy = true) {
+      progressEl.classList.remove("hidden");
+      progressEl.innerHTML = (busy ? ui.icon("refresh", "w-4 h-4 animate-spin") : ui.icon("check", "w-4 h-4")) + `<span></span>`;
+      progressEl.querySelector("span").textContent = text;
+    }
+    const hideProgress = () => progressEl.classList.add("hidden");
+    // Each detection run gets a number: a newer run (or a new image) makes an
+    // older one stop instead of adding its items on top.
+    let detectRun = 0;
 
     function updateModeUI() {
       const activeCls = "bg-emerald-700 border-emerald-700 text-white";
@@ -156,6 +169,10 @@ views.print = (() => {
       try {
         const uploaded = await api.uploadBuildingImage(building.id, file);
         image = uploaded;
+        detectRun++;
+        crops = [];
+        hideProgress();
+        renderCropsList();
         imgEl.src = uploaded.url;
         await new Promise((resolve, reject) => {
           imgEl.onload = resolve;
@@ -300,29 +317,46 @@ views.print = (() => {
         width: Math.round(displayW * scaleX),
         height: Math.round(displayH * scaleY),
       };
+      const run = ++detectRun;
       redrawCanvas();
-      ui.toast(i18n.t("print.detecting"));
+      // The server also reads the numbers when the user's own AI is off, so
+      // this one step can take a while: count the seconds.
+      const started = Date.now();
+      const label = myAI ? i18n.t("print.detecting") : i18n.t("print.detectingReading");
+      showProgress(label);
+      const ticker = setInterval(() => {
+        if (run === detectRun) showProgress(`${label} ${Math.round((Date.now() - started) / 1000)}s`);
+      }, 1000);
       try {
         // With the user's own AI the server only finds the items; the
         // numbers are read below, from this browser.
         const result = await api.detectStockpile(image.id, box, !myAI);
+        clearInterval(ticker);
+        if (run !== detectRun) return;
         if (!result.available) {
+          hideProgress();
           ui.toast(i18n.t("print.detectUnavailable"), true);
           return;
         }
         if (result.items.length === 0) {
+          hideProgress();
           ui.toast(i18n.t("print.detectNone"), true);
           return;
         }
+        // A new detection replaces the previous one's items (marking the
+        // panel again used to list everything twice); manual crops stay.
+        crops = crops.filter((c) => !c.iconBox);
         const added = result.items.map(addDetectedCrop);
         redrawCanvas();
         renderCropsList();
-        ui.toast(i18n.t("print.detected", { n: result.items.length }));
         if (myAI) {
-          for (const crop of added) {
-            if (!crop.numberBox || !crop.numberBox.width) continue;
+          const toRead = added.filter((c) => c.numberBox && c.numberBox.width);
+          for (const [i, crop] of toRead.entries()) {
+            if (run !== detectRun) return;
+            showProgress(i18n.t("print.readingProgress", { n: i + 1, total: toRead.length }));
             try {
               const guess = await readNumber(crop.numberBox);
+              if (run !== detectRun) return;
               if (guess && !crop.quantityRaw) {
                 crop.quantityRaw = guess;
                 renderCropsList();
@@ -330,7 +364,11 @@ views.print = (() => {
             } catch (_) {}
           }
         }
+        showProgress(i18n.t("print.detected", { n: result.items.length }), false);
       } catch (err) {
+        clearInterval(ticker);
+        if (run !== detectRun) return;
+        hideProgress();
         ui.toast(err.message || i18n.t("print.detectFailed"), true);
       }
     }
@@ -540,6 +578,8 @@ views.print = (() => {
           }));
         if (exemplars.length) api.saveIconExemplars(image.id, exemplars).catch(() => {});
         ui.toast(i18n.t("print.saved", { n: entries.length }));
+        detectRun++;
+        hideProgress();
         crops = [];
         redrawCanvas();
         renderCropsList();
