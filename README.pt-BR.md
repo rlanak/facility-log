@@ -53,7 +53,8 @@ Abra **http://localhost:8000**. Pra fechar, `Ctrl+C` no terminal.
 ```
 
 Cria o atalho **"Facility Log"**: ele abre o app sem janela preta, com um ícone perto do relógio
-(clique duplo abre o navegador; "Sair" desliga). Se mudar a pasta do projeto de lugar, rode o comando
+(clique duplo abre o navegador; "Sair" desliga). O menu do ícone segue o idioma do Windows
+(português ou inglês). Se mudar a pasta do projeto de lugar, rode o comando
 de novo.
 
 ### 3. Leitura de prints

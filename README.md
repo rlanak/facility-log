@@ -56,7 +56,8 @@ Open **http://localhost:8000**. To stop it, press `Ctrl+C` in the terminal.
 ```
 
 Creates a **"Facility Log"** shortcut: it starts the app without a console window, with an icon next
-to the clock (double-click opens the browser; "Sair" in its menu shuts it down). If you move the project folder,
+to the clock (double-click opens the browser; "Exit" shuts it down). The tray menu follows Windows'
+language (English or Portuguese). If you move the project folder,
 run the command again.
 
 ### 3. Reading screenshots

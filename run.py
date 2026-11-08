@@ -2,7 +2,7 @@
 
     python run.py           dev mode: console window, auto-reload on code changes
     pythonw run.py --tray   everyday mode: no console window, an icon in the
-                            Windows tray (next to the clock) with Abrir / Sair —
+                            Windows tray (next to the clock) with Open / Exit —
                             this is what the desktop shortcut runs (see
                             scripts/create_shortcut.py)
 """
@@ -26,6 +26,31 @@ HOST = os.environ.get("HOST", "127.0.0.1")
 PORT = int(os.environ.get("PORT", "8000"))
 URL = f"http://127.0.0.1:{PORT}"
 LOG_FILE = APP_DIR / "data" / "facility_log.log"
+
+# Tray menu text, in Windows' display language (Portuguese or English;
+# FACILITY_LOG_LANG=pt|en overrides). The page itself follows the language
+# picked in the app — the tray can't see that (it lives in the browser).
+_TRAY_TEXT = {
+    "en": {"open": "Open Facility Log", "log": "View log", "exit": "Exit"},
+    "pt": {"open": "Abrir Facility Log", "log": "Ver log", "exit": "Sair"},
+}
+
+
+def _tray_lang() -> str:
+    forced = os.environ.get("FACILITY_LOG_LANG", "").lower()[:2]
+    if forced in _TRAY_TEXT:
+        return forced
+    try:
+        import ctypes
+
+        # LANGID: low 10 bits = primary language; 0x16 = Portuguese.
+        if ctypes.windll.kernel32.GetUserDefaultUILanguage() & 0x3FF == 0x16:
+            return "pt"
+        return "en"
+    except Exception:
+        import locale
+
+        return "pt" if (locale.getlocale()[0] or "").lower().startswith("pt") else "en"
 
 
 def _already_running() -> bool:
@@ -56,12 +81,12 @@ def run_tray() -> None:
 
     # pythonw has no console: stdout/stderr are None, and uvicorn's logging
     # would choke writing to them. Send everything to a log file instead
-    # ("Ver log" in the tray menu) — the old console window was the only
+    # ("View log" in the tray menu) — the old console window was the only
     # place errors showed up.
     LOG_FILE.parent.mkdir(exist_ok=True)
     log = open(LOG_FILE, "a", encoding="utf-8", buffering=1)
     sys.stdout = sys.stderr = log
-    print(f"\n--- facility-log iniciando {time.strftime('%Y-%m-%d %H:%M:%S')} ---")
+    print(f"\n--- facility-log starting {time.strftime('%Y-%m-%d %H:%M:%S')} ---")
 
     import pystray
 
@@ -83,15 +108,16 @@ def run_tray() -> None:
         server.should_exit = True
         icon.stop()
 
+    text = _TRAY_TEXT[_tray_lang()]
     icon = pystray.Icon(
         "facility-log",
         _tray_image(),
         f"Facility Log — {URL}",
         menu=pystray.Menu(
-            pystray.MenuItem("Abrir Facility Log", lambda: webbrowser.open(URL), default=True),
-            pystray.MenuItem("Ver log", lambda: os.startfile(LOG_FILE)),
+            pystray.MenuItem(text["open"], lambda: webbrowser.open(URL), default=True),
+            pystray.MenuItem(text["log"], lambda: os.startfile(LOG_FILE)),
             pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Sair", quit_app),
+            pystray.MenuItem(text["exit"], quit_app),
         ),
     )
     icon.run()
