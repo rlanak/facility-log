@@ -207,7 +207,7 @@ Copy the `data-docker/` folder (database, screenshots, learned icons) and keep `
 consistent copy while the app is running:
 
 ```bash
-docker compose exec -T facility-log python -c "import sqlite3; s=sqlite3.connect('/data/facility_log.db'); d=sqlite3.connect('/data/backup.db'); s.backup(d)"
+docker compose exec -T -u app facility-log python -c "import sqlite3; s=sqlite3.connect('/data/facility_log.db'); d=sqlite3.connect('/data/backup.db'); s.backup(d)"
 ```
 
 (creates `data-docker/backup.db`).
