@@ -39,7 +39,8 @@ async def list_save_pins(
     stored here — the user confirms each value before it's logged."""
     catalog_lang = catalog_lang or lang
     try:
-        save_bytes = await file.read() if file else None
+        # One byte over the cap is enough to reject it (save_reader checks the size).
+        save_bytes = await file.read(save_reader.MAX_SAVE_BYTES + 1) if file else None
         if save_bytes is None and not _local_save_allowed(request):
             raise save_reader.SaveReadError("save_missing")
         locations = save_reader.read_pinned_locations(save_bytes)

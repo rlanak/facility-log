@@ -336,6 +336,11 @@ Desligado por padrão; liga com `DISCORD_CLIENT_ID` (env ou `.env`; env real ven
   (`FACILITY_LOG_ALLOW_OPEN=1` libera pra LAN). O Dockerfile define `FACILITY_LOG_REQUIRE_LOGIN=1`.
 - Cabeçalhos `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: same-origin`; compose publica só em
   `127.0.0.1`.
+- **Content-Security-Policy** (`main.CSP`): script só do próprio site e do Tailwind CDN **com versão fixa** (`cdn.tailwindcss.com/3.4.17`), **nenhum `<script>` inline** (a config do Tailwind fica em `web/js/tailwind-config.js`), `connect-src` só o site e `localhost:*` (Ollama da pessoa). Recurso externo novo (fonte, imagem, API chamada pelo navegador) precisa entrar no CSP, senão o navegador bloqueia calado.
+- **Upload de print** (`routers/images.py`): a imagem é decodificada (Pillow) e só PNG/JPEG/WEBP de verdade fica, salva com a extensão do formato real — nunca a do nome enviado (um `.html` disfarçado virava página do próprio site). Máx. 20 MB e 40 Mpx. `/uploads` só serve `.png/.jpg/.jpeg/.webp` (`ImageOnlyStaticFiles`). `.sav` lido no máximo até `MAX_SAVE_BYTES`.
+- **Configurações são de todos com o cargo**: mudar `api_base_url` ou `api_kind` sem digitar a chave de novo **apaga a chave salva** (senão qualquer membro mandava a chave do dono pra outro endereço); endereços só `http(s)://`.
+- **Container sem root**: `docker-entrypoint.sh` entra como root só pra dar `/data` ao usuário `app` (uid/gid 1000) e roda o app com `setpriv`; compose com `no-new-privileges` e só as capabilities `CHOWN`/`SETUID`/`SETGID` (o processo do app fica sem nenhuma).
+- Conferir CVEs: `pip-audit` (local e com o `pip freeze` do container), OSV pro `Cargo.lock` do parser e grype/trivy na imagem publicada.
 
 **Deploy:**
 1. PC + Cloudflare Tunnel (`.env` + `cloudflared` → `http://127.0.0.1:8000`); única opção em que a IA

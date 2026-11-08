@@ -32,6 +32,37 @@ class NoCacheStaticFiles(StaticFiles):
         return response
 
 
+class ImageOnlyStaticFiles(StaticFiles):
+    """/uploads serves screenshots only: any other extension is a 404, so a
+    file that isn't an image can never be served from the app's own origin
+    (see routers/images.py)."""
+
+    async def get_response(self, path: str, scope: Scope):
+        if not path.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
+            return PlainTextResponse("Not Found", status_code=404)
+        return await super().get_response(path, scope)
+
+
+# Defense in depth against injected HTML: scripts only from this site and the
+# pinned Tailwind CDN (no inline scripts), styles also from Google Fonts,
+# images from this site and Discord avatars, fetches to this site and to the
+# user's own Ollama on their PC ("IA do meu computador", any localhost port).
+CSP = "; ".join(
+    [
+        "default-src 'self'",
+        "script-src 'self' https://cdn.tailwindcss.com",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com",
+        "img-src 'self' data: blob: https://cdn.discordapp.com",
+        "connect-src 'self' http://localhost:* http://127.0.0.1:*",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "frame-ancestors 'none'",
+    ]
+)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # Discord webhook dashboards (opt-in per facility; idle when none is set).
@@ -65,6 +96,7 @@ async def security_headers(request, call_next):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "same-origin")
+    response.headers.setdefault("Content-Security-Policy", CSP)
     return response
 
 
@@ -97,7 +129,7 @@ app.include_router(foxhole.router)
 app.include_router(save.router)
 app.include_router(settings.router)
 
-app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
+app.mount("/uploads", ImageOnlyStaticFiles(directory=UPLOADS_DIR), name="uploads")
 
 WEB_DIR = APP_DIR / "web"
 app.mount("/", NoCacheStaticFiles(directory=WEB_DIR, html=True), name="web")

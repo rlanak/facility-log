@@ -1,3 +1,4 @@
+import io
 import uuid
 from pathlib import Path
 
@@ -12,6 +13,29 @@ from app.services.errors_i18n import err
 router = APIRouter(tags=["images"])
 
 ALLOWED_CONTENT_TYPES = {"image/png", "image/jpeg", "image/webp"}
+# Security (08/11/2026): the file is decoded and only a real PNG/JPEG/WEBP is
+# kept, saved with the extension of what it actually is. The client's
+# filename/content type are never trusted: "x.html" sent as image/png used to
+# be saved as .html and served from /uploads as a same-origin page (stored
+# XSS). Size/pixel caps keep one upload from eating the server's memory.
+MAX_IMAGE_BYTES = 20 * 1024 * 1024
+MAX_IMAGE_PIXELS = 40_000_000
+_FORMAT_SUFFIX = {"PNG": ".png", "JPEG": ".jpg", "WEBP": ".webp"}
+
+
+def _image_suffix(contents: bytes) -> str | None:
+    """The extension for this image's real format, or None if it isn't a
+    PNG/JPEG/WEBP within the limits."""
+    from PIL import Image
+
+    try:
+        with Image.open(io.BytesIO(contents)) as img:
+            if img.format not in _FORMAT_SUFFIX or img.width * img.height > MAX_IMAGE_PIXELS:
+                return None
+            img.verify()
+            return _FORMAT_SUFFIX[img.format]
+    except Exception:
+        return None
 
 
 def _image_path(image) -> Path:
@@ -45,11 +69,12 @@ async def upload_building_image(building_id: int, file: UploadFile, lang: str = 
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(status_code=422, detail=err("invalid_image_type", lang))
 
-    suffix = Path(file.filename or "").suffix or ".png"
+    contents = await file.read(MAX_IMAGE_BYTES + 1)
+    suffix = _image_suffix(contents) if len(contents) <= MAX_IMAGE_BYTES else None
+    if not suffix:
+        raise HTTPException(status_code=422, detail=err("invalid_image_type", lang))
     filename = f"{uuid.uuid4().hex}{suffix}"
     dest = UPLOADS_DIR / filename
-
-    contents = await file.read()
     dest.write_bytes(contents)
 
     image = crud.create_upload_image(db, building_id, str(dest))

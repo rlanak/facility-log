@@ -15,3 +15,14 @@ services:
     volumes:
       - ./data-docker:/data
     restart: unless-stopped
+    # Hardening: no privilege gain inside the container, and only the
+    # capabilities the entrypoint needs to hand /data to the app user and
+    # drop to it (docker-entrypoint.sh).
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
