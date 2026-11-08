@@ -1,184 +1,200 @@
 # facility-log
 
-Relatórios de estoque das facilities do **Foxhole**, prontos pra colar no Discord: estoque por prédio,
-total da facility, estimativa de produção e o que falta produzir ou farmar pra bater as Metas.
+**English** · [Português](README.pt-BR.md)
 
-- Lançamento de estoque à mão, por **print** do painel STOCKPILE (os itens são reconhecidos
-  automaticamente) ou pelo **save do jogo** (locais fixados no mapa). Valor lido nunca é salvo sem
-  você confirmar.
-- Aba **Dashboard** com a estimativa do estoque pelas filas de produção, e painel no Discord que se
-  atualiza sozinho por webhook (sem bot).
-- Roda **local** (sem conta, sem serviço pago) ou na **web**, com login pelo Discord liberado por cargo.
+Stock reports for **Foxhole** facilities, ready to paste into Discord: stock per building, facility
+totals, production estimates, and what's still needed to produce or farm to hit your targets.
 
-Há duas formas de usar:
+- Log stock by hand, from a **screenshot** of the STOCKPILE panel (items are recognized
+  automatically), or from the **game save** (locations pinned on the map). A read value is never
+  saved until you confirm it.
+- **Dashboard** tab with a stock estimate based on the production queues, plus a Discord panel that
+  updates itself through a webhook (no bot).
+- Runs **locally** (no account, no paid service) or on the **web**, with Discord login restricted by
+  role.
+- Customizable look (themes, colors, fonts) and per-person time zone, in Settings.
+- Interface in English and Portuguese; item and building names can use a different language than the
+  interface.
+
+Two ways to use it:
 
 | | Local | Web |
 |---|---|---|
-| Pra quem | só você, no seu PC | o regimento todo, pelo navegador |
-| Login | não tem | Discord, só quem tem o cargo |
-| Precisa de | Python (Windows) | um servidor com Docker |
+| For | just you, on your PC | the whole regiment, in the browser |
+| Login | none | Discord, only members with the role |
+| Needs | Python (Windows) | a server with Docker |
 
 ---
 
-## Rodar local (Windows)
+## Run locally (Windows)
 
-### 1. Instalar
+### 1. Install
 
-1. Instale o **Python 3.11 ou mais novo** ([python.org/downloads](https://www.python.org/downloads/)) e
-   marque **"Add python.exe to PATH"** na instalação. Confira num terminal: `python --version`.
-2. Baixe o projeto — com Git (`git clone https://github.com/rlanak/facility-log.git`) ou pelo botão
-   **Code → Download ZIP** do GitHub (e extraia).
-3. Num terminal (PowerShell ou Git Bash), dentro da pasta do projeto:
+1. Install **Python 3.11 or newer** ([python.org/downloads](https://www.python.org/downloads/)) and
+   tick **"Add python.exe to PATH"** during setup. Check in a terminal: `python --version`.
+2. Get the project — with Git (`git clone https://github.com/rlanak/facility-log.git`) or with
+   GitHub's **Code → Download ZIP** button (then extract it).
+3. In a terminal (PowerShell or Git Bash), inside the project folder:
 
 ```bash
 python -m venv .venv
 .venv/Scripts/python.exe -m pip install -r requirements.txt
 ```
 
-### 2. Abrir
+### 2. Open
 
 ```bash
 .venv/Scripts/python.exe run.py
 ```
 
-Abra **http://localhost:8000**. Pra fechar, `Ctrl+C` no terminal.
+Open **http://localhost:8000**. To stop it, press `Ctrl+C` in the terminal.
 
-**Atalho na área de trabalho (recomendado pro dia a dia):**
+**Desktop shortcut (recommended for everyday use):**
 
 ```bash
 .venv/Scripts/python.exe scripts/create_shortcut.py
 ```
 
-Cria o atalho **"Facility Log"**: ele abre o app sem janela preta, com um ícone perto do relógio
-(clique duplo abre o navegador; "Sair" desliga). Se mudar a pasta do projeto de lugar, rode o comando
-de novo.
+Creates a **"Facility Log"** shortcut: it starts the app without a console window, with an icon next
+to the clock (double-click opens the browser; "Sair" in its menu shuts it down). If you move the project folder,
+run the command again.
 
-### 3. Leitura de prints
+### 3. Reading screenshots
 
-Já funciona como vem: o **RapidOCR** é instalado junto e lê os números dos prints. Em **⚙️
-Configurações** dá pra trocar:
+Works out of the box: **RapidOCR** is installed with the app and reads the numbers. In **Settings**
+you can switch to:
 
-- **IA local (Ollama)** — um pouco mais precisa, usa a sua placa de vídeo. Instale o
-  [Ollama](https://ollama.com), rode `ollama pull glm-ocr` e escolha "IA local" com o modelo
-  `glm-ocr`. Ele ocupa uns 3 GB de memória de vídeo (o jogo divide a placa com ele). Sem placa de vídeo,
-  fique no RapidOCR.
-- **IA por API** — Anthropic ou qualquer serviço compatível com OpenAI, com a **sua** chave (cobrado
-  por uso pelo serviço).
+- **Local AI (Ollama)** — a bit more accurate, uses your GPU. Install [Ollama](https://ollama.com),
+  run `ollama pull glm-ocr` and pick "Local AI" with the `glm-ocr` model. It takes about 3 GB of video
+  memory (shared with the game). No GPU? Stay with RapidOCR.
+- **AI via API** — Anthropic or any OpenAI-compatible service, with **your own** key (billed per use
+  by that service).
 
-### 4. Importar do save do jogo (opcional)
+When sending a screenshot, **"Zero what isn't in the screenshot"** (on by default) sets to 0 the items
+logged in that building that the screenshot doesn't show — the STOCKPILE panel lists everything there
+is.
 
-Lê o estoque exato dos locais que você fixou no mapa do jogo (por exemplo, uma Material Transfer
-Station), sem print. Precisa do leitor do save, que é compilado uma vez:
+### 4. Import from the game save (optional)
 
-1. Instale o Rust ([rustup.rs](https://rustup.rs)).
-2. Rode `.venv/Scripts/python.exe scripts/build_save_parser.py`.
+Reads the exact stock of the locations you pinned on the in-game map (e.g. a Material Transfer
+Station), no screenshot needed. It needs the save reader, compiled once:
 
-No jogo, fixe o local no mapa e abra o tooltip dele (é quando o jogo guarda o estoque no save). No
-app, use **📌 Importar do save** no card do prédio.
+1. Install Rust ([rustup.rs](https://rustup.rs)).
+2. Run `.venv/Scripts/python.exe scripts/build_save_parser.py`.
 
-### Atualizar
+In game, pin the location on the map and open its tooltip (that's when the game stores the stock in
+the save). In the app, use the **Save** button on the building card to pick the pin and link it.
+After that, **"Refresh linked from save"** (Buildings tab) updates every linked MTS/RTS at once.
 
-- **Com Git:** `git pull` na pasta do projeto e, se o `requirements.txt` mudou, rode o `pip install`
-  de novo. Depois reabra o app.
-- **Pelo ZIP:** baixe o ZIP novo, extraia por cima e **mantenha a pasta `data/`**.
+### Updating
 
-### Onde ficam os seus dados
+- **With Git:** `git pull` in the project folder and, if `requirements.txt` changed, run the
+  `pip install` again. Then reopen the app.
+- **From the ZIP:** download the new ZIP, extract it over the old one and **keep the `data/` folder**.
 
-Tudo na pasta **`data/`** do projeto: `facility_log.db` (o banco), `uploads/` (prints),
-`icon_exemplars/` (ícones que o app aprendeu) e `secret.key` (chave que protege segredos salvos, como
-o webhook). **Backup = copiar a pasta `data/` inteira** com o app fechado.
+### Where your data lives
+
+Everything is in the project's **`data/`** folder: `facility_log.db` (the database), `uploads/`
+(screenshots), `icon_exemplars/` (icons the app has learned) and `secret.key` (protects saved secrets,
+such as the webhook). **Backup = copy the whole `data/` folder** with the app closed.
 
 ---
 
-## Rodar na web (servidor com Docker)
+## Run on the web (server with Docker)
 
-Você precisa de um servidor Linux com **Docker** (uma VM pequena basta: 2 vCPU e 2 GB de RAM) e de
-um jeito de publicar com HTTPS.
+You need a Linux server with **Docker** (a small VM is enough: 2 vCPU and 2 GB RAM) and a way to
+publish it over HTTPS.
 
-### 1. Criar o app no Discord
+### 1. Create the Discord app
 
-É ele que faz o "Entrar com Discord". Não é bot e não precisa entrar no servidor.
+It powers "Sign in with Discord". It isn't a bot and doesn't need to join your server.
 
-1. Em [discord.com/developers/applications](https://discord.com/developers/applications), clique em
+1. At [discord.com/developers/applications](https://discord.com/developers/applications), click
    **New Application**.
-2. Em **OAuth2**, copie o **Client ID** e gere o **Client Secret** (*Reset Secret*; ele só aparece
-   uma vez).
-3. Ainda em OAuth2, em **Redirects**, adicione o endereço onde o app vai ficar, terminando em
-   `/auth/callback` (ex: `https://facility-log.exemplo.ts.net/auth/callback`).
-4. No Discord, ative **Configurações → Avançado → Modo desenvolvedor**. Depois, botão direito no
-   servidor → **Copiar ID do servidor**; e botão direito no cargo que pode entrar (no seu perfil ou em
-   Configurações do servidor → Cargos) → **Copiar ID**.
+2. Under **OAuth2**, copy the **Client ID** and generate the **Client Secret** (*Reset Secret*; it's
+   shown only once).
+3. Still in OAuth2, under **Redirects**, add the address where the app will live, ending in
+   `/auth/callback` (e.g. `https://facility-log.example.ts.net/auth/callback`).
+4. In Discord, enable **Settings → Advanced → Developer Mode**. Then right-click the server → **Copy
+   Server ID**, and right-click the role allowed in (on your profile or in Server Settings → Roles) →
+   **Copy Role ID**.
 
-A tela "Verificação de aplicativo" do portal pode ser ignorada: verificação só é exigida de bots em
-mais de 100 servidores.
+You can ignore the portal's "App Verification" page: verification is only required for bots in more
+than 100 servers.
 
-### 2. Configurar
+### 2. Configure
 
-No servidor, crie uma pasta com o `docker-compose.yml` e o `.env.example` deste repositório (ou clone
-o repositório) e copie o exemplo:
+On the server, create a folder with this repository's `docker-compose.yml` and `.env.example` (or
+clone the repository) and copy the example:
 
 ```bash
 cp .env.example .env
 nano .env
 ```
 
-Preencha:
+Fill in:
 
-| Variável | O que é |
+| Variable | What it is |
 |---|---|
-| `DISCORD_CLIENT_ID` | Client ID do app |
-| `DISCORD_CLIENT_SECRET` | Client Secret do app |
-| `DISCORD_REDIRECT_URI` | o mesmo endereço cadastrado em Redirects |
-| `DISCORD_GUILD_ID` | ID do servidor do Discord |
-| `DISCORD_ALLOWED_ROLE_IDS` | ID do cargo (vários separados por vírgula) |
-| `SESSION_SECRET` | texto aleatório longo — gere com `openssl rand -base64 48` |
-| `FACILITY_LOG_SECRET_KEY` | outro texto aleatório longo (protege webhooks e chaves salvos). **Guarde uma cópia**: sem ela os segredos salvos se perdem |
+| `DISCORD_CLIENT_ID` | the app's Client ID |
+| `DISCORD_CLIENT_SECRET` | the app's Client Secret |
+| `DISCORD_REDIRECT_URI` | the same address added under Redirects |
+| `DISCORD_GUILD_ID` | your Discord server's ID |
+| `DISCORD_ALLOWED_ROLE_IDS` | the role ID (several separated by commas) |
+| `SESSION_SECRET` | a long random string — generate with `openssl rand -base64 48` |
+| `FACILITY_LOG_SECRET_KEY` | another long random string (protects saved webhooks and keys). **Keep a copy**: without it, saved secrets are lost |
 
-Proteja o arquivo: `chmod 600 .env`.
+Protect the file: `chmod 600 .env`.
 
-### 3. Subir
+### 3. Start
 
 ```bash
 docker compose up -d
 ```
 
-Baixa a imagem pronta (`ghcr.io/rlanak/facility-log`) e sobe o app em `127.0.0.1:8000` — só acessível
-de dentro do servidor até você publicar. Os dados ficam em `./data-docker`. Se faltar alguma variável
-do login, o app **se recusa a subir** (de propósito: nunca fica aberto sem login). Veja com
-`docker compose logs`.
+Pulls the published image (`ghcr.io/rlanak/facility-log`) and starts the app on `127.0.0.1:8000` —
+reachable only from the server itself until you publish it. Data goes to `./data-docker`. If any login
+variable is missing, the app **refuses to start** (on purpose: it never runs open without login).
+Check with `docker compose logs`.
 
-Prefere montar a imagem a partir do código? `docker build -t ghcr.io/rlanak/facility-log:latest .` na
-pasta do repositório, e depois o mesmo `docker compose up -d`.
+Prefer building the image from source? `docker build -t ghcr.io/rlanak/facility-log:latest .` in the
+repository folder, then the same `docker compose up -d`.
 
-### 4. Publicar com HTTPS
+### 4. Publish over HTTPS
 
-**Tailscale Funnel** (grátis, sem domínio, sem abrir porta no roteador):
+**Tailscale Funnel** (free, no domain, no router ports to open):
 
-1. Crie uma conta em [tailscale.com](https://tailscale.com) e instale no servidor:
+1. Create an account at [tailscale.com](https://tailscale.com) and install it on the server:
    `curl -fsSL https://tailscale.com/install.sh | sh && sudo tailscale up`.
-2. No painel do Tailscale: **DNS → HTTPS Certificates → Enable**, e garanta que a política de acesso
-   dá o atributo `funnel` ao servidor.
-3. `sudo tailscale funnel --bg 8000` — o endereço aparece na tela
-   (`https://<nome>.<sua-rede>.ts.net`). É esse que vai no `DISCORD_REDIRECT_URI` e no Discord.
+2. In the Tailscale admin console: **DNS → HTTPS Certificates → Enable**, and make sure the access
+   policy gives the server the `funnel` attribute.
+3. `sudo tailscale funnel --bg 8000` — the address is printed (`https://<name>.<your-tailnet>.ts.net`).
+   That's the one for `DISCORD_REDIRECT_URI` and the Discord portal.
 
-Quem acessa não instala nada: só abre o link no navegador.
+Users don't install anything: they just open the link in a browser.
 
-**Cloudflare Tunnel** é a alternativa se você tem um domínio no Cloudflare: aponte o túnel pra
-`http://127.0.0.1:8000`. Um proxy reverso com HTTPS (Caddy, Nginx) também funciona.
+**Cloudflare Tunnel** is the alternative if you have a domain on Cloudflare: point the tunnel at
+`http://127.0.0.1:8000`. A reverse proxy with HTTPS (Caddy, Nginx) works too.
 
-### Leitura de prints na web
+### Reading screenshots on the web
 
-O servidor lê os números com o **RapidOCR** (ou com IA por API, se configurada). Além disso, **cada
-pessoa** pode usar a IA do **próprio computador**: em ⚙️ Configurações → **"IA do meu computador"**, o
-navegador manda os recortes dos números pro Ollama do PC dela — o servidor nunca acessa o computador
-de ninguém. Precisa do Ollama com `glm-ocr` e de liberar o endereço do site no Ollama
-(`setx OLLAMA_ORIGINS "https://seu-endereco"` e reabrir o Ollama); o passo a passo aparece na própria
-tela. Se a IA da pessoa não responder, a leitura do servidor assume.
+The server reads the numbers with **RapidOCR** (or AI via API, if configured). On top of that, **each
+person** can use the AI on **their own computer**: in Settings → **"My computer's AI"**, the browser
+sends the number crops to that person's Ollama — the server never reaches anyone's computer. It needs
+Ollama with `glm-ocr` and the site's address allowed in Ollama
+(`setx OLLAMA_ORIGINS "https://your-address"`, then restart Ollama); the steps are shown on that
+screen. If the person's AI doesn't answer, the server reader takes over.
 
-Se o seu servidor tiver placa de vídeo e Ollama, `FACILITY_LOG_SERVER_OLLAMA=1` no `.env` libera a opção
-"IA local" do próprio servidor pra todo mundo (fica escondida por padrão na web).
+If your server has a GPU and Ollama, `FACILITY_LOG_SERVER_OLLAMA=1` in `.env` makes the server's own
+"Local AI" option available to everyone (hidden by default on the web).
 
-### Atualizar
+### Game save on the web
+
+Each person uploads their own `_MapData.sav` file. In **Chrome and Edge** the browser remembers the
+file: after the first time it's just **"Read again"**. In Firefox it's remembered while the tab stays
+open.
+
+### Updating
 
 ```bash
 docker compose pull && docker compose up -d
@@ -186,29 +202,30 @@ docker compose pull && docker compose up -d
 
 ### Backup
 
-Copie a pasta `data-docker/` (banco, prints, ícones aprendidos) e guarde o `.env` à parte. Uma cópia
-consistente com o app rodando:
+Copy the `data-docker/` folder (database, screenshots, learned icons) and keep `.env` separately. A
+consistent copy while the app is running:
 
 ```bash
 docker compose exec -T facility-log python -c "import sqlite3; s=sqlite3.connect('/data/facility_log.db'); d=sqlite3.connect('/data/backup.db'); s.backup(d)"
 ```
 
-(gera `data-docker/backup.db`).
+(creates `data-docker/backup.db`).
 
 ---
 
-## Problemas comuns
+## Troubleshooting
 
-| Sintoma | O que fazer |
+| Symptom | What to do |
 |---|---|
-| Local: `python` não é reconhecido | Reinstale o Python marcando "Add python.exe to PATH" |
-| Local: atalho não abre nada | Veja `data/facility_log.log`; se a porta 8000 estiver ocupada, defina `PORT=8001` num `.env` |
-| Local: "403" ao abrir por outro PC ou por túnel | De propósito: sem login, o app só responde ao próprio PC. Pra web, configure o login do Discord |
-| Web: container não sobe | `docker compose logs` — normalmente falta uma variável do `.env` |
-| Web: erro no login do Discord | O `DISCORD_REDIRECT_URI` tem que ser **idêntico** ao cadastrado em Redirects (https, sem barra no fim) |
-| Web: "sem permissão" no login | A conta não tem o cargo de `DISCORD_ALLOWED_ROLE_IDS` no servidor de `DISCORD_GUILD_ID` |
-| "Importar do save" diz "Leitor do save não encontrado" | Falta compilar o leitor do save (seção 4 do modo local). Na web, cada um envia o próprio arquivo `.sav` |
+| Local: `python` is not recognized | Reinstall Python ticking "Add python.exe to PATH" |
+| Local: the shortcut opens nothing | Check `data/facility_log.log`; if port 8000 is taken, set `PORT=8001` in a `.env` |
+| Local: "403" when opened from another PC or through a tunnel | On purpose: without login the app only answers its own PC. For the web, set up Discord login |
+| Web: the container won't start | `docker compose logs` — usually a missing `.env` variable |
+| Web: error on Discord login | `DISCORD_REDIRECT_URI` must be **identical** to the one under Redirects (https, no trailing slash) |
+| Web: "no permission" on login | The account doesn't have the `DISCORD_ALLOWED_ROLE_IDS` role in the `DISCORD_GUILD_ID` server |
+| Report time is off | Check the time zone in Settings → Time zone (defaults to your computer's) |
+| "Import from save" says the save reader wasn't found | The save reader isn't compiled (step 4 of the local setup). On the web, each person uploads their own `.sav` |
 
-## Licença
+## License
 
-MIT — ver [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).
