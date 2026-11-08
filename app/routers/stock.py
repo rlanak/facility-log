@@ -36,12 +36,16 @@ def add_building_stock(
     request: Request,
     lang: str = "pt-BR",
     catalog_lang: str | None = None,
+    zero_missing: bool = False,
     db: Session = Depends(get_db),
 ):
     if not crud.get_building(db, building_id):
         raise HTTPException(status_code=404, detail=err("building_not_found", lang))
     try:
-        created = crud.add_stock_entries(db, building_id, entries, lang, catalog_lang, created_by_id=auth.current_user_id(request))
+        created = crud.add_stock_entries(
+            db, building_id, entries, lang, catalog_lang,
+            created_by_id=auth.current_user_id(request), zero_missing=zero_missing,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     return [

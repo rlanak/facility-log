@@ -47,6 +47,16 @@ views.print = (() => {
     // any catalog item (and get its catalog link) — not only resources the
     // user already has.
     const catalog = await api.listFoxholeResources().catch(() => []);
+    // What's logged in this building now: a STOCKPILE screenshot lists every
+    // item there is, so anything logged here but not in the print can be
+    // zeroed on save (opt-in checkbox, remembered in this browser).
+    const currentStock = (await api.getBuildingStock(building.id).catch(() => [])).filter(
+      (s) => s.storage === "normal" && s.quantity > 0
+    );
+    let zeroMissing = true;
+    try {
+      zeroMissing = localStorage.getItem("printZeroMissing") !== "0";
+    } catch (_) {}
 
     let image = null; // {id, url, naturalWidth, naturalHeight}
     let crops = []; // {localId, x,y,w,h, thumbDataUrl, resourceName, resourceDefKey, quantityRaw, ambiguous, rivalNameEn}
@@ -118,7 +128,9 @@ views.print = (() => {
     container.appendChild(dropzone);
     container.appendChild(fileInput);
     container.appendChild(stageWrap);
+    const zeroBox = el("div", { class: "hidden mt-3 rounded border border-zinc-800 bg-zinc-900/60 p-2 text-sm" });
     container.appendChild(cropsListEl);
+    container.appendChild(zeroBox);
     container.appendChild(saveBtn);
 
     dropzone.addEventListener("dragover", (e) => e.preventDefault());
@@ -203,7 +215,7 @@ views.print = (() => {
         if (!dragging) return;
         const p = pos(e);
         redrawCanvas();
-        ctx.strokeStyle = "#34d399";
+        ctx.strokeStyle = theme.rgb("emerald", 400);
         ctx.lineWidth = 2;
         ctx.strokeRect(start.x, start.y, p.x - start.x, p.y - start.y);
       });
@@ -230,10 +242,10 @@ views.print = (() => {
     function redrawCanvas() {
       const ctx = canvas.getContext("2d");
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.strokeStyle = "#10b981";
+      ctx.strokeStyle = theme.rgb("emerald", 500);
       ctx.lineWidth = 2;
       ctx.font = "12px monospace";
-      ctx.fillStyle = "#10b981";
+      ctx.fillStyle = theme.rgb("emerald", 500);
       crops.forEach((c, i) => {
         ctx.strokeRect(c.displayX, c.displayY, c.displayW, c.displayH);
         ctx.fillText(String(i + 1), c.displayX + 2, c.displayY + 12);
@@ -382,14 +394,20 @@ views.print = (() => {
           class: "flex-1 min-w-0 bg-zinc-950 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500",
         });
         nameInput.value = crop.resourceName;
-        nameInput.addEventListener("input", () => (crop.resourceName = nameInput.value));
+        nameInput.addEventListener("input", () => {
+          crop.resourceName = nameInput.value;
+          renderZeroBox();
+        });
 
         const qtyInput = el("input", {
           placeholder: i18n.t("print.qtyPlaceholder"),
           class: "w-28 shrink-0 bg-zinc-950 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500",
         });
         qtyInput.value = crop.quantityRaw;
-        qtyInput.addEventListener("input", () => (crop.quantityRaw = qtyInput.value));
+        qtyInput.addEventListener("input", () => {
+          crop.quantityRaw = qtyInput.value;
+          renderZeroBox();
+        });
 
         const removeBtn = el("button", { class: "text-zinc-500 hover:text-red-400 px-1" }, "✕");
         removeBtn.addEventListener("click", () => {
@@ -428,6 +446,54 @@ views.print = (() => {
       }
 
       saveBtn.classList.toggle("hidden", crops.length === 0);
+      renderZeroBox();
+    }
+
+    // Logged items the print doesn't list — a preview of what the server
+    // will zero (it does its own matching on save).
+    function missingFromPrint() {
+      const keptIds = new Set();
+      for (const c of crops) {
+        if (!c.resourceName.trim() || !c.quantityRaw.trim()) continue;
+        const key = confirmedDefKey(c);
+        const lower = c.resourceName.trim().toLowerCase();
+        for (const r of resources) {
+          if ((key && r.resource_def_key === key) || r.name.toLowerCase() === lower) keptIds.add(r.id);
+        }
+        for (const s of currentStock) if (s.resource_name.toLowerCase() === lower) keptIds.add(s.resource_id);
+      }
+      return currentStock.filter((s) => !keptIds.has(s.resource_id));
+    }
+
+    function renderZeroBox() {
+      const missing = crops.length ? missingFromPrint() : [];
+      zeroBox.innerHTML = "";
+      zeroBox.classList.toggle("hidden", missing.length === 0);
+      if (!missing.length) return;
+      const checkbox = el("input", { type: "checkbox", class: "accent-emerald-600" });
+      checkbox.checked = zeroMissing;
+      checkbox.addEventListener("change", () => {
+        zeroMissing = checkbox.checked;
+        try {
+          localStorage.setItem("printZeroMissing", zeroMissing ? "1" : "0");
+        } catch (_) {}
+        renderZeroBox();
+      });
+      zeroBox.appendChild(
+        el("label", { class: "flex items-center gap-2 cursor-pointer text-zinc-200" }, [
+          checkbox,
+          el("span", {}, i18n.t("print.zeroMissing", { n: missing.length })),
+        ])
+      );
+      zeroBox.appendChild(
+        el(
+          "p",
+          { class: "text-xs mt-1 ml-6 " + (zeroMissing ? "text-amber-400" : "text-zinc-500") },
+          (zeroMissing ? i18n.t("print.zeroMissingWill") : i18n.t("print.zeroMissingKeep")) +
+            " " +
+            missing.map((s) => s.resource_name).join(", ")
+        )
+      );
     }
 
     // The catalog key for what the user finally confirmed: the detected key
@@ -458,7 +524,8 @@ views.print = (() => {
         return;
       }
       try {
-        await api.addBuildingStock(building.id, entries);
+        const zeroing = zeroMissing && missingFromPrint().length > 0;
+        await api.addBuildingStock(building.id, entries, { zeroMissing: zeroing });
         // Teach the detector: each confirmed auto-detected slot becomes a
         // real exemplar of that item (how it tells Assembly Materials tiers
         // apart). Best effort — a failure here never blocks the save.

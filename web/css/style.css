@@ -7,10 +7,33 @@ textarea.markdown-block {
   width: 10px;
   height: 10px;
 }
+body {
+  font-family: var(--app-font, ui-sans-serif, system-ui, sans-serif);
+}
+
+/* Solid accent/danger buttons always read as white text, whatever theme
+   (many inherit the body text color, which is dark in the light theme). */
+.bg-emerald-500,
+.bg-emerald-600,
+.bg-emerald-700,
+.bg-red-700,
+.bg-sky-600,
+.bg-indigo-500,
+.bg-indigo-600 {
+  color: #fff;
+}
+
 ::-webkit-scrollbar-thumb {
-  background: #3f3f46;
+  background: rgb(var(--c-zinc-700));
   border-radius: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* Light theme: the game's item/building icons are mostly white on
+   transparent — a thin dark outline keeps them readable on light cards
+   without changing the colored ones. */
+:root[data-theme="light"] img[src^="/assets/foxhole/"] {
+  filter: drop-shadow(0 0 1px rgb(0 0 0 / 0.85)) drop-shadow(0 0 0.5px rgb(0 0 0 / 0.85));
 }

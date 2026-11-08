@@ -354,9 +354,17 @@ def add_stock_entries(
     lang: str = "pt-BR",
     catalog_lang: str | None = None,
     created_by_id: int | None = None,
+    zero_missing: bool = False,
 ) -> list[models.StockEntry]:
+    """zero_missing: the entries are a full picture of the building's normal
+    (non-tank) stock — e.g. a STOCKPILE screenshot, which lists every item
+    there is. Any item whose current normal stock is above 0 and that isn't in
+    `entries` gets a 0 entry (appended, not deleted: history stays, and the
+    0 overrides the old value in every "current stock" read). Tanks are never
+    touched — the screenshot doesn't show them."""
     catalog_lang = catalog_lang or lang
     parsed = [(entry, parse_quantity(entry.quantity_raw)) for entry in entries]
+    previous = get_current_stock_for_building(db, building_id) if zero_missing else []
 
     created: list[models.StockEntry] = []
     for entry, quantity in parsed:
@@ -386,6 +394,22 @@ def add_stock_entries(
         )
         db.add(stock_entry)
         created.append(stock_entry)
+    if zero_missing:
+        listed = {(e.resource_id, e.storage) for e in created}
+        source = entries[0].source if entries else "manual"
+        for old in previous:
+            if old.storage != "normal" or old.quantity <= 0 or (old.resource_id, old.storage) in listed:
+                continue
+            zero_entry = models.StockEntry(
+                building_id=building_id,
+                resource_id=old.resource_id,
+                quantity=0,
+                storage="normal",
+                source=source,
+                created_by_id=created_by_id,
+            )
+            db.add(zero_entry)
+            created.append(zero_entry)
     db.commit()
     for entry in created:
         db.refresh(entry)

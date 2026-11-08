@@ -199,6 +199,7 @@ Decisões do detector (medidas em prints reais — não desfazer sem medir de no
 - Slot com número que nenhum ícone explicou volta como "item não reconhecido" (grade deduzida dos
   slots reconhecidos; precisa de ≥ 2).
 - Inventário de veículo (mesmo item em vários slots) não é suportado.
+- **Zerar o que não está no print** (caixa no modal, lembrada em `localStorage["printZeroMissing"]`, ligada por padrão): o painel STOCKPILE lista tudo que existe, então item lançado no prédio que o print não mostra ganha uma linha **0** (`POST .../stock?zero_missing=true`, `crud.add_stock_entries`) — nunca apaga histórico, nunca mexe em tanque. A caixa mostra antes quais itens vão zerar. Linha com 0 some do card e do relatório (o cálculo ainda a vê).
 
 **Quem lê o número no servidor** é escolhido em Configurações (`app_settings`, global): `rapidocr`
 (padrão), `local_vlm` (Ollama na máquina do app) e `api_vlm` (Anthropic ou endpoint compatível com
@@ -273,6 +274,7 @@ Não conferido: se `Quantity` é item ou caixa em stockpile que guarda caixa.
 - **Painel do item** (`itemPanel.js`): apelido (global) + origem de escolha única, gravada por facility
   (`PUT /api/facilities/{id}/item-origins`).
 - **Histórico**: relatórios com "Excluir".
+- **Aparência** (Configurações, `web/js/theme.js`, `localStorage["theme"]`, só naquele navegador): o `tailwind.config` aponta toda cor usada (`zinc` = neutro, `emerald` = destaque, mais red/amber/sky/indigo) pra variáveis CSS `--c-<cor>-<tom>`; um tema só troca as variáveis. Temas prontos (Padrão = Tailwind original, idêntico ao de antes) + cor de destaque, tom do fundo, claro/escuro, fonte e tamanho do texto; "código do tema" (JSON sanitizado) pra compartilhar. Por isso: **usar só essas famílias de cor nas telas** (cor fora delas não acompanha o tema), nada de `text-white` em fundo neutro (some no claro) e cor em canvas/estilo inline via `theme.rgb("emerald", 500)`. No claro, o neutro é por papel (950 = página, 900 = card), os tons 300/400 coloridos escurecem (texto) e 800-950 clareiam (fundos), e ícones do jogo ganham contorno escuro (`style.css`).
 - **Dashboard** (`dashboard.js`, `projection.py`; rota `#/facilities/<id>/dashboard`, o antigo `/live`
   ainda abre): estoque projetado supondo que as filas rodaram sem parar desde o último lançamento de cada
   prédio (só rodadas completas; para quando um insumo acaba). **Nunca é gravado** — conta feita na leitura,

@@ -184,7 +184,11 @@ def build_building_paragraph(
     # Only the tank entry is pulled out into its own "Tanque de Líquido" line
     # below — a liquid's crate/"normal" stock (overflow once the tank's
     # full) is shown right alongside solids like any other resource.
-    solid_entries = [e for e in entries if not (e.resource.resource_def_key in liquid_keys and e.storage == "tank")]
+    # 0 entries (an item that ran out, e.g. zeroed by a print) stay out of
+    # the listing; the production math below still sees every entry.
+    solid_entries = [
+        e for e in entries if e.quantity > 0 and not (e.resource.resource_def_key in liquid_keys and e.storage == "tank")
+    ]
 
     body = f"{title}\n{_t('no_entries', lang)}" if not solid_entries else f"{title}\n" + " • ".join(
         f"{entry.resource.icon} {crud.resolve_resource_name(entry.resource, catalog_lang)}: {_display_qty(entry.quantity, entry.resource.resource_def_key)}".strip()
@@ -512,6 +516,7 @@ def build_totals_block(
     Atual" block/tab; repeating it made the Discord message balloon)."""
     catalog_lang = catalog_lang or lang
     title = f"**\U0001f4e6 {_t('totals_title', lang)}**"
+    totals = [t for t in totals if t.quantity > 0]
     if not totals:
         return f"{title}\n{_t('no_entries', lang)}"
 

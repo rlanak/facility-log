@@ -213,8 +213,8 @@ views.facilityDetail = (() => {
         </div>
         <div class="flex gap-2">
           ${sharing}
-          ${me.auth_enabled && isOwner ? `<button id="transfer-facility" class="text-xs text-zinc-300 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded px-2 py-1">${i18n.t("facilityDetail.transfer")}</button>` : ""}
-          <button id="rename-facility" class="text-xs text-zinc-300 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded px-2 py-1">${i18n.t("facilityDetail.rename")}</button>
+          ${me.auth_enabled && isOwner ? `<button id="transfer-facility" class="text-xs text-zinc-300 hover:text-zinc-100 border border-zinc-700 hover:border-zinc-500 rounded px-2 py-1">${i18n.t("facilityDetail.transfer")}</button>` : ""}
+          <button id="rename-facility" class="text-xs text-zinc-300 hover:text-zinc-100 border border-zinc-700 hover:border-zinc-500 rounded px-2 py-1">${i18n.t("facilityDetail.rename")}</button>
           <button id="delete-facility" ${isOwner ? "" : "hidden"} class="text-xs text-red-400 hover:text-red-300 border border-red-900 hover:border-red-600 rounded px-2 py-1">${i18n.t("facilityDetail.deleteFacility")}</button>
         </div>
       </div>
@@ -422,8 +422,8 @@ views.facilityDetail = (() => {
     // Dropping on empty grid space sends it to the end. A green bar on the
     // side shows where it will land. Positions are saved in page order.
     let draggingId = null;
-    const MARK_BEFORE = "inset 4px 0 0 #10b981";
-    const MARK_AFTER = "inset -4px 0 0 #10b981";
+    const MARK_BEFORE = `inset 4px 0 0 ${theme.rgb("emerald", 500)}`;
+    const MARK_AFTER = `inset -4px 0 0 ${theme.rgb("emerald", 500)}`;
 
     function draggedIn(grid, exclude) {
       const dragged = draggingId && grid.querySelector(`:scope > [data-building-id="${draggingId}"]`);
@@ -517,7 +517,11 @@ views.facilityDetail = (() => {
     // Only the tank row is pulled into its own section below — a liquid's
     // crate/"normal" stock (overflow once the tank's full) shows here like
     // any other resource.
-    const nonLiquidStock = stock.filter((s) => !(liquidResourceIds.has(s.resource_id) && s.storage === "tank"));
+    // A 0 entry means "used to be here, ran out" (e.g. zeroed by a print):
+    // kept in the log, not worth a line on the card.
+    const nonLiquidStock = stock.filter(
+      (s) => s.quantity > 0 && !(liquidResourceIds.has(s.resource_id) && s.storage === "tank")
+    );
     const buildingDisplayName = i18n.buildingName(building, foxholeType);
     const upgrade = foxholeType ? buildingUpgrade(building, foxholeType) : null;
     const iconBtn = "p-1 rounded text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800";

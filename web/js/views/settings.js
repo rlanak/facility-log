@@ -19,7 +19,9 @@ views.settings = (() => {
 
   async function render(app) {
     app.innerHTML = "";
-    app.appendChild(el("h1", { class: "text-xl font-bold mb-2" }, i18n.t("settings.title")));
+    app.appendChild(el("h1", { class: "text-xl font-bold mb-4" }, i18n.t("settings.title")));
+    app.appendChild(appearanceSection());
+    app.appendChild(el("h2", { class: "font-semibold mb-1" }, i18n.t("settings.captureTitle")));
     app.appendChild(el("p", { class: "text-sm text-zinc-400 mb-4" }, i18n.t("settings.captureIntro")));
     const s = await api.getCaptureSettings();
     // Web version: each person can read with the AI on their own PC.
@@ -27,6 +29,109 @@ views.settings = (() => {
     const wrap = el("div");
     app.appendChild(wrap);
     draw(wrap, s);
+  }
+
+  // Aparência — per browser (web/js/theme.js). Every change applies and is
+  // saved at once; the theme code lets people share a look.
+  function appearanceSection() {
+    let current = theme.get();
+    const presetRow = el("div", { class: "flex flex-wrap gap-2 mb-4" });
+    const accent = el("input", { type: "color", class: "h-9 w-14 shrink-0 bg-transparent cursor-pointer rounded" });
+    const neutral = el("input", { type: "color", class: "h-9 w-14 shrink-0 bg-transparent cursor-pointer rounded" });
+    const mode = el("select", { class: inputClass });
+    for (const m of ["dark", "light"]) mode.appendChild(el("option", { value: m }, i18n.t(`settings.theme.mode.${m}`)));
+    const font = el("select", { class: inputClass });
+    for (const f of Object.keys(theme.FONTS)) font.appendChild(el("option", { value: f }, i18n.t(`settings.theme.font.${f}`)));
+    const scale = el("select", { class: inputClass });
+    for (const n of theme.SCALES) scale.appendChild(el("option", { value: String(n) }, `${n}%`));
+
+    const sameAs = (p) => p.accent === current.accent && p.neutral === current.neutral && p.mode === current.mode;
+    function sync() {
+      accent.value = current.accent;
+      neutral.value = current.neutral;
+      mode.value = current.mode;
+      font.value = current.font;
+      scale.value = String(current.scale);
+      presetRow.innerHTML = "";
+      for (const [key, p] of Object.entries(theme.PRESETS)) {
+        const active = sameAs(p);
+        const swatch = el("span", { class: "inline-flex w-8 h-4 rounded overflow-hidden border border-zinc-700" }, [
+          el("span", { style: `flex:1;background:${p.mode === "light" ? "#f4f4f5" : p.neutral}` }),
+          el("span", { style: `flex:1;background:${p.accent}` }),
+        ]);
+        const btn = el(
+          "button",
+          {
+            type: "button",
+            class:
+              "flex items-center gap-2 px-3 py-1.5 rounded border text-sm " +
+              (active ? "border-emerald-500 bg-emerald-950/30" : "border-zinc-700 hover:border-zinc-500"),
+          },
+          [swatch, i18n.t(`settings.theme.preset.${key}`)]
+        );
+        btn.addEventListener("click", () => update({ accent: p.accent, neutral: p.neutral, mode: p.mode }));
+        presetRow.appendChild(btn);
+      }
+    }
+    function update(patch) {
+      current = theme.set({ ...current, ...patch });
+      sync();
+    }
+    accent.addEventListener("input", () => update({ accent: accent.value }));
+    neutral.addEventListener("input", () => update({ neutral: neutral.value }));
+    mode.addEventListener("change", () => update({ mode: mode.value }));
+    font.addEventListener("change", () => update({ font: font.value }));
+    scale.addEventListener("change", () => update({ scale: Number(scale.value) }));
+
+    const btnCls = "px-3 py-1.5 rounded text-xs bg-zinc-800 hover:bg-zinc-700";
+    const resetBtn = el("button", { type: "button", class: btnCls }, i18n.t("settings.theme.reset"));
+    resetBtn.addEventListener("click", () => {
+      current = theme.reset();
+      sync();
+    });
+    const copyBtn = el("button", { type: "button", class: btnCls }, i18n.t("settings.theme.copy"));
+    copyBtn.addEventListener("click", () => ui.copyText(theme.exportCode(current)));
+    const codeInput = el("input", { class: inputClass + " font-mono text-xs", placeholder: i18n.t("settings.theme.pastePlaceholder") });
+    const importBtn = el("button", { type: "button", class: btnCls + " shrink-0" }, i18n.t("settings.theme.import"));
+    importBtn.addEventListener("click", () => {
+      try {
+        current = theme.importCode(codeInput.value);
+        codeInput.value = "";
+        sync();
+        ui.toast(i18n.t("settings.theme.imported"));
+      } catch (_) {
+        ui.toast(i18n.t("settings.theme.invalid"), true);
+      }
+    });
+
+    const colorField = (label, input, hint) =>
+      el("label", { class: "flex items-center gap-3 mb-3" }, [
+        input,
+        el("span", { class: "text-sm min-w-0" }, [label, el("span", { class: "block text-xs text-zinc-500" }, hint)]),
+      ]);
+
+    sync();
+    return el("div", { class: "bg-zinc-900 border border-zinc-800 rounded-lg p-4 mb-8" }, [
+      el("h2", { class: "font-semibold text-sm mb-1" }, i18n.t("settings.theme.title")),
+      el("p", { class: "text-xs text-zinc-400 mb-3" }, i18n.t("settings.theme.intro")),
+      presetRow,
+      el("div", { class: "grid sm:grid-cols-2 gap-x-6" }, [
+        el("div", {}, [
+          colorField(i18n.t("settings.theme.accent"), accent, i18n.t("settings.theme.accentHint")),
+          colorField(i18n.t("settings.theme.neutral"), neutral, i18n.t("settings.theme.neutralHint")),
+        ]),
+        el("div", {}, [
+          field(i18n.t("settings.theme.modeLabel"), mode),
+          el("div", { class: "grid grid-cols-2 gap-3" }, [
+            field(i18n.t("settings.theme.fontLabel"), font),
+            field(i18n.t("settings.theme.scaleLabel"), scale),
+          ]),
+        ]),
+      ]),
+      el("div", { class: "flex flex-wrap gap-2 items-center mt-1" }, [resetBtn, copyBtn]),
+      el("div", { class: "flex gap-2 items-center mt-3" }, [codeInput, importBtn]),
+      el("p", { class: "text-xs text-zinc-500 mt-1" }, i18n.t("settings.theme.shareHint")),
+    ]);
   }
 
   // "IA do meu computador" — saved in this browser only, talks to the
