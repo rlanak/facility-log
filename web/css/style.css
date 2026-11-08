@@ -11,6 +11,14 @@ body {
   font-family: var(--app-font, ui-sans-serif, system-ui, sans-serif);
 }
 
+/* Headings and names in the display face (theme "Fonte dos títulos"). */
+h1,
+h2,
+.font-display {
+  font-family: var(--display-font, var(--app-font));
+  letter-spacing: 0.02em;
+}
+
 /* Solid accent/danger buttons always read as white text, whatever theme
    (many inherit the body text color, which is dark in the light theme). */
 .bg-emerald-500,

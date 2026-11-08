@@ -37,7 +37,7 @@
     if (me.user.avatar_url) box.appendChild(ui.el("img", { src: me.user.avatar_url, class: "w-6 h-6 rounded-full" }));
     box.appendChild(ui.el("span", { class: "text-xs text-zinc-300" }, me.user.name));
     box.appendChild(
-      ui.el("button", { class: "text-xs text-zinc-500 hover:text-zinc-200", title: i18n.t("privacy.title"), onclick: showPrivacy }, "🔒")
+      ui.el("button", { class: "text-zinc-500 hover:text-zinc-200", title: i18n.t("privacy.title"), onclick: showPrivacy, html: ui.icon("shield") })
     );
     box.appendChild(
       ui.el(
@@ -109,6 +109,8 @@
 
   document.documentElement.lang = i18n.getLang();
   i18n.applyStaticText();
+  document.getElementById("brand").insertAdjacentHTML("afterbegin", ui.logo());
+  document.querySelectorAll("[data-icon]").forEach((e) => e.insertAdjacentHTML("afterbegin", ui.icon(e.dataset.icon)));
   setupLangSwitcher();
 
   // api.js fires this on a 401 (session expired / role removed in Discord).

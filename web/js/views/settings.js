@@ -21,6 +21,7 @@ views.settings = (() => {
     app.innerHTML = "";
     app.appendChild(el("h1", { class: "text-xl font-bold mb-4" }, i18n.t("settings.title")));
     app.appendChild(appearanceSection());
+    app.appendChild(timeZoneSection());
     app.appendChild(el("h2", { class: "font-semibold mb-1" }, i18n.t("settings.captureTitle")));
     app.appendChild(el("p", { class: "text-sm text-zinc-400 mb-4" }, i18n.t("settings.captureIntro")));
     const s = await api.getCaptureSettings();
@@ -29,6 +30,44 @@ views.settings = (() => {
     const wrap = el("div");
     app.appendChild(wrap);
     draw(wrap, s);
+  }
+
+  // Fuso horário — per browser (i18n.getTimeZone). Used for every date the
+  // app shows and sent to the server, which writes times into reports.
+  function timeZoneSection() {
+    const offset = (tz) => {
+      try {
+        const part = new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "longOffset" })
+          .formatToParts(new Date())
+          .find((p) => p.type === "timeZoneName");
+        return part ? part.value.replace("GMT", "UTC") : "";
+      } catch (_) {
+        return "";
+      }
+    };
+    let zones = [];
+    try {
+      zones = Intl.supportedValuesOf("timeZone");
+    } catch (_) {}
+    const browser = i18n.browserTimeZone();
+    if (!zones.includes("UTC")) zones = ["UTC", ...zones];
+    const select = el("select", { class: inputClass });
+    select.appendChild(el("option", { value: "" }, i18n.t("settings.tz.auto", { tz: `${browser} (${offset(browser)})` })));
+    for (const z of zones) select.appendChild(el("option", { value: z }, `${z.replaceAll("_", " ")} (${offset(z)})`));
+    select.value = i18n.savedTimeZone();
+    const now = el("p", { class: "text-xs text-zinc-500 mt-1" });
+    const showNow = () => (now.textContent = i18n.t("settings.tz.now", { time: i18n.formatDateTime(new Date()) }));
+    select.addEventListener("change", () => {
+      i18n.setTimeZone(select.value || null);
+      showNow();
+    });
+    showNow();
+    return el("div", { class: "bg-zinc-900 border border-zinc-800 rounded-lg p-4 mb-8" }, [
+      el("h2", { class: "font-semibold text-sm mb-1" }, i18n.t("settings.tz.title")),
+      el("p", { class: "text-xs text-zinc-400 mb-3" }, i18n.t("settings.tz.intro")),
+      select,
+      now,
+    ]);
   }
 
   // Aparência — per browser (web/js/theme.js). Every change applies and is
@@ -42,6 +81,8 @@ views.settings = (() => {
     for (const m of ["dark", "light"]) mode.appendChild(el("option", { value: m }, i18n.t(`settings.theme.mode.${m}`)));
     const font = el("select", { class: inputClass });
     for (const f of Object.keys(theme.FONTS)) font.appendChild(el("option", { value: f }, i18n.t(`settings.theme.font.${f}`)));
+    const display = el("select", { class: inputClass });
+    for (const d of Object.keys(theme.DISPLAYS)) display.appendChild(el("option", { value: d }, i18n.t(`settings.theme.display.${d}`)));
     const scale = el("select", { class: inputClass });
     for (const n of theme.SCALES) scale.appendChild(el("option", { value: String(n) }, `${n}%`));
 
@@ -51,6 +92,7 @@ views.settings = (() => {
       neutral.value = current.neutral;
       mode.value = current.mode;
       font.value = current.font;
+      display.value = current.display;
       scale.value = String(current.scale);
       presetRow.innerHTML = "";
       for (const [key, p] of Object.entries(theme.PRESETS)) {
@@ -81,6 +123,7 @@ views.settings = (() => {
     neutral.addEventListener("input", () => update({ neutral: neutral.value }));
     mode.addEventListener("change", () => update({ mode: mode.value }));
     font.addEventListener("change", () => update({ font: font.value }));
+    display.addEventListener("change", () => update({ display: display.value }));
     scale.addEventListener("change", () => update({ scale: Number(scale.value) }));
 
     const btnCls = "px-3 py-1.5 rounded text-xs bg-zinc-800 hover:bg-zinc-700";
@@ -123,9 +166,10 @@ views.settings = (() => {
         el("div", {}, [
           field(i18n.t("settings.theme.modeLabel"), mode),
           el("div", { class: "grid grid-cols-2 gap-3" }, [
+            field(i18n.t("settings.theme.displayLabel"), display),
             field(i18n.t("settings.theme.fontLabel"), font),
-            field(i18n.t("settings.theme.scaleLabel"), scale),
           ]),
+          field(i18n.t("settings.theme.scaleLabel"), scale),
         ]),
       ]),
       el("div", { class: "flex flex-wrap gap-2 items-center mt-1" }, [resetBtn, copyBtn]),

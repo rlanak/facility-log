@@ -4,6 +4,9 @@ views.facilityDetail = (() => {
   let facilityId;
   let allResources = [];
   let foxholeBuildingTypes = [];
+  // This facility's buildings as the save forms need them (which pin is
+  // linked to which building): [{id, name, save_pin_key}].
+  let savePeers = [];
   let foxholeResourceDefs = {};
 
   function getFoxholeType(key) {
@@ -132,9 +135,12 @@ views.facilityDetail = (() => {
   function tabLink(tab, label, activeTab) {
     const isActive = tab === activeTab;
     const href = tab === "buildings" ? `#/facilities/${facilityId}` : `#/facilities/${facilityId}/${tab}`;
-    return `<a href="${href}" class="px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${
-      isActive ? "bg-emerald-700 text-white" : "bg-zinc-900 text-zinc-400 hover:text-zinc-200"
-    }">${label}</a>`;
+    const icons = { buildings: "boxes", targets: "target", dashboard: "chart", report: "file", history: "clock" };
+    return `<a href="${href}" class="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap border ${
+      isActive
+        ? "bg-emerald-700 border-emerald-600 text-white"
+        : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
+    }">${ui.icon(icons[tab] || "file")}${label}</a>`;
   }
 
   // Hand the facility to another member (web mode). One way: the old owner
@@ -208,7 +214,7 @@ views.facilityDetail = (() => {
     app.innerHTML = `
       <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
         <div class="min-w-0">
-          <h1 class="text-xl font-bold">${ui.escapeHtml(facility.name)}</h1>
+          <h1 class="text-2xl font-bold uppercase tracking-wide leading-tight">${ui.escapeHtml(facility.name)}</h1>
           ${facility.owner_name ? `<div class="text-xs text-zinc-500">${i18n.t("facilities.owner", { name: ui.escapeHtml(facility.owner_name) })}</div>` : ""}
         </div>
         <div class="flex gap-2">
@@ -295,6 +301,7 @@ views.facilityDetail = (() => {
         <button class="bg-emerald-700 hover:bg-emerald-600 px-4 py-2 rounded text-sm font-semibold whitespace-nowrap">${i18n.t("facilityDetail.addBuilding")}</button>
       </form>
       <div class="flex justify-end items-center gap-2 mb-2 text-xs text-zinc-500">
+        <button id="bulk-save-import" type="button" class="hidden mr-auto border border-emerald-800 hover:border-emerald-600 text-emerald-400 rounded px-2 py-1" title="${i18n.t("facilityDetail.bulkSaveHint")}"><span class="flex items-center gap-1.5">${ui.icon("pin", "w-3.5 h-3.5")}${i18n.t("facilityDetail.bulkSave")}</span></button>
         <label for="b-grouping">${i18n.t("facilityDetail.groupBy")}</label>
         <select id="b-grouping" class="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs focus:outline-none focus:border-emerald-500">
           <option value="type">${i18n.t("facilityDetail.groupByType")}</option>
@@ -319,6 +326,20 @@ views.facilityDetail = (() => {
         localStorage.setItem("buildingGrouping", groupingSelect.value);
       } catch {}
       renderBuildingsList();
+    });
+
+    // Every building already linked to a save pin, refreshed from one save.
+    document.getElementById("bulk-save-import").addEventListener("click", () => {
+      ui.openModal(
+        i18n.t("facilityDetail.bulkSave"),
+        (body, close) => {
+          views.saveImport.renderBulkUI(body, savePeers, () => {
+            renderBuildingsList();
+            close();
+          });
+        },
+        { maxWidth: "max-w-2xl" }
+      );
     });
 
     const typeSelect = document.getElementById("b-type");
@@ -358,6 +379,12 @@ views.facilityDetail = (() => {
         listEl.innerHTML = `<p class="text-zinc-500 text-sm">${i18n.t("facilityDetail.noBuildings")}</p>`;
         return;
       }
+      // Name + location: two "MTS01" in different places must stay apart.
+      savePeers = buildings.map((b) => {
+        const name = i18n.buildingName(b, b.building_type_key ? getFoxholeType(b.building_type_key) : null);
+        return { id: b.id, name: b.location ? `${name} (${b.location})` : name, save_pin_key: b.save_pin_key };
+      });
+      document.getElementById("bulk-save-import").classList.toggle("hidden", !savePeers.some((b) => b.save_pin_key));
       const locations = [...new Set(buildings.map((b) => b.location).filter(Boolean))].sort();
       document.getElementById("locations-datalist").innerHTML = locations
         .map((l) => `<option value="${ui.escapeHtml(l)}"></option>`)
@@ -390,17 +417,22 @@ views.facilityDetail = (() => {
       for (const { typeKey, upgrade, location, members } of groupList) {
         const type = typeKey ? getFoxholeType(typeKey) : null;
         const hasUpgrades = byUpgrade && upgradeOptions(type).length > 0;
-        const locationLabel = location === null ? null : `📍 ${location || i18n.t("facilityDetail.noLocation")}`;
+        const locationLabel = location === null ? null : location || i18n.t("facilityDetail.noLocation");
         const typeLabel = type ? i18n.catalogName(type) : byType ? i18n.t("facilityDetail.groupOther") : null;
         const section = ui.el("section", {});
         section.appendChild(
-          ui.el("div", { class: "flex items-center gap-2 mb-2" }, [
-            type && type.icon ? ui.el("img", { src: type.icon, class: "w-7 h-7 object-contain opacity-80" }) : null,
-            ui.el("h2", { class: "text-sm font-semibold text-zinc-300" }, [locationLabel, typeLabel].filter(Boolean).join(" · ")),
-            hasUpgrades
-              ? ui.el("span", { class: "text-xs text-sky-400" }, `· ${upgrade ? upgradeLabel(upgrade) : i18n.t("facilityDetail.noUpgrade")}`)
+          ui.el("div", { class: "flex items-center gap-3 mb-3" }, [
+            type && type.icon
+              ? ui.el("span", { class: "w-10 h-10 shrink-0 rounded-md bg-zinc-900 border border-zinc-800 flex items-center justify-center" }, [
+                  ui.el("img", { src: type.icon, class: "w-8 h-8 object-contain" }),
+                ])
               : null,
-            ui.el("span", { class: "text-xs text-zinc-600" }, `(${members.length})`),
+            ui.el("h2", { class: "text-lg font-semibold uppercase tracking-wide text-zinc-200 min-w-0 truncate" }, [locationLabel, typeLabel].filter(Boolean).join(" · ")),
+            hasUpgrades
+              ? ui.el("span", { class: "text-xs text-sky-400 whitespace-nowrap" }, `· ${upgrade ? upgradeLabel(upgrade) : i18n.t("facilityDetail.noUpgrade")}`)
+              : null,
+            ui.el("span", { class: "text-xs font-semibold text-zinc-400 bg-zinc-800 rounded-full px-2 py-0.5" }, String(members.length)),
+            ui.el("span", { class: "flex-1 h-px bg-zinc-800" }),
           ])
         );
         const grid = ui.el("div", { class: "grid gap-3 grid-cols-[repeat(auto-fill,minmax(280px,1fr))]" });
@@ -504,7 +536,9 @@ views.facilityDetail = (() => {
     // and the action buttons pinned to the bottom (mt-auto) — the grid
     // stretches every card in a row to the same height, so rows line up.
     // Still no overflow-hidden on the card: it used to silently clip content.
-    const card = ui.el("div", { class: "building-card bg-zinc-900 border border-zinc-800 rounded-lg flex flex-col min-w-0 h-full transition" });
+    const card = ui.el("div", {
+      class: "building-card bg-zinc-900 border border-zinc-800 border-t-2 border-t-emerald-800 rounded-lg shadow-sm hover:border-zinc-700 flex flex-col min-w-0 h-full transition",
+    });
     const stock = await api.getBuildingStock(building.id);
     const foxholeType = building.building_type_key ? getFoxholeType(building.building_type_key) : null;
     const canImportSave = !foxholeType || Boolean(foxholeType.storage);
@@ -524,32 +558,32 @@ views.facilityDetail = (() => {
     );
     const buildingDisplayName = i18n.buildingName(building, foxholeType);
     const upgrade = foxholeType ? buildingUpgrade(building, foxholeType) : null;
-    const iconBtn = "p-1 rounded text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800";
+    const iconBtn = "p-1.5 rounded text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800";
     // One line, each button as wide as its label and then stretched to fill
     // (flex-auto): a flex-wrap row broke into two lines at ~300px cards, and
     // equal columns cut "⚙️ Produção" to "Produ…".
     const actionBtn =
-      "flex-auto min-w-0 text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-900 hover:border-emerald-600 rounded px-1.5 py-1 whitespace-nowrap truncate";
+      "flex-auto min-w-0 inline-flex items-center justify-center gap-1 text-xs font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-950/30 hover:bg-emerald-950/60 border border-emerald-900 hover:border-emerald-700 rounded px-1.5 py-1 whitespace-nowrap overflow-hidden";
 
     card.innerHTML = `
       <div class="flex items-center gap-2 px-3 pt-3 pb-2 border-b border-zinc-800">
-        <span class="drag-handle cursor-grab active:cursor-grabbing text-zinc-600 hover:text-zinc-300 select-none" title="${i18n.t("facilityDetail.dragToReorder")}">⠿</span>
+        <span class="drag-handle cursor-grab active:cursor-grabbing text-zinc-600 hover:text-zinc-300 select-none -ml-1" title="${i18n.t("facilityDetail.dragToReorder")}">${ui.icon("grip")}</span>
         <div class="flex-1 min-w-0">
-          <p class="font-semibold truncate" title="${ui.escapeHtml(buildingDisplayName)}">${ui.escapeHtml(buildingDisplayName)}</p>
+          <p class="font-display text-lg font-semibold leading-tight truncate" title="${ui.escapeHtml(buildingDisplayName)}">${ui.escapeHtml(buildingDisplayName)}</p>
           ${
             upgrade || building.location || building.save_pin_key
-              ? `<p class="text-[11px] truncate" title="${ui.escapeHtml([upgrade, building.location, building.save_pin_key ? i18n.t("facilityDetail.pinLinked") : ""].filter(Boolean).join(" · "))}">${[
-                  upgrade ? `<span class="text-sky-400">⬆ ${ui.escapeHtml(upgradeLabel(upgrade))}</span>` : "",
-                  building.location ? `<span class="text-zinc-500">📍 ${ui.escapeHtml(building.location)}</span>` : "",
-                  building.save_pin_key ? `<span class="text-emerald-600">📌</span>` : "",
+              ? `<p class="text-[11px] truncate flex items-center gap-2 min-w-0" title="${ui.escapeHtml([upgrade, building.location, building.save_pin_key ? i18n.t("facilityDetail.pinLinked") : ""].filter(Boolean).join(" · "))}">${[
+                  upgrade ? `<span class="text-sky-400 inline-flex items-center gap-0.5 min-w-0"><span class="truncate">${ui.icon("arrowUp", "w-3 h-3")}${ui.escapeHtml(upgradeLabel(upgrade))}</span></span>` : "",
+                  building.location ? `<span class="text-zinc-500 inline-flex items-center gap-0.5 shrink-0">${ui.icon("mapPin", "w-3 h-3")}${ui.escapeHtml(building.location)}</span>` : "",
+                  building.save_pin_key ? `<span class="text-emerald-500 inline-flex shrink-0" title="${i18n.t("facilityDetail.pinLinked")}">${ui.icon("pin", "w-3 h-3")}</span>` : "",
                 ]
                   .filter(Boolean)
                   .join(" ")}</p>`
               : ""
           }
         </div>
-        <button class="edit-building ${iconBtn}" title="${i18n.t("common.edit")}">✎</button>
-        <button class="delete-building ${iconBtn} hover:!text-red-400" title="${i18n.t("common.delete")}">🗑</button>
+        <button class="edit-building ${iconBtn}" title="${i18n.t("common.edit")}">${ui.icon("pencil")}</button>
+        <button class="delete-building ${iconBtn} hover:!text-red-400" title="${i18n.t("common.delete")}">${ui.icon("trash")}</button>
       </div>
       <div class="px-3 py-2 flex-1 min-w-0">
         ${
@@ -561,7 +595,7 @@ views.facilityDetail = (() => {
               <li class="group flex items-center gap-2 py-1 min-w-0"${s.created_by_name ? ` title="${ui.escapeHtml(i18n.t("facilityDetail.loggedBy", { name: s.created_by_name }))}"` : ""}>
                 <span class="w-5 h-5 shrink-0 flex items-center justify-center">${resourceThumb(s.resource_id) || ui.escapeHtml(s.resource_icon)}</span>
                 <button type="button" class="item-info truncate flex-1 min-w-0 text-left text-zinc-300 hover:text-emerald-300" data-resource-id="${s.resource_id}" title="${ui.escapeHtml(s.resource_name)} — ${i18n.t("item.openHint")}">${ui.escapeHtml(s.resource_name)}</button>
-                <span class="tabular-nums font-semibold">${formatQty(s.quantity)}</span>
+                <span class="font-display text-base tabular-nums font-semibold text-zinc-100">${formatQty(s.quantity)}</span>
                 <button class="delete-stock-item text-zinc-600 hover:text-red-400 px-0.5 opacity-0 group-hover:opacity-100 focus:opacity-100" data-resource-id="${s.resource_id}" data-storage="${s.storage}" data-name="${ui.escapeHtml(s.resource_name)}" title="${i18n.t("facilityDetail.deleteStockItem")}">✕</button>
               </li>`
                 )
@@ -600,18 +634,18 @@ views.facilityDetail = (() => {
         <div class="production-status text-xs leading-snug text-zinc-400 mt-2 space-y-1"></div>
       </div>
       <div class="flex gap-1 px-3 py-2 border-t border-zinc-800 mt-auto">
-        <button class="open-stock-modal ${actionBtn}" title="${i18n.t("facilityDetail.launchStock")}">${i18n.t("facilityDetail.btnStock")}</button>
-        <button class="open-print-modal ${actionBtn}" title="${i18n.t("facilityDetail.sendPrint")}">${i18n.t("facilityDetail.btnPrint")}</button>
+        <button class="open-stock-modal ${actionBtn}" title="${i18n.t("facilityDetail.launchStock")}">${ui.icon("plus", "w-3.5 h-3.5")}<span class="truncate">${i18n.t("facilityDetail.btnStock")}</span></button>
+        <button class="open-print-modal ${actionBtn}" title="${i18n.t("facilityDetail.sendPrint")}">${ui.icon("camera", "w-3.5 h-3.5")}<span class="truncate">${i18n.t("facilityDetail.btnPrint")}</span></button>
         ${
           // The game only caches stock in the save for pinned stockpiles (MTS, RTS…), never
           // for a factory: production buildings don't get the button. Untyped ones keep it.
           canImportSave
-            ? `<button class="open-save-import-modal ${actionBtn}" title="${i18n.t("facilityDetail.importSave")}">${i18n.t("facilityDetail.btnSave")}</button>`
+            ? `<button class="open-save-import-modal ${actionBtn}" title="${i18n.t("facilityDetail.importSave")}">${ui.icon("pin", "w-3.5 h-3.5")}<span class="truncate">${i18n.t("facilityDetail.btnSave")}</span></button>`
             : ""
         }
         ${
           foxholeType && foxholeType.recipes.length > 0
-            ? `<button class="open-production-modal ${actionBtn}" title="${i18n.t("facilityDetail.production")}">${i18n.t("facilityDetail.btnProduction")}</button>`
+            ? `<button class="open-production-modal ${actionBtn}" title="${i18n.t("facilityDetail.production")}">${ui.icon("factory", "w-3.5 h-3.5")}<span class="truncate">${i18n.t("facilityDetail.btnProduction")}</span></button>`
             : ""
         }
       </div>
@@ -747,10 +781,16 @@ views.facilityDetail = (() => {
       ui.openModal(
         `${i18n.t("facilityDetail.importSave")} — ${buildingDisplayName}`,
         (body, close) => {
-          views.saveImport.renderSaveImportUI(body, building, foxholeType, () => {
-            onChange();
-            close();
-          });
+          views.saveImport.renderSaveImportUI(
+            body,
+            building,
+            foxholeType,
+            () => {
+              onChange();
+              close();
+            },
+            savePeers
+          );
         },
         { maxWidth: "max-w-2xl" }
       );
@@ -801,7 +841,7 @@ views.facilityDetail = (() => {
         .join(", ");
       return i18n.t("facilityDetail.production.insufficient", { queues, needed });
     }
-    const eta = new Date(estimate.eta).toLocaleTimeString(i18n.getLang(), { hour: "2-digit", minute: "2-digit" });
+    const eta = i18n.formatTime(estimate.eta);
     const outputs = estimate.outputs.map((o) => `${displayQty(o.qty, o.resource)} ${o.name}`).join(", ");
     // Same wording as report_generator.format_production_line: show the
     // math (cycles split across parallel queues × time per cycle), not just

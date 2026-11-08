@@ -3,7 +3,7 @@
 // emerald = accent, plus red/amber/sky/indigo) is pointed at a CSS variable
 // (see tailwindConfig()), so a theme is just a set of variables on <html> —
 // no view knows about themes, and changing one repaints the page live.
-// A theme is small and shareable: {accent, neutral, mode, font, scale}; the
+// A theme is small and shareable: {accent, neutral, mode, font, display, scale}; the
 // "code" in Configurações is that JSON, so people can pass their look around.
 const theme = (() => {
   const SHADES = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
@@ -21,9 +21,10 @@ const theme = (() => {
   const DEFAULT_ACCENT = "#10b981"; // emerald-500
   const DEFAULT_NEUTRAL = "#71717a"; // zinc-500
 
+  // First one is the default look. "classic" = the original zinc/emerald.
   const PRESETS = {
-    default: { accent: DEFAULT_ACCENT, neutral: DEFAULT_NEUTRAL, mode: "dark" },
-    colonial: { accent: "#8a9a3b", neutral: "#6f6b55", mode: "dark" },
+    colonial: { accent: "#7d9440", neutral: "#6f6b55", mode: "dark" },
+    classic: { accent: DEFAULT_ACCENT, neutral: DEFAULT_NEUTRAL, mode: "dark" },
     night: { accent: "#0ea5e9", neutral: "#64748b", mode: "dark" },
     rust: { accent: "#ea580c", neutral: "#78716c", mode: "dark" },
     light: { accent: "#059669", neutral: DEFAULT_NEUTRAL, mode: "light" },
@@ -34,8 +35,14 @@ const theme = (() => {
     serif: 'ui-serif, Georgia, Cambria, "Times New Roman", serif, "Segoe UI Emoji"',
     mono: 'ui-monospace, SFMono-Regular, Consolas, Menlo, monospace, "Segoe UI Emoji"',
   };
+  // Headings/names: a condensed military-style face (Google Fonts, loaded in
+  // index.html; offline it falls back to the text font) or the text font.
+  const DISPLAYS = {
+    military: '"Saira Condensed", var(--app-font)',
+    body: "var(--app-font)",
+  };
   const SCALES = [90, 100, 110, 125];
-  const DEFAULTS = { ...PRESETS.default, font: "system", scale: 100 };
+  const DEFAULTS = { ...PRESETS.colonial, font: "system", display: "military", scale: 100 };
 
   // ---- color math -------------------------------------------------------
   function hexToHsl(hex) {
@@ -88,6 +95,7 @@ const theme = (() => {
       neutral: HEX.test(t.neutral) ? t.neutral.toLowerCase() : DEFAULTS.neutral,
       mode: t.mode === "light" ? "light" : "dark",
       font: FONTS[t.font] ? t.font : DEFAULTS.font,
+      display: DISPLAYS[t.display] ? t.display : DEFAULTS.display,
       scale: SCALES.includes(Number(t.scale)) ? Number(t.scale) : DEFAULTS.scale,
     };
   }
@@ -115,6 +123,7 @@ const theme = (() => {
       values.forEach((v, i) => root.style.setProperty(`--c-${name}-${SHADES[i]}`, v));
     }
     root.style.setProperty("--app-font", FONTS[t.font]);
+    root.style.setProperty("--display-font", DISPLAYS[t.display]);
     root.style.fontSize = t.scale === 100 ? "" : `${t.scale}%`;
     root.style.colorScheme = t.mode;
     root.dataset.theme = t.mode;
@@ -162,5 +171,5 @@ const theme = (() => {
 
   apply(get());
 
-  return { get, set, apply, reset, exportCode, importCode, rgb, tailwindConfig, PRESETS, FONTS, SCALES, DEFAULTS };
+  return { get, set, apply, reset, exportCode, importCode, rgb, tailwindConfig, PRESETS, FONTS, DISPLAYS, SCALES, DEFAULTS };
 })();

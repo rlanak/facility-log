@@ -1,4 +1,3 @@
-from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -7,6 +6,7 @@ from app import crud, schemas
 from app.database import get_db
 from app.services import foxhole_data, production
 from app.services.errors_i18n import err
+from app.services.timezones import user_now
 
 router = APIRouter(tags=["buildings"])
 
@@ -69,7 +69,11 @@ def set_building_production(
 
 @router.get("/api/buildings/{building_id}/production-estimate", response_model=list[schemas.ProductionEstimateOut])
 def get_production_estimate(
-    building_id: int, lang: str = "pt-BR", catalog_lang: str | None = None, db: Session = Depends(get_db)
+    building_id: int,
+    lang: str = "pt-BR",
+    catalog_lang: str | None = None,
+    tz: str | None = None,
+    db: Session = Depends(get_db),
 ):
     building = crud.get_building(db, building_id)
     if not building:
@@ -81,7 +85,7 @@ def get_production_estimate(
         building.building_type_key,
         building.production_slots,
         current_stock,
-        datetime.now(),
+        user_now(tz),
         catalog_lang or lang,
         crud.unlimited_resource_keys(crud.resources_for_facility(db, building.facility_id)),
     )

@@ -19,7 +19,7 @@ views.report = (() => {
 
   function renderReportViewer(container, report) {
     container.innerHTML = "";
-    const genDate = new Date(report.generated_at).toLocaleString(i18n.getLang());
+    const genDate = i18n.formatDateTime(report.generated_at);
     container.appendChild(ui.el("p", { class: "text-xs text-zinc-500 mb-3" }, i18n.t("report.generatedAt", { date: genDate })));
 
     const blocksTitle = ui.el("h3", { class: "text-sm font-bold text-zinc-300 mb-2" }, i18n.t("report.blocksTitle"));
@@ -90,7 +90,7 @@ views.report = (() => {
               ui.el(
                 "span",
                 {},
-                i18n.t("report.reportOf", { date: new Date(report.generated_at).toLocaleString(i18n.getLang()) }) +
+                i18n.t("report.reportOf", { date: i18n.formatDateTime(report.generated_at) }) +
                   (report.created_by_name ? ` · ${i18n.t("report.by", { name: report.created_by_name })}` : "")
               ),
               ui.el("span", { class: "text-zinc-500 text-xs ml-2" }, i18n.t("report.expand")),

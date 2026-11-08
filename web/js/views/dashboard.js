@@ -39,10 +39,9 @@ views.dashboard = (() => {
   // "21:37" today, "02/11 21:37" any other day — a bare time is ambiguous
   // once the log is days old.
   function when(date) {
-    const lang = i18n.getLang();
-    const time = date.toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" });
-    if (date.toDateString() === new Date().toDateString()) return time;
-    return `${date.toLocaleDateString(lang, { day: "2-digit", month: "2-digit" })} ${time}`;
+    const time = i18n.formatTime(date);
+    if (i18n.sameDay(date, new Date())) return time;
+    return `${i18n.formatDateTime(date, { day: "2-digit", month: "2-digit" })} ${time}`;
   }
 
   function pct(part, whole) {
@@ -102,7 +101,7 @@ views.dashboard = (() => {
     let status;
     let hint = "";
     if (slot.running && slot.empty_at) {
-      const at = new Date(slot.empty_at);
+      const at = i18n.parseDate(slot.empty_at);
       status = `<span class="text-emerald-400">● ${i18n.t("dashboard.running")}</span> · ${i18n.t("dashboard.emptyIn", {
         span: formatSpan((at - now) / 1000),
         time: when(at),
@@ -110,7 +109,7 @@ views.dashboard = (() => {
     } else if (slot.running) {
       status = `<span class="text-emerald-400">● ${i18n.t("dashboard.running")}</span> · ${i18n.t("dashboard.noLimit")}`;
     } else {
-      const since = slot.empty_at ? ` ${i18n.t("dashboard.since", { time: when(new Date(slot.empty_at)) })}` : "";
+      const since = slot.empty_at ? ` ${i18n.t("dashboard.since", { time: when(i18n.parseDate(slot.empty_at)) })}` : "";
       status = `<span class="text-red-400">● ${i18n.t("dashboard.stopped")}</span>${since}${
         slot.missing.length ? ` · ${i18n.t("dashboard.lacks", { items: ui.escapeHtml(slot.missing.join(", ")) })}` : ""
       }`;
@@ -132,7 +131,7 @@ views.dashboard = (() => {
 
   function lastLogHtml(b) {
     if (!b.last_logged_at) return `<div class="text-xs text-zinc-500 mb-2">${i18n.t("dashboard.neverLogged")}</div>`;
-    const text = i18n.t("dashboard.lastLog", { span: formatSpan(b.elapsed_seconds), time: when(new Date(b.last_logged_at)) });
+    const text = i18n.t("dashboard.lastLog", { span: formatSpan(b.elapsed_seconds), time: when(i18n.parseDate(b.last_logged_at)) });
     // Stations aren't projected, so an old log there is just "old", not a warning.
     if (b.elapsed_seconds < STALE_SECONDS || b.storage) {
       return `<div class="text-xs text-zinc-500 mb-2" title="${i18n.t("dashboard.lastLogHint")}">${text}</div>`;
@@ -188,7 +187,7 @@ views.dashboard = (() => {
   }
 
   function draw(container, data) {
-    const now = new Date(data.now);
+    const now = i18n.parseDate(data.now);
     const producing = data.buildings.filter((b) => b.slots.length);
     const allStations = data.buildings.filter((b) => b.storage && !b.slots.length);
     const stations = allStations.filter((b) => Object.values(b.logged).some((q) => q >= 0.5));
@@ -252,7 +251,7 @@ views.dashboard = (() => {
       return;
     }
     const last = status.last_sent_at
-      ? i18n.t("dashboard.webhookLast", { span: formatSpan((Date.now() - new Date(status.last_sent_at)) / 1000) })
+      ? i18n.t("dashboard.webhookLast", { span: formatSpan((Date.now() - i18n.parseDate(status.last_sent_at)) / 1000) })
       : i18n.t("dashboard.webhookNever");
     box.innerHTML = `
       <div class="flex flex-wrap items-center gap-2">

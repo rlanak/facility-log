@@ -121,6 +121,10 @@ isso recebem ambos. Relatório gerado fica no idioma da geração. Idioma novo: 
 (`i18n.js`), `_STRINGS` (`report_generator.py`, `errors_i18n.py`), `LANG_CODES` (`foxhole_data.py`),
 opções nos dois seletores e tradução do catálogo.
 
+## Data, hora e fuso
+
+O banco guarda UTC (SQLite devolve sem offset — no navegador sempre `i18n.parseDate()`, que lê ISO sem offset como UTC; exibir com `i18n.formatDateTime()`/`formatTime()`, nunca `new Date(x).toLocale...`). Fuso do usuário: o do navegador ou o escolhido em Configurações (`localStorage["timeZone"]`); `api.js` manda `tz` em toda chamada, e todo horário que o servidor escreve em texto (cabeçalho do relatório, "pronto ~21:37") usa `timezones.user_now(tz)` — o servidor Docker roda em UTC. `tzdata` no requirements (Windows não tem base de fusos). Discord usa `<t:unix>`, que já sai no fuso de quem lê.
+
 ## Produção, tanques e estimativas
 
 - Um prédio roda várias receitas ao mesmo tempo, até `queue_slots`. Na exibição, slots com a mesma
@@ -257,11 +261,17 @@ recebe região + quadrado do pin. No modo web o save "deste PC" seria o do servi
 navegador na própria máquina (`auth.is_local_request`); usuário remoto envia o `.sav`.
 `crud.get_or_create_resource()` casa primeiro por `resource_def_key`, depois por nome.
 
+- **Arquivo lembrado** (`web/js/saveFile.js`, modo web): Chrome/Edge guardam o *handle* do `.sav` no IndexedDB (File System Access API) — depois é só "Ler de novo", sempre o conteúdo atual (o navegador pode pedir permissão uma vez por sessão; com permissão já dada, lê sozinho ao abrir). Firefox não deixa site guardar arquivo: reaproveita o `File` enquanto a aba estiver aberta. Navegador nunca acessa a pasta sem o usuário escolher o arquivo uma vez.
+- O seletor de pin mostra os 2 primeiros itens de cada pin (vários pins com o mesmo nome e quadrado) e "📌 já é <prédio (local)>" pros pins vinculados a outro prédio da facility; a pré-seleção pula esses.
+- Pin do save lista tudo que há no estoque: item lançado no prédio que sumiu do pin ganha 0 (caixa, ligada por padrão; linha desmarcada não zera).
+- **"📌 Atualizar vinculados do save"** (aba Prédios, só aparece com algum prédio vinculado; `saveImport.renderBulkUI`): lê o save uma vez e mostra, por prédio vinculado, atual → save (editável, prédio desmarcável), incluindo os zeros. Código que o catálogo não conhece fica de fora (resolve no formulário do prédio).
+
 Bug do jogo: tooltip pinado para de atualizar se a estrutura for melhorada — despinar e pinar de novo.
 Não conferido: se `Quantity` é item ou caixa em stockpile que guarda caixa.
 
 ## Telas
 
+- **Visual:** ícones em SVG de linha (`ui.icon(nome, classes)`, lista em `ui.js`) no lugar de emoji em botões, abas e cabeçalhos — emoji muda de desenho em cada sistema; logo = hexágono do mapa com fábrica (`ui.logo()`, `web/assets/logo.svg` é o favicon). Títulos, nomes de prédio e números do card na fonte de títulos. Home: card por facility com ícones dos tipos de prédio, filas rodando/paradas e Metas em % (`GET .../dashboard` de cada uma, carregado depois da lista).
 - **Modais** (`ui.openModal`) pra formulários grandes (lançar estoque, print, produção, editar prédio).
 - **Cards de prédio** agrupados (por tipo — padrão —, tipo+upgrade, local, local+tipo;
   `localStorage["buildingGrouping"]`). Grade `repeat(auto-fill, minmax(280px, 1fr))` sem `items-start`,
@@ -274,7 +284,7 @@ Não conferido: se `Quantity` é item ou caixa em stockpile que guarda caixa.
 - **Painel do item** (`itemPanel.js`): apelido (global) + origem de escolha única, gravada por facility
   (`PUT /api/facilities/{id}/item-origins`).
 - **Histórico**: relatórios com "Excluir".
-- **Aparência** (Configurações, `web/js/theme.js`, `localStorage["theme"]`, só naquele navegador): o `tailwind.config` aponta toda cor usada (`zinc` = neutro, `emerald` = destaque, mais red/amber/sky/indigo) pra variáveis CSS `--c-<cor>-<tom>`; um tema só troca as variáveis. Temas prontos (Padrão = Tailwind original, idêntico ao de antes) + cor de destaque, tom do fundo, claro/escuro, fonte e tamanho do texto; "código do tema" (JSON sanitizado) pra compartilhar. Por isso: **usar só essas famílias de cor nas telas** (cor fora delas não acompanha o tema), nada de `text-white` em fundo neutro (some no claro) e cor em canvas/estilo inline via `theme.rgb("emerald", 500)`. No claro, o neutro é por papel (950 = página, 900 = card), os tons 300/400 coloridos escurecem (texto) e 800-950 clareiam (fundos), e ícones do jogo ganham contorno escuro (`style.css`).
+- **Aparência** (Configurações, `web/js/theme.js`, `localStorage["theme"]`, só naquele navegador): o `tailwind.config` aponta toda cor usada (`zinc` = neutro, `emerald` = destaque, mais red/amber/sky/indigo) pra variáveis CSS `--c-<cor>-<tom>`; um tema só troca as variáveis. Temas prontos (**Colonial** = padrão, verde-oliva; **Clássico** = Tailwind original zinc/emerald) + cor de destaque, tom do fundo, claro/escuro, fonte dos títulos ("Militar" = Saira Condensed do Google Fonts, cai pra fonte do texto offline; h1/h2/`.font-display` usam `--display-font`), fonte e tamanho do texto; "código do tema" (JSON sanitizado) pra compartilhar. Por isso: **usar só essas famílias de cor nas telas** (cor fora delas não acompanha o tema), nada de `text-white` em fundo neutro (some no claro) e cor em canvas/estilo inline via `theme.rgb("emerald", 500)`. No claro, o neutro é por papel (950 = página, 900 = card), os tons 300/400 coloridos escurecem (texto) e 800-950 clareiam (fundos), e ícones do jogo ganham contorno escuro (`style.css`).
 - **Dashboard** (`dashboard.js`, `projection.py`; rota `#/facilities/<id>/dashboard`, o antigo `/live`
   ainda abre): estoque projetado supondo que as filas rodaram sem parar desde o último lançamento de cada
   prédio (só rodadas completas; para quando um insumo acaba). **Nunca é gravado** — conta feita na leitura,

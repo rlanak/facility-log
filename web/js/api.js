@@ -1,7 +1,7 @@
 const api = (() => {
   function withLang(path) {
     const sep = path.includes("?") ? "&" : "?";
-    return `${path}${sep}lang=${encodeURIComponent(i18n.getLang())}&catalog_lang=${encodeURIComponent(i18n.getCatalogLang())}`;
+    return `${path}${sep}lang=${encodeURIComponent(i18n.getLang())}&catalog_lang=${encodeURIComponent(i18n.getCatalogLang())}&tz=${encodeURIComponent(i18n.getTimeZone())}`;
   }
 
   async function request(method, path, body) {

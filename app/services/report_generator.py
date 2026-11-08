@@ -609,7 +609,7 @@ def generate_report(
     lang: str = "pt-BR",
     catalog_lang: str | None = None,
 ) -> dict:
-    now = now or datetime.now()
+    now = now or datetime.now().astimezone()
     catalog_lang = catalog_lang or lang
     # Unlimited resources (Resource.unlimited, e.g. Water) are left out of the
     # report entirely: no stock line, no tank line, no total, no Meta — they

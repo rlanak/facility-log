@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app import auth, crud, models, schemas
 from app.database import get_db
 from app.services.errors_i18n import err
+from app.services.timezones import user_now
 from app.services.report_generator import extract_blocks, generate_report, split_for_discord
 
 router = APIRouter(tags=["reports"])
@@ -26,7 +27,12 @@ def _to_report_out(report: models.Report) -> schemas.ReportOut:
 
 @router.post("/api/facilities/{facility_id}/reports", response_model=schemas.ReportOut, status_code=201)
 def create_report(
-    facility_id: int, request: Request, lang: str = "pt-BR", catalog_lang: str | None = None, db: Session = Depends(get_db)
+    facility_id: int,
+    request: Request,
+    lang: str = "pt-BR",
+    catalog_lang: str | None = None,
+    tz: str | None = None,
+    db: Session = Depends(get_db),
 ):
     facility = crud.get_facility(db, facility_id)
     if not facility:
@@ -36,7 +42,8 @@ def create_report(
     all_resources = crud.resources_for_facility(db, facility_id)
     targets = crud.get_facility_targets(db, facility_id)
     result = generate_report(
-        facility, stock_by_building, all_resources, targets, lang=lang, catalog_lang=catalog_lang or lang
+        facility, stock_by_building, all_resources, targets,
+        now=user_now(tz), lang=lang, catalog_lang=catalog_lang or lang,
     )
 
     report = crud.create_report(

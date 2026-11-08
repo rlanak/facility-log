@@ -13,13 +13,17 @@ const i18n = (() => {
       "auth.error.discord": "Não consegui falar com o Discord agora. Tente de novo em instantes.",
       "facilityDetail.loggedBy": "lançado por {name}",
       "report.by": "por {name}",
-      "nav.settings": "⚙️ Configurações",
+      "nav.settings": "Configurações",
       "settings.title": "Configurações",
       "settings.captureTitle": "Leitura dos prints",
+      "settings.tz.title": "🕒 Fuso horário (só neste navegador)",
+      "settings.tz.intro": "Usado nas datas e horários do app e nos relatórios que você gerar (o servidor pode estar em outro fuso). Relatórios já gerados não mudam.",
+      "settings.tz.auto": "Automático — o deste computador: {tz}",
+      "settings.tz.now": "Agora: {time}",
       "settings.theme.title": "🎨 Aparência (só neste navegador)",
       "settings.theme.intro": "Escolha um tema pronto ou monte o seu. Muda na hora e fica salvo só neste navegador — cada pessoa usa o visual que preferir.",
-      "settings.theme.preset.default": "Padrão",
-      "settings.theme.preset.colonial": "Colonial",
+      "settings.theme.preset.colonial": "Colonial (padrão)",
+      "settings.theme.preset.classic": "Clássico",
       "settings.theme.preset.night": "Noite",
       "settings.theme.preset.rust": "Ferrugem",
       "settings.theme.preset.light": "Claro",
@@ -30,7 +34,10 @@ const i18n = (() => {
       "settings.theme.modeLabel": "Modo",
       "settings.theme.mode.dark": "Escuro",
       "settings.theme.mode.light": "Claro",
-      "settings.theme.fontLabel": "Fonte",
+      "settings.theme.fontLabel": "Fonte do texto",
+      "settings.theme.displayLabel": "Fonte dos títulos",
+      "settings.theme.display.military": "Militar (condensada)",
+      "settings.theme.display.body": "Igual ao texto",
       "settings.theme.font.system": "Padrão do sistema",
       "settings.theme.font.rounded": "Arredondada",
       "settings.theme.font.serif": "Serifada",
@@ -105,7 +112,11 @@ const i18n = (() => {
 
       "facilities.title": "Facilities",
       "facilities.namePlaceholder": "Nome da facility (ex: Facility Weathered Expanse)",
-      "facilities.add": "+ Nova Facility",
+      "facilities.add": "Nova Facility",
+      "facilities.noBuildings": "Nenhum prédio cadastrado ainda.",
+      "facilities.running": "filas rodando",
+      "facilities.stopped": "paradas",
+      "facilities.goals": "Metas: {met}/{total} batidas",
       "facilities.loading": "Carregando...",
       "facilities.empty": "Nenhuma facility cadastrada ainda.",
       "facilities.updatedAt": "Atualizada em {date}",
@@ -277,13 +288,32 @@ const i18n = (() => {
       "saveImport.nothingToSave": "Nenhuma linha marcada pra salvar.",
       "saveImport.save": "Salvar estoque",
       "saveImport.saved": "{n} itens lançados a partir do save.",
+      "saveImport.linkedToOther": "já é {names}",
+      "saveImport.alreadyLinked": "⚠ Este pin já está vinculado a {names}. Se salvar, os dois prédios ficam no mesmo pin.",
+      "saveImport.zeroMissing": "Zerar o que não está mais neste estoque do save: {items}",
+      "saveImport.bulkPinMissing": "O pin vinculado não está no save (despinado no jogo?) — abra o 📌 Save do prédio pra escolher outro.",
+      "saveImport.bulkGone": "não está mais no save",
+      "saveImport.bulkUnknown": "Itens que o app ainda não conhece ficaram de fora ({codes}) — abra o 📌 Save do prédio pra escolher o recurso.",
+      "saveImport.bulkNone": "Nenhum prédio desta facility está vinculado a um pin do save ainda — vincule pelo botão 📌 Save de cada MTS/RTS.",
+      "saveImport.bulkSave": "Salvar os prédios marcados",
+      "saveImport.bulkSaved": "{n} prédio(s) atualizados a partir do save.",
+      "saveFile.readAgain": "🔄 Ler de novo: {name}",
+      "saveFile.other": "📤 Outro arquivo",
+      "saveFile.forget": "esquecer arquivo",
+      "saveFile.denied": "O navegador não deixou ler o arquivo — escolha de novo.",
+      "saveFile.none": "Nenhum arquivo escolhido ainda.",
+      "saveFile.pickAgain": "Não deu pra ler o arquivo de novo — escolha ele outra vez.",
+      "saveFile.rememberedHint": "O navegador lembra do arquivo: nas próximas vezes é só \"Ler de novo\" (ele pode pedir pra permitir a leitura uma vez por sessão).",
+      "saveFile.firefoxHint": "Este navegador não deixa sites lembrarem um arquivo depois de fechar a aba — enquanto ela estiver aberta, é só \"Ler de novo\". No Chrome ou no Edge o arquivo fica lembrado de vez.",
+      "facilityDetail.bulkSave": "Atualizar vinculados do save",
+      "facilityDetail.bulkSaveHint": "Lê o save uma vez e atualiza todas as MTS/RTS já vinculadas a um pin (você confere antes de salvar).",
       "facilityDetail.production": "⚙️ Produção",
       "facilityDetail.foxholeType": "tipo Foxhole",
       "facilityDetail.dragToReorder": "arraste para reordenar dentro do grupo",
-      "facilityDetail.btnStock": "+ Estoque",
-      "facilityDetail.btnPrint": "📷 Print",
-      "facilityDetail.btnSave": "📌 Save",
-      "facilityDetail.btnProduction": "⚙️ Produção",
+      "facilityDetail.btnStock": "Estoque",
+      "facilityDetail.btnPrint": "Print",
+      "facilityDetail.btnSave": "Save",
+      "facilityDetail.btnProduction": "Produção",
       "facilityDetail.groupOther": "Outros prédios",
       "facilityDetail.groupBy": "Agrupar:",
       "facilityDetail.groupByType": "por tipo",
@@ -391,13 +421,17 @@ const i18n = (() => {
       "auth.error.discord": "Couldn't reach Discord right now. Try again in a moment.",
       "facilityDetail.loggedBy": "logged by {name}",
       "report.by": "by {name}",
-      "nav.settings": "⚙️ Settings",
+      "nav.settings": "Settings",
       "settings.title": "Settings",
       "settings.captureTitle": "Reading screenshots",
+      "settings.tz.title": "🕒 Time zone (this browser only)",
+      "settings.tz.intro": "Used for the app's dates and times and for the reports you generate (the server may be in another zone). Reports already generated don't change.",
+      "settings.tz.auto": "Automatic — this computer's: {tz}",
+      "settings.tz.now": "Now: {time}",
       "settings.theme.title": "🎨 Appearance (this browser only)",
       "settings.theme.intro": "Pick a ready-made theme or build your own. It changes right away and is saved only in this browser — everyone can use the look they like.",
-      "settings.theme.preset.default": "Default",
-      "settings.theme.preset.colonial": "Colonial",
+      "settings.theme.preset.colonial": "Colonial (default)",
+      "settings.theme.preset.classic": "Classic",
       "settings.theme.preset.night": "Night",
       "settings.theme.preset.rust": "Rust",
       "settings.theme.preset.light": "Light",
@@ -408,7 +442,10 @@ const i18n = (() => {
       "settings.theme.modeLabel": "Mode",
       "settings.theme.mode.dark": "Dark",
       "settings.theme.mode.light": "Light",
-      "settings.theme.fontLabel": "Font",
+      "settings.theme.fontLabel": "Text font",
+      "settings.theme.displayLabel": "Heading font",
+      "settings.theme.display.military": "Military (condensed)",
+      "settings.theme.display.body": "Same as text",
       "settings.theme.font.system": "System default",
       "settings.theme.font.rounded": "Rounded",
       "settings.theme.font.serif": "Serif",
@@ -483,7 +520,11 @@ const i18n = (() => {
 
       "facilities.title": "Facilities",
       "facilities.namePlaceholder": "Facility name (e.g. Facility Weathered Expanse)",
-      "facilities.add": "+ New Facility",
+      "facilities.add": "New Facility",
+      "facilities.noBuildings": "No buildings registered yet.",
+      "facilities.running": "queues running",
+      "facilities.stopped": "stopped",
+      "facilities.goals": "Targets: {met}/{total} met",
       "facilities.loading": "Loading...",
       "facilities.empty": "No facilities registered yet.",
       "facilities.updatedAt": "Updated on {date}",
@@ -655,13 +696,32 @@ const i18n = (() => {
       "saveImport.nothingToSave": "No rows ticked to save.",
       "saveImport.save": "Save stock",
       "saveImport.saved": "{n} items logged from the save.",
+      "saveImport.linkedToOther": "already {names}",
+      "saveImport.alreadyLinked": "⚠ This pin is already linked to {names}. If you save, both buildings will share it.",
+      "saveImport.zeroMissing": "Zero what's no longer in this save stockpile: {items}",
+      "saveImport.bulkPinMissing": "The linked pin isn't in the save (unpinned in game?) — open the building's 📌 Save to pick another.",
+      "saveImport.bulkGone": "no longer in the save",
+      "saveImport.bulkUnknown": "Items the app doesn't know yet were left out ({codes}) — open the building's 📌 Save to pick the resource.",
+      "saveImport.bulkNone": "No building in this facility is linked to a save pin yet — link them with each MTS/RTS's 📌 Save button.",
+      "saveImport.bulkSave": "Save the checked buildings",
+      "saveImport.bulkSaved": "{n} building(s) updated from the save.",
+      "saveFile.readAgain": "🔄 Read again: {name}",
+      "saveFile.other": "📤 Another file",
+      "saveFile.forget": "forget file",
+      "saveFile.denied": "The browser didn't allow reading the file — pick it again.",
+      "saveFile.none": "No file picked yet.",
+      "saveFile.pickAgain": "Couldn't read the file again — pick it once more.",
+      "saveFile.rememberedHint": "The browser remembers the file: next time just \"Read again\" (it may ask to allow reading once per session).",
+      "saveFile.firefoxHint": "This browser doesn't let sites remember a file after the tab closes — while it's open, just \"Read again\". In Chrome or Edge the file stays remembered.",
+      "facilityDetail.bulkSave": "Refresh linked from save",
+      "facilityDetail.bulkSaveHint": "Reads the save once and refreshes every MTS/RTS already linked to a pin (you review before saving).",
       "facilityDetail.production": "⚙️ Production",
       "facilityDetail.foxholeType": "Foxhole type",
       "facilityDetail.dragToReorder": "drag to reorder within the group",
-      "facilityDetail.btnStock": "+ Stock",
-      "facilityDetail.btnPrint": "📷 Print",
-      "facilityDetail.btnSave": "📌 Save",
-      "facilityDetail.btnProduction": "⚙️ Production",
+      "facilityDetail.btnStock": "Stock",
+      "facilityDetail.btnPrint": "Print",
+      "facilityDetail.btnSave": "Save",
+      "facilityDetail.btnProduction": "Production",
       "facilityDetail.groupOther": "Other buildings",
       "facilityDetail.groupBy": "Group:",
       "facilityDetail.groupByType": "by type",
@@ -781,6 +841,58 @@ const i18n = (() => {
     localStorage.setItem("catalogLang", lang);
   }
 
+  // Time zone for every date shown here and every time the server writes
+  // into text (report header, "ready ~21:37" — api.js sends it as `tz`).
+  // The browser's own zone unless the user picked one in Configurações.
+  function browserTimeZone() {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    } catch (_) {
+      return "UTC";
+    }
+  }
+  function savedTimeZone() {
+    try {
+      return localStorage.getItem("timeZone") || "";
+    } catch (_) {
+      return "";
+    }
+  }
+  function getTimeZone() {
+    const saved = savedTimeZone();
+    if (saved) {
+      try {
+        new Intl.DateTimeFormat("en-US", { timeZone: saved });
+        return saved;
+      } catch (_) {}
+    }
+    return browserTimeZone();
+  }
+  function setTimeZone(tz) {
+    try {
+      if (tz) localStorage.setItem("timeZone", tz);
+      else localStorage.removeItem("timeZone");
+    } catch (_) {}
+  }
+
+  // The API's stored times are UTC but come without an offset (SQLite drops
+  // it): read a bare ISO string as UTC, never as the browser's local time.
+  function parseDate(value) {
+    if (value instanceof Date) return value;
+    if (typeof value === "string" && /T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(value)) return new Date(value + "Z");
+    return new Date(value);
+  }
+  function formatDateTime(value, opts) {
+    return parseDate(value).toLocaleString(getLang(), { ...(opts || {}), timeZone: getTimeZone() });
+  }
+  function formatTime(value) {
+    return parseDate(value).toLocaleTimeString(getLang(), { hour: "2-digit", minute: "2-digit", timeZone: getTimeZone() });
+  }
+  function sameDay(a, b) {
+    const day = (d) => parseDate(d).toLocaleDateString("en-CA", { timeZone: getTimeZone() });
+    return day(a) === day(b);
+  }
+
   function t(key, vars) {
     const table = STRINGS[getLang()] || STRINGS[DEFAULT_LANG];
     let str = table[key] ?? STRINGS[DEFAULT_LANG][key] ?? key;
@@ -825,5 +937,23 @@ const i18n = (() => {
     return catalogName(foxholeType) || building.name;
   }
 
-  return { t, getLang, setLang, getCatalogLang, setCatalogLang, applyStaticText, catalogName, resourceName, buildingName };
+  return {
+    t,
+    getLang,
+    setLang,
+    getCatalogLang,
+    setCatalogLang,
+    applyStaticText,
+    catalogName,
+    resourceName,
+    buildingName,
+    getTimeZone,
+    setTimeZone,
+    savedTimeZone,
+    browserTimeZone,
+    parseDate,
+    formatDateTime,
+    formatTime,
+    sameDay,
+  };
 })();
