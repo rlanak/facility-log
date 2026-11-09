@@ -80,6 +80,18 @@ views.privateOrders = (() => {
     return order.outputs.map((o) => o.name).join(", ") || order.recipe_key;
   }
 
+  // "fabricado 9 de 36 300mm" — made so far (in the player's slot, not in
+  // any stock: counts for a Meta only once logged where it was put).
+  function madeHtml(order, defs) {
+    const parts = order.outputs.map((o) => {
+      const done = qtyLabel(o.done, o.resource, defs);
+      return o.total != null && order.status === "running"
+        ? i18n.t("private.madeOf", { done, total: qtyLabel(o.total, o.resource, defs), name: ui.escapeHtml(o.name) })
+        : i18n.t("private.made", { done, name: ui.escapeHtml(o.name) });
+    });
+    return parts.length ? `<div class="text-zinc-200">${parts.join(" + ")}</div>` : "";
+  }
+
   function statusHtml(order, defs) {
     if (order.status === "released") {
       return `<span class="text-amber-400">${i18n.t("private.released", { time: when(order.expires_at) })}</span>`;
@@ -114,7 +126,8 @@ views.privateOrders = (() => {
             <button class="po-edit text-zinc-500 hover:text-zinc-100 p-0.5" title="${i18n.t("common.edit")}">${ui.icon("pencil", "w-3.5 h-3.5")}</button>
             <button class="po-delete text-zinc-600 hover:text-red-400 p-0.5" title="${i18n.t("private.delete")}">✕</button>
           </div>
-          <div class="text-zinc-400 mt-0.5 leading-snug">${statusHtml(o, defs)}</div>
+          <div class="mt-0.5 leading-snug">${madeHtml(o, defs)}</div>
+          <div class="text-zinc-400 leading-snug">${statusHtml(o, defs)}</div>
           <button class="po-close mt-1 inline-flex items-center gap-1 text-emerald-400 hover:text-emerald-300">${ui.icon("check", "w-3.5 h-3.5")}${i18n.t("private.retrieved")}</button>
         </div>`
       )
@@ -161,6 +174,17 @@ views.privateOrders = (() => {
     container.innerHTML = `
       <form class="grid gap-3">
         <p class="text-xs text-zinc-500">${i18n.t("private.formHint")}</p>
+        <div class="po-print border border-dashed border-zinc-700 rounded p-3 text-xs text-zinc-400 grid gap-2">
+          <div class="flex flex-wrap items-center gap-2">
+            ${ui.icon("camera", "w-4 h-4")}
+            <span class="flex-1 min-w-0">${i18n.t("private.printHint")}</span>
+            <label class="cursor-pointer border border-zinc-700 hover:border-zinc-500 rounded px-2 py-1 text-zinc-300">${i18n.t("private.printChoose")}
+              <input type="file" accept="image/png,image/jpeg,image/webp" class="hidden po-file" />
+            </label>
+          </div>
+          <img class="po-thumb hidden max-h-32 object-contain rounded border border-zinc-800" alt="" />
+          <p class="po-print-status hidden"></p>
+        </div>
         <label class="grid gap-1 text-xs text-zinc-400">${i18n.t("private.owner")}
           <input name="owner" class="${input}" maxlength="100" value="${ui.escapeHtml(order ? order.owner_name : me)}" placeholder="${i18n.t("private.ownerPlaceholder")}" />
         </label>
@@ -170,7 +194,10 @@ views.privateOrders = (() => {
           </select>
         </label>
         <div class="po-inputs grid gap-2"></div>
-        <div class="grid grid-cols-2 gap-2">
+        <div class="grid grid-cols-3 gap-2">
+          <label class="grid gap-1 text-xs text-zinc-400" title="${i18n.t("private.doneBeforeHint")}">${i18n.t("private.doneBefore")}
+            <input name="done" inputmode="numeric" class="${input}" placeholder="0" value="${order && order.done_before ? order.done_before : ""}" />
+          </label>
           <label class="grid gap-1 text-xs text-zinc-400">${i18n.t("private.cycleLeft")}
             <input name="cycle" class="${input}" placeholder="0:00:52" value="${order && order.cycle_left_seconds ? clock(order.cycle_left_seconds) : ""}" />
           </label>
@@ -187,9 +214,11 @@ views.privateOrders = (() => {
     const originalTime = f.time.value;
     const recipeOf = () => recipes.find((r) => r.key === f.recipe.value);
 
-    function drawInputs() {
+    function drawInputs(prefill) {
       const recipe = recipeOf();
-      const loaded = order && order.recipe_key === recipe.key ? Object.fromEntries(order.inputs.map((i) => [i.resource, i.loaded])) : {};
+      const loaded =
+        prefill ||
+        (order && order.recipe_key === recipe.key ? Object.fromEntries(order.inputs.map((i) => [i.resource, i.loaded])) : {});
       inputsBox.innerHTML = solidInputs(recipe, defs)
         .map((io) => {
           const def = defs[io.resource];
@@ -213,14 +242,16 @@ views.privateOrders = (() => {
         const n = el.value.trim() === "" ? 0 : Number(el.value.replace(",", "."));
         inputs[el.dataset.key] = n;
       }
-      return { inputs, cycle: parseClock(f.cycle.value) };
+      const doneText = f.done.value.trim();
+      const done = doneText === "" ? 0 : Number(doneText);
+      return { inputs, cycle: parseClock(f.cycle.value), done: Number.isInteger(done) && done >= 0 ? done : NaN };
     }
 
     function drawPreview() {
       const recipe = recipeOf();
-      const { inputs, cycle } = values();
+      const { inputs, cycle, done } = values();
       const solids = solidInputs(recipe, defs);
-      if (Object.values(inputs).some((n) => isNaN(n) || n < 0) || isNaN(cycle)) {
+      if (Object.values(inputs).some((n) => isNaN(n) || n < 0) || isNaN(cycle) || isNaN(done)) {
         preview.textContent = "";
         return;
       }
@@ -235,18 +266,81 @@ views.privateOrders = (() => {
         .filter((o) => o.resource)
         .map((o) => `${qtyLabel((o.qty ?? 1) * cycles, o.resource, defs)} ${i18n.catalogName(defs[o.resource]) || o.resource}`)
         .join(" + ");
-      preview.textContent = cycles > 0 ? i18n.t("private.preview", { cycles, out, time: when(ready) }) : i18n.t("private.previewNone");
+      let text = cycles > 0 ? i18n.t("private.preview", { cycles, out, time: when(ready) }) : i18n.t("private.previewNone");
+      if (done > 0) text += " · " + i18n.t("private.previewDone", { done, total: done + cycles });
+      preview.textContent = text;
     }
 
-    f.recipe.addEventListener("change", drawInputs);
+    f.recipe.addEventListener("change", () => drawInputs());
     f.cycle.addEventListener("input", drawPreview);
     f.time.addEventListener("input", drawPreview);
+    f.done.addEventListener("input", drawPreview);
     drawInputs();
+
+    // Screenshot of the order panel → pre-fill (recipe, inputs, already
+    // made, time left). Nothing saves until the user presses Salvar.
+    const printBox = f.querySelector(".po-print");
+    const thumb = f.querySelector(".po-thumb");
+    const printStatus = f.querySelector(".po-print-status");
+    function showStatus(text, kind) {
+      printStatus.classList.remove("hidden", "text-emerald-400", "text-amber-400", "text-red-400", "text-zinc-400");
+      printStatus.classList.add(
+        kind === "ok" ? "text-emerald-400" : kind === "warn" ? "text-amber-400" : kind === "error" ? "text-red-400" : "text-zinc-400"
+      );
+      printStatus.textContent = text;
+    }
+    async function readPrint(file) {
+      if (!file || !file.type.startsWith("image/")) return;
+      thumb.src = URL.createObjectURL(file);
+      thumb.classList.remove("hidden");
+      showStatus(i18n.t("private.printReading"));
+      try {
+        const image = await api.uploadBuildingImage(building.id, file);
+        const r = await api.readPrivateOrderPrint(building.id, image.id, recipes.map((x) => x.key));
+        if (!r.available) return showStatus(i18n.t("print.detectUnavailable"), "error");
+        if (!r.recipe_key || !recipes.some((x) => x.key === r.recipe_key)) return showStatus(i18n.t("private.printNoRecipe"), "warn");
+        f.recipe.value = r.recipe_key;
+        drawInputs(r.inputs || {});
+        if (r.done_before != null && r.done_before !== "") f.done.value = r.done_before;
+        if (r.cycle_left_seconds != null) f.cycle.value = clock(r.cycle_left_seconds);
+        drawPreview();
+        const missing = solidInputs(recipeOf(), defs).filter((io) => !(r.inputs || {})[io.resource]).length;
+        // Only what the recipe used: stray icons elsewhere in the print don't matter.
+        const unsure = Boolean(r.unsure);
+        const notes = [i18n.t("private.printRead")];
+        if (r.cycle_left_seconds == null) notes.push(i18n.t("private.printNoClock"));
+        if (missing) notes.push(i18n.t("private.printMissing"));
+        if (unsure) notes.push(i18n.t("private.printUnsure"));
+        showStatus(notes.join(" "), notes.length > 1 ? "warn" : "ok");
+      } catch (err) {
+        showStatus(err.message || i18n.t("print.detectFailed"), "error");
+      }
+    }
+    f.querySelector(".po-file").addEventListener("change", (e) => readPrint(e.target.files[0]));
+    printBox.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      printBox.classList.add("border-emerald-500");
+    });
+    printBox.addEventListener("dragleave", () => printBox.classList.remove("border-emerald-500"));
+    printBox.addEventListener("drop", (e) => {
+      e.preventDefault();
+      printBox.classList.remove("border-emerald-500");
+      readPrint(e.dataTransfer.files[0]);
+    });
+    // Ctrl+V anywhere while the form is open.
+    function onPaste(e) {
+      if (!document.body.contains(f)) return document.removeEventListener("paste", onPaste);
+      const item = [...((e.clipboardData && e.clipboardData.items) || [])].find((i) => i.type.startsWith("image/"));
+      if (!item) return;
+      e.preventDefault();
+      readPrint(item.getAsFile());
+    }
+    document.addEventListener("paste", onPaste);
 
     f.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const { inputs, cycle } = values();
-      if (Object.values(inputs).some((n) => isNaN(n) || n < 0) || isNaN(cycle)) {
+      const { inputs, cycle, done } = values();
+      if (Object.values(inputs).some((n) => isNaN(n) || n < 0) || isNaN(cycle) || isNaN(done)) {
         ui.toast(i18n.t("resources.invalidNumber"), true);
         return;
       }
@@ -264,11 +358,13 @@ views.privateOrders = (() => {
         recipe_key: f.recipe.value,
         inputs,
         cycle_left_seconds: cycle,
+        done_before: done,
         started_at: started.toISOString(),
       };
       try {
         if (order) await api.updatePrivateOrder(building.id, order.id, data);
         else await api.createPrivateOrder(building.id, data);
+        document.removeEventListener("paste", onPaste);
         onSaved();
       } catch (err) {
         ui.toast(err.message, true);

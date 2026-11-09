@@ -198,7 +198,14 @@ views.dashboard = (() => {
             <span class="text-zinc-400 truncate min-w-0">· ${ui.escapeHtml(item)}</span>
           </div>
           <div class="text-xs text-zinc-500 truncate">${ui.escapeHtml(where)}</div>
-          <div class="text-xs mt-1">${status}</div>
+          <div class="text-sm mt-1">${o.outputs
+            .map((x) =>
+              x.total != null && o.status === "running"
+                ? i18n.t("private.madeOf", { done: formatQty(x.done, x.resource), total: formatQty(x.total, x.resource), name: ui.escapeHtml(x.name) })
+                : i18n.t("private.made", { done: formatQty(x.done, x.resource), name: ui.escapeHtml(x.name) })
+            )
+            .join(" + ")}</div>
+          <div class="text-xs mt-0.5">${status}</div>
         </div>`;
       })
       .join("");

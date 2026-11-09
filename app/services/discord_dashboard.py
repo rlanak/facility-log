@@ -72,11 +72,11 @@ _STRINGS = {
         "footer": "facility-log · ≈ estimado — não sabe de fila pausada, falta de energia nem material movido",
         "minute": "1 min",
         "private": "🔒 Filas privadas",
-        "private_running": "🔒 **{owner}** · {item} · {building} · faltam {left} · pronto {when}",
+        "private_running": "🔒 **{owner}** · {item} · {building} · fabricado {made} · pronto {when}",
         "private_running_open": "🔒 **{owner}** · {item} · {building} · em produção",
-        "private_ready": "✅ **{owner}** · {item} · {building} · pronto — retirar antes de {when} (vai pro público)",
+        "private_ready": "✅ **{owner}** · {item} · {building} · {made} prontos — retirar antes de {when} (vai pro público)",
         "private_released": "⚠️ **{owner}** · {item} · {building} · não retirado: foi pro estoque público",
-        "incoming": "+{qty} a caminho (fila privada)",
+        "incoming": "{qty} já fabricados em fila privada (não contam)",
     },
     "en-US": {
         "title": "📊 {facility} — dashboard",
@@ -111,11 +111,11 @@ _STRINGS = {
         "footer": "facility-log · ≈ estimated — unaware of paused queues, power shortage or moved stock",
         "minute": "1 min",
         "private": "🔒 Private queues",
-        "private_running": "🔒 **{owner}** · {item} · {building} · {left} to go · ready {when}",
+        "private_running": "🔒 **{owner}** · {item} · {building} · made {made} · ready {when}",
         "private_running_open": "🔒 **{owner}** · {item} · {building} · producing",
-        "private_ready": "✅ **{owner}** · {item} · {building} · ready — retrieve before {when} (goes public)",
+        "private_ready": "✅ **{owner}** · {item} · {building} · {made} ready — retrieve before {when} (goes public)",
         "private_released": "⚠️ **{owner}** · {item} · {building} · not retrieved: went to the public stockpile",
-        "incoming": "+{qty} on the way (private queue)",
+        "incoming": "{qty} already made in a private queue (not counted)",
     },
 }
 
@@ -173,12 +173,14 @@ def _private_value(orders: list[dict], lang: str) -> str:
         if o["status"] == "released":
             lines.append(_t("private_released", lang, **args))
         elif o["status"] == "ready":
-            lines.append(_t("private_ready", lang, when=_ts(o["expires_at"]), **args))
+            made = " + ".join(_display_qty(out["done"], out["resource"]) for out in o["outputs"]) or "?"
+            lines.append(_t("private_ready", lang, made=made, when=_ts(o["expires_at"]), **args))
         elif o["ready_at"]:
-            left = " + ".join(
-                _display_qty(out["per_cycle"] * o["remaining_cycles"], out["resource"]) for out in o["outputs"]
-            ) or str(o["remaining_cycles"])
-            lines.append(_t("private_running", lang, left=left, when=_ts(o["ready_at"]), **args))
+            made = " + ".join(
+                f"{_display_qty(out['done'], out['resource'])}/{_display_qty(out['total'], out['resource'])}"
+                for out in o["outputs"]
+            ) or "?"
+            lines.append(_t("private_running", lang, made=made, when=_ts(o["ready_at"]), **args))
         else:
             lines.append(_t("private_running_open", lang, **args))
     return _clip("\n".join(lines), _FIELD_MAX)

@@ -224,6 +224,9 @@ class PrivateOrder(Base):
     inputs_json: Mapped[str] = mapped_column(Text, default="{}")
     # Time left on the cycle running when it was logged (0 = none/unknown).
     cycle_left_seconds: Mapped[int] = mapped_column(default=0)
+    # Already made when it was logged: the number on the output slot in the
+    # order panel (waiting in the player's slot).
+    done_before: Mapped[int] = mapped_column(default=0)
     started_at: Mapped[datetime] = mapped_column(default=utcnow)
     closed_at: Mapped[datetime | None] = mapped_column(default=None)
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), default=None)

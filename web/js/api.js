@@ -100,6 +100,13 @@ const api = (() => {
     updatePrivateOrder: (buildingId, id, data) => request("PUT", `/api/buildings/${buildingId}/private-orders/${id}`, data),
     closePrivateOrder: (buildingId, id) => request("POST", `/api/buildings/${buildingId}/private-orders/${id}/close`),
     deletePrivateOrder: (buildingId, id) => request("DELETE", `/api/buildings/${buildingId}/private-orders/${id}`),
+    // Order panel screenshot (already uploaded) → form pre-fill; recipes = the ones offered.
+    readPrivateOrderPrint: (buildingId, imageId, recipes) =>
+      request(
+        "POST",
+        `/api/buildings/${buildingId}/private-orders/read-print?recipes=${encodeURIComponent(recipes.join(","))}`,
+        { image_id: imageId }
+      ),
 
     getCaptureSettings: () => request("GET", "/api/settings/capture"),
     updateCaptureSettings: (data) => request("PUT", "/api/settings/capture", data),

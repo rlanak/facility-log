@@ -87,7 +87,8 @@ scripts/       build_save_parser.py, create_shortcut.py
 - `buildings` — `building_type_key`, `production_slots` (JSON `[{recipe_key, queue_count}]`),
   `position`, `upgrade` (módulo instalado; NULL = base), `location` (texto livre), `save_pin_key`.
 - `private_orders` — fila privada (Personal) lançada à mão: `owner_name` (texto livre), `recipe_key`,
-  `inputs_json` (insumos carregados), `cycle_left_seconds`, `started_at`, `closed_at` (retirada). Ver
+  `inputs_json` (insumos carregados), `cycle_left_seconds`, `done_before` (número na saída quando foi
+  lançada = já fabricado), `started_at`, `closed_at` (retirada). Ver
   "Filas privadas".
 - `stock_entries` — **log append-only**: estoque atual = linha mais recente de
   prédio+recurso+`storage` (`"normal"` ou `"tank"`). Excluir (`DELETE .../stock/{resource_id}?storage=`)
@@ -161,7 +162,16 @@ retirada vai pro estoque público do prédio **28h depois de pronta**. No app:
   privadas `running` ≤ `queue_slots`, conferido nos dois sentidos (salvar Produção e salvar fila privada).
 - "Retirado" fecha a fila (`closed_at`) e opcionalmente lança a saída num prédio (estações primeiro):
   valor = estoque atual do destino + o que saiu, editável. "✕" apaga (lançada por engano).
-- Dashboard e Discord listam as abertas; Meta mostra "+N a caminho" (fila não liberada), nunca soma.
+- **Fabricado** = `done_before` + ciclos completos desde o lançamento; card, Dashboard e Discord mostram
+  "fabricado X de Y". Fica no slot de quem fez: **não é estoque** — a Meta só conta o que está no estoque
+  público de um prédio ou numa MTS/RTS; ao lado dela aparece só "N já fabricados em fila privada".
+- **Print da ordem** (colar/arrastar/escolher no formulário): sobe como imagem do prédio e
+  `POST .../private-orders/read-print` usa o mesmo detector dos prints de estoque, limitado aos itens das
+  receitas do prédio (`only_keys`), lê os números com o leitor escolhido e o tempo com RapidOCR na imagem
+  inteira (`readers.read_clock`, **só h:mm:ss** — "19:46" de um print do Discord é a hora da mensagem).
+  Receita = a que explica mais itens com a saída **à direita** de todos os insumos; empate de ícone conta
+  pro rival, e nível da mesma família (Assembly Materials I-V) vale pro que a receita pede — aí volta
+  `unsure` e o formulário pede pra conferir. Só pré-preenche.
 - Rotas ficam sob `/api/buildings/{id}/...` e `/api/facilities/{id}/...` (cobertas pelo bloqueio de
   facility privada).
 

@@ -5,13 +5,17 @@ private-facility check in auth.gate already covers them."""
 
 import json
 from datetime import datetime, timezone
+from pathlib import Path
+
+from PIL import Image
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app import auth, crud, models, schemas
-from app.database import get_db
-from app.services import foxhole_data, private_orders
+from app.database import UPLOADS_DIR, get_db
+from app.services import capture, foxhole_data, icon_match_service, private_orders
+from app.services.capture import readers
 from app.services.errors_i18n import err
 
 router = APIRouter(tags=["private-orders"])
@@ -59,6 +63,9 @@ def _apply(order: models.PrivateOrder, data: schemas.PrivateOrderIn, building: m
     order.recipe_key = data.recipe_key
     order.inputs_json = json.dumps(inputs)
     order.cycle_left_seconds = data.cycle_left_seconds
+    if data.done_before < 0 or data.done_before > 1_000_000:
+        raise HTTPException(status_code=422, detail=err("invalid_quantity", lang))
+    order.done_before = data.done_before
     started = data.started_at or _now()
     order.started_at = started if started.tzinfo else started.replace(tzinfo=timezone.utc)
 
@@ -81,6 +88,49 @@ def _check_queues(db: Session, building: models.Building, lang: str, exclude_id:
             status_code=422,
             detail=err("queue_slots_with_private", lang, public=public, private=private + 1, max=building_type["queue_slots"]),
         )
+
+
+@router.post("/api/buildings/{building_id}/private-orders/read-print")
+def read_order_print(
+    building_id: int,
+    data: schemas.PrivateOrderPrintIn,
+    recipes: str | None = None,
+    lang: str = "pt-BR",
+    db: Session = Depends(get_db),
+):
+    """Screenshot of the order panel → pre-fill for the form: recipe,
+    loaded inputs, output count (already made), time left on the cycle.
+    The user confirms everything before saving (nothing is stored here)."""
+    building = _building(db, building_id, lang)
+    image = crud.get_upload_image(db, data.image_id)
+    if not image or image.building_id != building.id:
+        raise HTTPException(status_code=404, detail=err("image_not_found", lang))
+    path = Path(image.file_path)
+    if not path.is_file():
+        path = UPLOADS_DIR / path.name
+    if not icon_match_service.is_available():
+        return {"available": False}
+    _chosen, _effective, reader = capture.resolve_reader(db)
+    with Image.open(path) as img:
+        width, height = img.size
+    items = icon_match_service.detect_items(
+        path,
+        (0, 0, width, height),
+        read_number=lambda p, box: capture.read_number(reader, p, box),
+        only_keys=private_orders.recipe_keys(building.building_type_key),
+    )
+    allowed = set(recipes.split(",")) if recipes else None
+    guess = private_orders.guess_from_print(building.building_type_key, items, allowed)
+    clock = readers.read_clock(path)
+    return {
+        "available": True,
+        **guess,
+        "cycle_left_seconds": clock["seconds"],
+        "clock_raw": clock["raw_text"],
+        "items": [
+            {k: i.get(k) for k in ("resource_def_key", "quantity_guess", "ambiguous", "rival_key")} for i in items
+        ],
+    }
 
 
 @router.get("/api/facilities/{facility_id}/private-orders")

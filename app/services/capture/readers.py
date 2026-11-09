@@ -119,6 +119,46 @@ def read_rapidocr(image_path: Path, box: tuple[int, int, int, int]) -> dict:
     return sanitize("".join(out.txts) if out.txts else "")
 
 
+@lru_cache(maxsize=1)
+def _rapid_full_engine():
+    from rapidocr import RapidOCR
+
+    return RapidOCR()
+
+
+# h:mm:ss only — a bare "19:46" in a Discord screenshot is the message time.
+_CLOCK_RE = re.compile(r"(\d{1,2})[:;.](\d{2})[:;.](\d{2})")
+
+
+def read_clock(image_path: Path) -> dict:
+    """The h:mm:ss countdown of a production order panel (private orders,
+    services/private_orders.py): text detection on the whole image, first
+    piece that looks like a clock. {"seconds": int | None, "raw_text": str}."""
+    import numpy as np
+
+    if not rapidocr_available():
+        return {"seconds": None, "raw_text": ""}
+    with Image.open(image_path) as img:
+        img = img.convert("RGB")
+        # Small screenshots (a Discord crop) read better a bit bigger.
+        if img.width < 1200:
+            factor = 2 if img.width >= 600 else 3
+            img = img.resize((img.width * factor, img.height * factor), Image.LANCZOS)
+        arr = np.array(img)
+    try:
+        out = _rapid_full_engine()(arr)
+    except Exception:
+        return {"seconds": None, "raw_text": ""}
+    for text in out.txts or []:
+        cleaned = (text or "").replace(" ", "").translate(_CONFUSABLES)
+        m = _CLOCK_RE.search(cleaned)
+        if not m:
+            continue
+        seconds = int(m.group(1)) * 3600 + int(m.group(2)) * 60 + int(m.group(3))
+        return {"seconds": seconds, "raw_text": m.group(0)}
+    return {"seconds": None, "raw_text": ""}
+
+
 # --- Vision model via Ollama (local GPU) --------------------------------------
 
 

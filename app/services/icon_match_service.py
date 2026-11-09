@@ -204,12 +204,16 @@ def _exemplar_similarity(patch, crops) -> float:
     return best
 
 
-def detect_items(image_path: Path, box: tuple[int, int, int, int], read_number=None) -> list[dict]:
+def detect_items(
+    image_path: Path, box: tuple[int, int, int, int], read_number=None, only_keys: set[str] | None = None
+) -> list[dict]:
     """box is (x0, y0, x1, y1) in the full screenshot's own pixel space,
     covering the STOCKPILE > ITEMS panel the user selected. `read_number(path,
     box)` reads one quantity (None = don't read: the browser will, see
     web/js/personalAI.js — every item carries its number box). Returns one dict per
-    slot that shows a quantity, sorted top-to-bottom/left-to-right."""
+    slot that shows a quantity, sorted top-to-bottom/left-to-right.
+    only_keys: compare against these items only (a private order panel can
+    only hold the building's own recipe items — fewer look-alikes to confuse)."""
     import cv2
 
     img = cv2.imread(str(image_path))
@@ -227,6 +231,8 @@ def detect_items(image_path: Path, box: tuple[int, int, int, int], read_number=N
     # (score, key, name_en, name_pt, size, loc) — several positions per icon.
     candidates = []
     for key, name_en, name_pt, icon_path in _catalog():
+        if only_keys is not None and key not in only_keys:
+            continue
         icon = _load_icon(str(icon_path))
         if icon is None or icon.ndim < 3 or icon.shape[2] < 4:
             continue
@@ -256,7 +262,7 @@ def detect_items(image_path: Path, box: tuple[int, int, int, int], read_number=N
     exemplars = _exemplars()
     defs = foxhole_data.get_resource_defs()
     for key, crops in exemplars.items():
-        if key not in defs:
+        if key not in defs or (only_keys is not None and key not in only_keys):
             continue
         name_en, name_pt = defs[key]["name"]["en"], defs[key]["name"].get("pt")
         for crop in crops:

@@ -64,6 +64,7 @@ _ADDED_COLUMNS = [
     ("facility_webhooks", "thread_id", "VARCHAR(40)"),
     ("facilities", "owner_id", "INTEGER REFERENCES users(id)"),
     ("facilities", "private", "BOOLEAN DEFAULT 0"),
+    ("private_orders", "done_before", "INTEGER DEFAULT 0"),
 ]
 
 
