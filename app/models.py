@@ -175,6 +175,9 @@ class Building(Base):
     images: Mapped[list["UploadImage"]] = relationship(
         back_populates="building", cascade="all, delete-orphan"
     )
+    private_orders: Mapped[list["PrivateOrder"]] = relationship(
+        back_populates="building", cascade="all, delete-orphan"
+    )
 
 
 class StockEntry(Base):
@@ -198,6 +201,39 @@ class StockEntry(Base):
 
     building: Mapped["Building"] = relationship(back_populates="stock_entries")
     resource: Mapped["Resource"] = relationship()
+    created_by: Mapped["User | None"] = relationship()
+
+
+class PrivateOrder(Base):
+    """A private ("Personal") production order a player placed in a building
+    — see app/services/private_orders.py. The player loads the inputs by
+    hand and the output waits in their own slot, so it never touches the
+    public stock the app tracks; it only takes one of the building's
+    parallel queues. Logged by hand from what the game shows; closed when
+    the player retrieves the output (closed_at), deleted if logged by mistake."""
+
+    __tablename__ = "private_orders"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    building_id: Mapped[int] = mapped_column(ForeignKey("buildings.id"), index=True)
+    # Free text: whoever placed it in the game may not use the app.
+    owner_name: Mapped[str] = mapped_column(String(100))
+    recipe_key: Mapped[str] = mapped_column(String(80))
+    # Inputs loaded into the order, as the game shows them: {resource_key: qty}.
+    # Liquids aren't here — they come from the building's tank.
+    inputs_json: Mapped[str] = mapped_column(Text, default="{}")
+    # Time left on the cycle running when it was logged (0 = none/unknown).
+    cycle_left_seconds: Mapped[int] = mapped_column(default=0)
+    started_at: Mapped[datetime] = mapped_column(default=utcnow)
+    closed_at: Mapped[datetime | None] = mapped_column(default=None)
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), default=None)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+    @property
+    def inputs(self) -> dict[str, float]:
+        return json.loads(self.inputs_json or "{}")
+
+    building: Mapped["Building"] = relationship(back_populates="private_orders")
     created_by: Mapped["User | None"] = relationship()
 
 

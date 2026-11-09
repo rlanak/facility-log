@@ -14,7 +14,7 @@ from app import auth
 from app.database import UPLOADS_DIR, Base, apply_migrations, engine
 from app.paths import APP_DIR
 from app.routers import auth as auth_routes
-from app.routers import buildings, facilities, foxhole, images, reports, resources, save, settings, stock
+from app.routers import buildings, facilities, foxhole, images, private_orders, reports, resources, save, settings, stock
 from app.services import discord_dashboard
 
 Base.metadata.create_all(bind=engine)
@@ -121,6 +121,7 @@ app.include_router(auth_routes.router)
 
 app.include_router(facilities.router)
 app.include_router(buildings.router)
+app.include_router(private_orders.router)
 app.include_router(resources.router)
 app.include_router(stock.router)
 app.include_router(reports.router)

@@ -10,6 +10,8 @@ totals, production estimates, and what's still needed to produce or farm to hit 
   saved until you confirm it.
 - **Dashboard** tab with a stock estimate based on the production queues, plus a Discord panel that
   updates itself through a webhook (no bot).
+- **Private queues**: log who placed one, what's loaded and the time left; the app shows when it's
+  ready and warns before the game releases it to the public stockpile (28h).
 - Runs **locally** (no account, no paid service) or on the **web**, with Discord login restricted by
   role.
 - Customizable look (themes, colors, fonts) and per-person time zone, in Settings.

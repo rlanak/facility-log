@@ -94,6 +94,12 @@ const api = (() => {
     listFoxholeBuildingTypes: () => request("GET", "/api/foxhole/building-types"),
     setBuildingProduction: (buildingId, data) => request("PUT", `/api/buildings/${buildingId}/production`, data),
     getProductionEstimate: (buildingId) => request("GET", `/api/buildings/${buildingId}/production-estimate`),
+    // Private ("Personal") production orders — app/services/private_orders.py.
+    listPrivateOrders: (facilityId) => request("GET", `/api/facilities/${facilityId}/private-orders`),
+    createPrivateOrder: (buildingId, data) => request("POST", `/api/buildings/${buildingId}/private-orders`, data),
+    updatePrivateOrder: (buildingId, id, data) => request("PUT", `/api/buildings/${buildingId}/private-orders/${id}`, data),
+    closePrivateOrder: (buildingId, id) => request("POST", `/api/buildings/${buildingId}/private-orders/${id}/close`),
+    deletePrivateOrder: (buildingId, id) => request("DELETE", `/api/buildings/${buildingId}/private-orders/${id}`),
 
     getCaptureSettings: () => request("GET", "/api/settings/capture"),
     updateCaptureSettings: (data) => request("PUT", "/api/settings/capture", data),

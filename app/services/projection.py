@@ -150,4 +150,12 @@ def facility_dashboard(db, facility_id: int, now: datetime, catalog_lang: str = 
                 "projected": projected_total.get(r.resource_def_key, 0),
             }
         )
-    return {"now": now, "buildings": buildings, "targets": targets}
+    # Private orders (services/private_orders.py): listed apart, never in the
+    # projected stock; their output on the way shows next to the Metas.
+    from app.services import private_orders
+
+    orders = private_orders.for_facility(db, facility_id, now, catalog_lang)
+    on_the_way = private_orders.incoming(orders)
+    for t in targets:
+        t["incoming"] = on_the_way.get(t["resource_def_key"], 0)
+    return {"now": now, "buildings": buildings, "targets": targets, "private_orders": orders}

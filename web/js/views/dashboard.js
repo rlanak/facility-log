@@ -77,6 +77,7 @@ views.dashboard = (() => {
             logged: formatQty(t.logged, k),
             gained: `+${formatQty(gained, k)}`,
           })}</div>
+          ${t.incoming && !done ? `<div class="text-xs text-sky-300 mt-0.5">${i18n.t("dashboard.incoming", { qty: formatQty(t.incoming, k) })}</div>` : ""}
         </div>`;
       })
       .join("");
@@ -169,6 +170,44 @@ views.dashboard = (() => {
       </div>`;
   }
 
+  // Private orders (services/private_orders.py): who, what, where, when.
+  function privateHtml(orders, now) {
+    if (!orders || !orders.length) return "";
+    const rows = orders
+      .map((o) => {
+        const item = o.outputs.map((x) => x.name).join(", ") || o.recipe_key;
+        const where = o.building_location ? `${o.building_name} (${o.building_location})` : o.building_name;
+        let status;
+        if (o.status === "released") {
+          status = `<span class="text-amber-400">${i18n.t("private.released", { time: when(i18n.parseDate(o.expires_at)) })}</span>`;
+        } else if (o.status === "ready") {
+          const exp = i18n.parseDate(o.expires_at);
+          status = `<span class="text-emerald-400">${i18n.t("private.ready")}</span> · ${i18n.t("private.retrieveBefore", { time: when(exp), span: formatSpan((exp - now) / 1000) })}`;
+        } else if (o.ready_at) {
+          const ready = i18n.parseDate(o.ready_at);
+          const left = o.outputs.map((x) => `${formatQty(x.per_cycle * o.remaining_cycles, x.resource)} ${ui.escapeHtml(x.name)}`).join(" + ");
+          status = `<span class="text-emerald-400">●</span> ${i18n.t("private.left", { left })} · ${i18n.t("private.readyAt", { time: when(ready), span: formatSpan((ready - now) / 1000) })}`;
+        } else {
+          status = `<span class="text-emerald-400">● ${i18n.t("private.running")}</span>`;
+        }
+        return `
+        <div class="bg-zinc-900 border border-zinc-800 rounded p-3 min-w-0">
+          <div class="flex items-center gap-1.5 text-sm min-w-0">
+            <span class="text-zinc-500 shrink-0">${ui.icon("lock", "w-3.5 h-3.5")}</span>
+            <span class="font-semibold truncate">${ui.escapeHtml(o.owner_name)}</span>
+            <span class="text-zinc-400 truncate min-w-0">· ${ui.escapeHtml(item)}</span>
+          </div>
+          <div class="text-xs text-zinc-500 truncate">${ui.escapeHtml(where)}</div>
+          <div class="text-xs mt-1">${status}</div>
+        </div>`;
+      })
+      .join("");
+    return `
+      <h2 class="text-sm font-semibold text-zinc-300 mb-1">${i18n.t("dashboard.privateTitle")}</h2>
+      <p class="text-xs text-zinc-500 mb-2">${i18n.t("dashboard.privateHint")}</p>
+      <div class="grid gap-2 mb-6" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">${rows}</div>`;
+  }
+
   // One line on top: how many queues run, how many stopped and on what.
   function summaryHtml(producing) {
     const slots = producing.flatMap((b) => b.slots);
@@ -199,6 +238,7 @@ views.dashboard = (() => {
     container.querySelector(".dash-body").innerHTML = `
       ${summaryHtml(producing)}
       ${targetsHtml(data.targets)}
+      ${privateHtml(data.private_orders, now)}
       <h2 class="text-sm font-semibold text-zinc-300 mb-1">${i18n.t("dashboard.productionTitle")}</h2>
       <p class="text-xs text-zinc-500 mb-2">${i18n.t("dashboard.legend")}</p>
       ${producing.length ? grid(producing) : `<p class="text-sm text-zinc-500">${i18n.t("dashboard.noProduction")}</p>`}

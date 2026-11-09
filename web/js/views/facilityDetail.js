@@ -7,6 +7,10 @@ views.facilityDetail = (() => {
   // This facility's buildings as the save forms need them (which pin is
   // linked to which building): [{id, name, save_pin_key}].
   let savePeers = [];
+  // Open private orders by building id, and every building as the
+  // "Retirado" form lists them (where the output was put).
+  let privateOrdersByBuilding = new Map();
+  let orderDestinations = [];
   let foxholeResourceDefs = {};
 
   function getFoxholeType(key) {
@@ -374,7 +378,15 @@ views.facilityDetail = (() => {
     async function renderBuildingsList() {
       allResources = await api.listResources(facilityId);
       const listEl = document.getElementById("buildings-list");
-      const buildings = await api.listBuildings(facilityId);
+      const [buildings, privateOrders] = await Promise.all([
+        api.listBuildings(facilityId),
+        api.listPrivateOrders(facilityId).catch(() => []),
+      ]);
+      privateOrdersByBuilding = new Map();
+      for (const o of privateOrders) {
+        if (!privateOrdersByBuilding.has(o.building_id)) privateOrdersByBuilding.set(o.building_id, []);
+        privateOrdersByBuilding.get(o.building_id).push(o);
+      }
       if (buildings.length === 0) {
         listEl.innerHTML = `<p class="text-zinc-500 text-sm">${i18n.t("facilityDetail.noBuildings")}</p>`;
         return;
@@ -385,6 +397,10 @@ views.facilityDetail = (() => {
         return { id: b.id, name: b.location ? `${name} (${b.location})` : name, save_pin_key: b.save_pin_key };
       });
       document.getElementById("bulk-save-import").classList.toggle("hidden", !savePeers.some((b) => b.save_pin_key));
+      orderDestinations = savePeers.map((p, i) => {
+        const type = buildings[i].building_type_key ? getFoxholeType(buildings[i].building_type_key) : null;
+        return { id: p.id, label: p.name, storage: Boolean(type && type.storage) };
+      });
       const locations = [...new Set(buildings.map((b) => b.location).filter(Boolean))].sort();
       document.getElementById("locations-datalist").innerHTML = locations
         .map((l) => `<option value="${ui.escapeHtml(l)}"></option>`)
@@ -653,6 +669,25 @@ views.facilityDetail = (() => {
 
     if (foxholeType && building.production_slots && building.production_slots.length > 0) {
       renderProductionStatus(card.querySelector(".production-status"), building);
+    }
+
+    // Private orders (views/privateOrders.js): only buildings that produce.
+    if (foxholeType && foxholeType.recipes.length > 0) {
+      const options = upgradeOptions(foxholeType);
+      const recipes = foxholeType.recipes.filter(
+        (r) => options.length === 0 || isBaseModule(r.module) || r.module === upgrade
+      );
+      card.querySelector(".production-status").after(
+        views.privateOrders.cardSection({
+          building,
+          recipes,
+          orders: privateOrdersByBuilding.get(building.id) || [],
+          defs: foxholeResourceDefs,
+          buildings: orderDestinations,
+          resources: allResources,
+          onChange,
+        })
+      );
     }
 
     card.querySelectorAll(".add-liquid").forEach((btn) => {

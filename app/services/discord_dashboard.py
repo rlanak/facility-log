@@ -36,7 +36,7 @@ WEBHOOK_URL_RE = re.compile(r"^https://(?:ptb\.|canary\.)?discord(?:app)?\.com/a
 # Embed limits (Discord): 25 fields, 1024 chars per field value, 6000 in total.
 _FIELD_MAX = 1024
 _EMBED_BUDGET = 5800
-_MAX_BUILDING_FIELDS = 22
+_MAX_BUILDING_FIELDS = 21
 
 _STRINGS = {
     "pt-BR": {
@@ -71,6 +71,12 @@ _STRINGS = {
         "more_buildings": "+{n} prédios não cabem na mensagem",
         "footer": "facility-log · ≈ estimado — não sabe de fila pausada, falta de energia nem material movido",
         "minute": "1 min",
+        "private": "🔒 Filas privadas",
+        "private_running": "🔒 **{owner}** · {item} · {building} · faltam {left} · pronto {when}",
+        "private_running_open": "🔒 **{owner}** · {item} · {building} · em produção",
+        "private_ready": "✅ **{owner}** · {item} · {building} · pronto — retirar antes de {when} (vai pro público)",
+        "private_released": "⚠️ **{owner}** · {item} · {building} · não retirado: foi pro estoque público",
+        "incoming": "+{qty} a caminho (fila privada)",
     },
     "en-US": {
         "title": "📊 {facility} — dashboard",
@@ -104,6 +110,12 @@ _STRINGS = {
         "more_buildings": "+{n} buildings don't fit in the message",
         "footer": "facility-log · ≈ estimated — unaware of paused queues, power shortage or moved stock",
         "minute": "1 min",
+        "private": "🔒 Private queues",
+        "private_running": "🔒 **{owner}** · {item} · {building} · {left} to go · ready {when}",
+        "private_running_open": "🔒 **{owner}** · {item} · {building} · producing",
+        "private_ready": "✅ **{owner}** · {item} · {building} · ready — retrieve before {when} (goes public)",
+        "private_released": "⚠️ **{owner}** · {item} · {building} · not retrieved: went to the public stockpile",
+        "incoming": "+{qty} on the way (private queue)",
     },
 }
 
@@ -142,10 +154,33 @@ def _targets_value(targets: list[dict], lang: str) -> str:
             if frac >= 1
             else _t("pct_left", lang, pct=round(frac * 100), qty=_display_qty(t["target"] - t["projected"], key))
         )
-        lines.append(
+        line = (
             f"`{_bar(frac)}` **{t['name']}** ≈ {_display_qty(t['projected'], key)} {_t('of', lang)}"
             f" {_display_qty(t['target'], key)} · {state}"
         )
+        if t.get("incoming") and frac < 1:
+            line += " · " + _t("incoming", lang, qty=_display_qty(t["incoming"], key))
+        lines.append(line)
+    return _clip("\n".join(lines), _FIELD_MAX)
+
+
+def _private_value(orders: list[dict], lang: str) -> str:
+    lines = []
+    for o in orders:
+        item = ", ".join(out["name"] for out in o["outputs"]) or o["recipe_key"]
+        where = f"{o['building_name']} ({o['building_location']})" if o.get("building_location") else o["building_name"]
+        args = {"owner": o["owner_name"], "item": item, "building": where}
+        if o["status"] == "released":
+            lines.append(_t("private_released", lang, **args))
+        elif o["status"] == "ready":
+            lines.append(_t("private_ready", lang, when=_ts(o["expires_at"]), **args))
+        elif o["ready_at"]:
+            left = " + ".join(
+                _display_qty(out["per_cycle"] * o["remaining_cycles"], out["resource"]) for out in o["outputs"]
+            ) or str(o["remaining_cycles"])
+            lines.append(_t("private_running", lang, left=left, when=_ts(o["ready_at"]), **args))
+        else:
+            lines.append(_t("private_running_open", lang, **args))
     return _clip("\n".join(lines), _FIELD_MAX)
 
 
@@ -242,6 +277,8 @@ def build_embed(facility_name: str, data: dict, lang: str, catalog_lang: str) ->
         fields = []
         if data["targets"]:
             fields.append({"name": _t("targets", lang), "value": _targets_value(data["targets"], lang), "inline": False})
+        if data.get("private_orders"):
+            fields.append({"name": _t("private", lang), "value": _private_value(data["private_orders"], lang), "inline": False})
         for b in producing[:_MAX_BUILDING_FIELDS]:
             title = f"🏭 {b['name']}" + (f" · 📍{b['location']}" if b.get("location") else "")
             fields.append(

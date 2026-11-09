@@ -10,6 +10,8 @@ total da facility, estimativa de produção e o que falta produzir ou farmar pra
   você confirmar.
 - Aba **Dashboard** com a estimativa do estoque pelas filas de produção, e painel no Discord que se
   atualiza sozinho por webhook (sem bot).
+- **Filas privadas**: lance quem fez, o que está carregado e o tempo que falta; o app mostra quando fica
+  pronta e avisa antes do jogo soltar no estoque público (28h).
 - Roda **local** (sem conta, sem serviço pago) ou na **web**, com login pelo Discord liberado por cargo.
 - Visual personalizável (temas, cores, fontes) e fuso horário por pessoa, em Configurações.
 

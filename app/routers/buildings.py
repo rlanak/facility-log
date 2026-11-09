@@ -1,10 +1,11 @@
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app import crud, schemas
 from app.database import get_db
-from app.services import foxhole_data, production
+from app.services import foxhole_data, private_orders, production
 from app.services.errors_i18n import err
 from app.services.timezones import user_now
 
@@ -64,6 +65,13 @@ def set_building_production(
     total_queues = sum(slot.queue_count for slot in data.slots)
     if building_type and total_queues > building_type["queue_slots"]:
         raise HTTPException(status_code=422, detail=err("queue_slots_exceeded", lang))
+    # Private orders still producing take queues too (services/private_orders.py).
+    private = private_orders.running_count(db, building, datetime.now(timezone.utc)) if building_type else 0
+    if building_type and private and total_queues + private > building_type["queue_slots"]:
+        raise HTTPException(
+            status_code=422,
+            detail=err("queue_slots_with_private", lang, public=total_queues, private=private, max=building_type["queue_slots"]),
+        )
     return crud.update_building_production(db, building, data)
 
 

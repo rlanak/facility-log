@@ -47,12 +47,14 @@ HTML/JS puro + Tailwind via CDN, sem build — o FastAPI serve `web/` como está
 app/
   main.py, auth.py (login Discord), envfile.py (.env), crypto.py (segredos no banco),
   database.py, models.py, schemas.py, crud.py, paths.py
-  routers/   facilities, buildings, resources, stock, reports, foxhole, images, save, settings, auth
+  routers/   facilities, buildings, private_orders, resources, stock, reports, foxhole, images, save,
+             settings, auth
   services/
     report_generator.py   relatório Markdown + versão Discord
     material_chain.py     cadeia de produção pra bater uma Meta + tempo total
     production.py         estimativa de ciclos/tempo por prédio
     projection.py         estimativa do Dashboard (estoque projetado pelas filas)
+    private_orders.py     filas privadas: quantos faltam, quando fica pronta, 28h
     discord_dashboard.py  painel no Discord por webhook + laço de 60s
     icon_match_service.py detecção de itens no print (template matching)
     capture/              quem lê o número no servidor: RapidOCR, Ollama ou API
@@ -63,7 +65,7 @@ app/
 web/js/  api.js (sempre anexa ?lang&catalog_lang), ui.js (toast, el(), openModal()), app.js (router),
          personalAI.js (leitura com a IA do PC da pessoa, pelo navegador),
          i18n.js, views/ (facilities, facilityDetail, targets, itemPanel, print, report, saveImport,
-         settings, dashboard)
+         settings, dashboard, privateOrders)
 data/foxhole/  resources.json, building_types.json — catálogo versionado
 data/          banco, uploads, icon_exemplars — dados do usuário, gitignored
 tools/save-parser/  leitor do save em Rust (CLI) — tem o próprio CLAUDE.md
@@ -84,6 +86,9 @@ scripts/       build_save_parser.py, create_shortcut.py
 - `facility_targets` — Meta por facility (`facility_id`, `resource_id`, `target_max`).
 - `buildings` — `building_type_key`, `production_slots` (JSON `[{recipe_key, queue_count}]`),
   `position`, `upgrade` (módulo instalado; NULL = base), `location` (texto livre), `save_pin_key`.
+- `private_orders` — fila privada (Personal) lançada à mão: `owner_name` (texto livre), `recipe_key`,
+  `inputs_json` (insumos carregados), `cycle_left_seconds`, `started_at`, `closed_at` (retirada). Ver
+  "Filas privadas".
 - `stock_entries` — **log append-only**: estoque atual = linha mais recente de
   prédio+recurso+`storage` (`"normal"` ou `"tank"`). Excluir (`DELETE .../stock/{resource_id}?storage=`)
   apaga todo o histórico daquela combinação ("não devia ter lançado"), sem afetar relatórios já gerados.
@@ -141,6 +146,24 @@ O banco guarda UTC (SQLite devolve sem offset — no navegador sempre `i18n.pars
   tempo = `ceil(ciclos ÷ filas) × tempo do ciclo`. O texto sempre mostra a conta. Tempo de ciclo usa
   `format_cycle_time()` (mantém segundos), não `format_duration()`.
 - Mensagem "estoque insuficiente" lista só os insumos realmente abaixo do necessário.
+
+## Filas privadas (`private_orders.py`, `routers/private_orders.py`, `web/js/views/privateOrders.js`)
+
+No jogo (wiki): até 5 ordens por prédio, públicas e privadas juntas; uma ordem por jogador por prédio;
+na privada o jogador carrega os insumos à mão (líquido sai do tanque) e a saída fica num slot dele; não
+retirada vai pro estoque público do prédio **28h depois de pronta**. No app:
+- Lançada à mão no card ("Fila privada"): quem fez, receita (base + upgrade), insumos carregados, quanto
+  falta no ciclo atual, hora do print (HH:MM no fuso do usuário; hora depois de agora = ontem).
+- Conta: ciclos = mínimo de `carregado ÷ por ciclo` dos insumos sólidos, **+1 se há ciclo rodando**
+  (suposição: o ciclo em andamento já tirou os insumos); pronto = início + resto do ciclo + ciclos ×
+  tempo. Status `running` → `ready` → `released` (28h). O formulário repete a conta como prévia.
+- **Nunca mexe no estoque público** (projeção, relatório e cadeia ignoram); só ocupa fila: públicas +
+  privadas `running` ≤ `queue_slots`, conferido nos dois sentidos (salvar Produção e salvar fila privada).
+- "Retirado" fecha a fila (`closed_at`) e opcionalmente lança a saída num prédio (estações primeiro):
+  valor = estoque atual do destino + o que saiu, editável. "✕" apaga (lançada por engano).
+- Dashboard e Discord listam as abertas; Meta mostra "+N a caminho" (fila não liberada), nunca soma.
+- Rotas ficam sob `/api/buildings/{id}/...` e `/api/facilities/{id}/...` (cobertas pelo bloqueio de
+  facility privada).
 
 ## Meta → cálculo de cadeia (`material_chain.py`)
 
@@ -301,9 +324,9 @@ no `lifespan` que a cada 60s edita a mensagem de cada facility com webhook (pula
 menos de 55s). Contagens usam `<t:unix:R>`, que o Discord redesenha sozinho. PATCH 404 → posta outra;
 "Parar" apaga a mensagem; erro vai pra `last_error`, nunca derruba o laço. Tópico opcional
 (`thread_id`, `?thread_id=` em toda chamada). Texto no idioma da interface, nomes no do catálogo. Embed
-mostra o mesmo que a aba (resumo, Metas com %, aviso de lançamento antigo, onde mais tem o insumo que
+mostra o mesmo que a aba (resumo, Metas com %, filas privadas, aviso de lançamento antigo, onde mais tem o insumo que
 acabou, estações com estoque); cor verde = tudo rodando, âmbar = algo parado, vermelho = nada rodando.
-Passou de ~5800 caracteres → tira primeiro as estações, depois as linhas de estoque; máx. 22 prédios. Só aceita URL
+Passou de ~5800 caracteres → tira primeiro as estações, depois as linhas de estoque; máx. 21 prédios. Só aceita URL
 `https://discord.com/api/webhooks/...` (e ptb/canary/discordapp).
 
 ## Modo web (`auth.py`, `routers/auth.py`)

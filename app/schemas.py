@@ -115,6 +115,16 @@ class BuildingProductionUpdate(BaseModel):
     slots: list[ProductionSlot]
 
 
+class PrivateOrderIn(BaseModel):
+    owner_name: str = ""
+    recipe_key: str
+    # Loaded inputs as the game shows them, {resource_key: qty}.
+    inputs: dict[str, float] = {}
+    cycle_left_seconds: int = 0
+    # None = now. Sent as UTC ISO by the browser.
+    started_at: datetime | None = None
+
+
 class ProductionEstimateItem(BaseModel):
     resource: str
     name: str
