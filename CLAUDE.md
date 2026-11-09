@@ -154,7 +154,7 @@ No jogo (wiki): até 5 ordens por prédio, públicas e privadas juntas; uma orde
 na privada o jogador carrega os insumos à mão (líquido sai do tanque) e a saída fica num slot dele; não
 retirada vai pro estoque público do prédio **28h depois de pronta**. No app:
 - Lançada à mão no card ("Fila privada"): quem fez, receita (base + upgrade), insumos carregados, quanto
-  falta no ciclo atual, hora do print (HH:MM no fuso do usuário; hora depois de agora = ontem).
+  falta no ciclo atual, **data e hora do print** (no fuso do usuário; no futuro é recusado).
 - Conta: ciclos = mínimo de `carregado ÷ por ciclo` dos insumos sólidos, **+1 se há ciclo rodando**
   (suposição: o ciclo em andamento já tirou os insumos); pronto = início + resto do ciclo + ciclos ×
   tempo. Status `running` → `ready` → `released` (28h). O formulário repete a conta como prévia.
@@ -172,6 +172,10 @@ retirada vai pro estoque público do prédio **28h depois de pronta**. No app:
   Receita = a que explica mais itens com a saída **à direita** de todos os insumos; empate de ícone conta
   pro rival, e nível da mesma família (Assembly Materials I-V) vale pro que a receita pede — aí volta
   `unsure` e o formulário pede pra conferir. Só pré-preenche.
+- **Bloco da fila** (`privateOrders.orderBlock`, o mesmo no card e no Dashboard): etiqueta de situação
+  (Produzindo / Pronta · retirar / Foi pro público, borda colorida), ícone e item, quem fez, fabricado com
+  barra, início, pronta e "retirar até" (sempre com dia). Ordem: prontas primeiro, depois por quando ficam
+  prontas.
 - Rotas ficam sob `/api/buildings/{id}/...` e `/api/facilities/{id}/...` (cobertas pelo bloqueio de
   facility privada).
 
@@ -321,10 +325,11 @@ Não conferido: se `Quantity` é item ou caixa em stockpile que guarda caixa.
 - **Dashboard** (`dashboard.js`, `projection.py`; rota `#/facilities/<id>/dashboard`, o antigo `/live`
   ainda abre): estoque projetado supondo que as filas rodaram sem parar desde o último lançamento de cada
   prédio (só rodadas completas; para quando um insumo acaba). **Nunca é gravado** — conta feita na leitura,
-  a cada 30s; o próximo lançamento real zera a projeção. Mostra resumo (filas rodando/paradas, o que
-  falta), Metas com %, horários com data quando não são de hoje, aviso em prédio com lançamento de mais
+  a cada 30s; o próximo lançamento real zera a projeção. Topo: blocos de resumo (filas públicas, filas
+  privadas, Metas atingidas, lançamentos antigos; borda verde/âmbar/vermelha), depois filas privadas,
+  Metas com %, horários com data quando não são de hoje, aviso em prédio com lançamento de mais
   de 24h, onde mais na facility tem o insumo que acabou (`missing_keys`) e as estações (MTS/RTS) com o
-  estoque lançado.
+  estoque lançado, agrupadas por local quando há mais de um.
 
 ## Painel no Discord por webhook (`discord_dashboard.py`)
 
@@ -334,8 +339,8 @@ no `lifespan` que a cada 60s edita a mensagem de cada facility com webhook (pula
 menos de 55s). Contagens usam `<t:unix:R>`, que o Discord redesenha sozinho. PATCH 404 → posta outra;
 "Parar" apaga a mensagem; erro vai pra `last_error`, nunca derruba o laço. Tópico opcional
 (`thread_id`, `?thread_id=` em toda chamada). Texto no idioma da interface, nomes no do catálogo. Embed
-mostra o mesmo que a aba (resumo, Metas com %, filas privadas, aviso de lançamento antigo, onde mais tem o insumo que
-acabou, estações com estoque); cor verde = tudo rodando, âmbar = algo parado, vermelho = nada rodando.
+mostra o mesmo que a aba (resumo com as filas privadas, filas privadas com barra e datas, Metas com %, aviso de lançamento antigo, onde mais tem o insumo que
+acabou, estações com estoque agrupadas por local); cor verde = tudo rodando, âmbar = algo parado, vermelho = nada rodando.
 Passou de ~5800 caracteres → tira primeiro as estações, depois as linhas de estoque; máx. 21 prédios. Só aceita URL
 `https://discord.com/api/webhooks/...` (e ptb/canary/discordapp).
 

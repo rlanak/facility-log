@@ -48,7 +48,7 @@ views.privateOrders = (() => {
     return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }
 
-  // Wall-clock "HH:MM" in the user's time zone (Configurações), as the
+  // Wall-clock date/time in the user's time zone (Configurações), as the
   // print/Discord message shows it.
   function zoneParts(date, opts) {
     return Object.fromEntries(
@@ -61,76 +61,112 @@ views.privateOrders = (() => {
     const p = zoneParts(date, { hour: "2-digit", minute: "2-digit" });
     return `${p.hour}:${p.minute}`;
   }
-  // Today's HH:MM in the user's time zone as a Date; a time later than now
-  // means yesterday (a print from before midnight).
-  function todayAt(text) {
-    const m = /^(\d{1,2}):(\d{2})$/.exec(text.trim());
-    if (!m) return null;
-    const now = new Date();
-    const d = zoneParts(now, { year: "numeric", month: "2-digit", day: "2-digit" });
-    const guess = Date.UTC(+d.year, +d.month - 1, +d.day, +m[1], +m[2]);
+  function ymd(date) {
+    const p = zoneParts(date, { year: "numeric", month: "2-digit", day: "2-digit" });
+    return `${p.year}-${p.month}-${p.day}`;
+  }
+  // "2026-11-08" + "19:46" in the user's time zone → Date (null if invalid).
+  function zonedAt(day, time) {
+    const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec((day || "").trim());
+    const t = /^(\d{1,2}):(\d{2})$/.exec((time || "").trim());
+    if (!d || !t || +t[1] > 23 || +t[2] > 59) return null;
+    const guess = Date.UTC(+d[1], +d[2] - 1, +d[3], +t[1], +t[2]);
     const p = zoneParts(new Date(guess), { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" });
     const offset = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - guess;
-    let t = guess - offset;
-    if (t > now.getTime() + 60000) t -= 86400000;
-    return new Date(t);
+    return new Date(guess - offset);
+  }
+  // Always with the day: "08/11 19:46".
+  function stamp(value) {
+    const date = i18n.parseDate(value);
+    return `${i18n.formatDateTime(date, { day: "2-digit", month: "2-digit" })} ${i18n.formatTime(date)}`;
   }
 
   function outputsLabel(order) {
     return order.outputs.map((o) => o.name).join(", ") || order.recipe_key;
   }
 
-  // "fabricado 9 de 36 300mm" — made so far (in the player's slot, not in
-  // any stock: counts for a Meta only once logged where it was put).
-  function madeHtml(order, defs) {
-    const parts = order.outputs.map((o) => {
-      const done = qtyLabel(o.done, o.resource, defs);
-      return o.total != null && order.status === "running"
-        ? i18n.t("private.madeOf", { done, total: qtyLabel(o.total, o.resource, defs), name: ui.escapeHtml(o.name) })
-        : i18n.t("private.made", { done, name: ui.escapeHtml(o.name) });
-    });
-    return parts.length ? `<div class="text-zinc-200">${parts.join(" + ")}</div>` : "";
+  const STATUS = {
+    running: { pill: "bg-emerald-950/60 text-emerald-300 border-emerald-800", edge: "border-l-emerald-600", bar: "bg-emerald-500", key: "private.statusRunning" },
+    ready: { pill: "bg-amber-950/60 text-amber-300 border-amber-700", edge: "border-l-amber-500", bar: "bg-amber-500", key: "private.statusReady" },
+    released: { pill: "bg-red-950/60 text-red-300 border-red-800", edge: "border-l-red-600", bar: "bg-red-500", key: "private.statusReleased" },
+  };
+
+  // One private order as a block: status, item, who, how much is made (bar),
+  // and the dates that matter — when it started, when it's ready, until when
+  // it can be retrieved. Same block on the card and on the Dashboard.
+  // where: building label (Dashboard); actions: Retirado/edit/delete (card).
+  function orderBlock(o, defs, { where = "", actions = false } = {}) {
+    const st = STATUS[o.status] || STATUS.running;
+    const out = o.outputs[0];
+    const def = out && defs[out.resource];
+    const done = out ? out.done : 0;
+    const total = out && out.total != null ? out.total : null;
+    const pct = total ? Math.min(100, Math.round((done / total) * 100)) : o.status === "running" ? 0 : 100;
+    const amount = out
+      ? total != null && o.status === "running"
+        ? `${qtyLabel(done, out.resource, defs)} / ${qtyLabel(total, out.resource, defs)}`
+        : qtyLabel(done, out.resource, defs)
+      : "";
+    let dates = `${i18n.t("private.startedAt", { time: stamp(o.started_at) })}`;
+    if (o.status === "running" && o.ready_at) {
+      const ready = i18n.parseDate(o.ready_at);
+      dates += ` · ${i18n.t("private.readyIn", { time: stamp(o.ready_at), span: span((ready - Date.now()) / 1000) })}`;
+    } else if (o.status === "ready") {
+      const exp = i18n.parseDate(o.expires_at);
+      dates += ` · ${i18n.t("private.readyAtStamp", { time: stamp(o.ready_at) })}<br><span class="text-amber-300">${i18n.t("private.retrieveUntil", { time: stamp(o.expires_at), span: span((exp - Date.now()) / 1000) })}</span>`;
+    } else if (o.status === "released") {
+      dates += `<br><span class="text-red-300">${i18n.t("private.releasedAt", { time: stamp(o.expires_at) })}</span>`;
+    }
+    const retrieveCls =
+      o.status === "running"
+        ? "border border-zinc-700 text-zinc-300 hover:border-zinc-500"
+        : "bg-amber-600 hover:bg-amber-500 text-zinc-950 font-semibold";
+    return `
+      <div class="po-block rounded-md border border-zinc-800 border-l-4 ${st.edge} bg-zinc-950/60 p-2 text-xs min-w-0" data-id="${o.id}">
+        <div class="flex items-center gap-1.5 min-w-0">
+          <span class="text-zinc-500 shrink-0">${ui.icon("lock", "w-3.5 h-3.5")}</span>
+          <span class="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">${i18n.t("private.label")}</span>
+          <span class="ml-auto shrink-0 border rounded-full px-2 py-0.5 text-[10px] font-semibold ${st.pill}">${i18n.t(st.key)}</span>
+        </div>
+        <div class="flex items-center gap-2 mt-1.5 min-w-0">
+          ${def && def.icon ? `<img src="${ui.escapeHtml(def.icon)}" class="w-8 h-8 object-contain shrink-0" />` : ""}
+          <div class="min-w-0 flex-1">
+            <div class="font-display text-base font-semibold text-zinc-100 truncate leading-tight" title="${ui.escapeHtml(outputsLabel(o))}">${ui.escapeHtml(outputsLabel(o))}</div>
+            <div class="text-zinc-400 truncate">${ui.escapeHtml(o.owner_name)}${where ? ` · ${ui.escapeHtml(where)}` : ""}</div>
+          </div>
+          <span class="font-display text-base font-semibold tabular-nums text-zinc-100 whitespace-nowrap" title="${i18n.t("private.madeHint")}">${amount}</span>
+        </div>
+        <div class="h-1.5 bg-zinc-800 rounded mt-1.5 overflow-hidden"><div class="h-full ${st.bar}" style="width:${pct}%"></div></div>
+        <div class="text-zinc-400 mt-1 leading-snug">${dates}</div>
+        ${
+          actions
+            ? `<div class="flex items-center gap-1 mt-1.5">
+                 <button class="po-close inline-flex items-center gap-1 rounded px-2 py-0.5 ${retrieveCls}">${ui.icon("check", "w-3.5 h-3.5")}${i18n.t("private.retrieved")}</button>
+                 <span class="flex-1"></span>
+                 <button class="po-edit text-zinc-500 hover:text-zinc-100 p-0.5" title="${i18n.t("common.edit")}">${ui.icon("pencil", "w-3.5 h-3.5")}</button>
+                 <button class="po-delete text-zinc-600 hover:text-red-400 p-0.5" title="${i18n.t("private.delete")}">✕</button>
+               </div>`
+            : ""
+        }
+      </div>`;
   }
 
-  function statusHtml(order, defs) {
-    if (order.status === "released") {
-      return `<span class="text-amber-400">${i18n.t("private.released", { time: when(order.expires_at) })}</span>`;
-    }
-    if (order.status === "ready") {
-      const expires = i18n.parseDate(order.expires_at);
-      return `<span class="text-emerald-400">${i18n.t("private.ready")}</span> · ${i18n.t("private.retrieveBefore", {
-        time: when(expires),
-        span: span((expires - Date.now()) / 1000),
-      })}`;
-    }
-    if (!order.ready_at) return `<span class="text-emerald-400">${i18n.t("private.running")}</span>`;
-    const ready = i18n.parseDate(order.ready_at);
-    const left = order.outputs.map((o) => `${qtyLabel(o.per_cycle * order.remaining_cycles, o.resource, defs)} ${ui.escapeHtml(o.name)}`).join(" + ");
-    return `<span class="text-emerald-400">●</span> ${i18n.t("private.left", { left })} · ${i18n.t("private.readyAt", {
-      time: when(ready),
-      span: span((ready - Date.now()) / 1000),
-    })}`;
+  // Ready first (someone has to go retrieve it), then the ones still running
+  // by when they're ready, then the ones the game already released.
+  function sortOrders(orders) {
+    const rank = { ready: 0, running: 1, released: 2 };
+    return [...orders].sort(
+      (a, b) =>
+        (rank[a.status] ?? 1) - (rank[b.status] ?? 1) ||
+        String(a.ready_at || a.started_at).localeCompare(String(b.ready_at || b.started_at))
+    );
   }
 
   // The card's "Filas privadas" block: one line per open order + the add button.
   function cardSection({ building, recipes, orders, defs, buildings, resources, onChange }) {
-    const box = ui.el("div", { class: "private-orders mt-2" });
-    const list = orders
-      .map(
-        (o) => `
-        <div class="group rounded bg-zinc-950/60 border border-zinc-800 px-2 py-1.5 text-xs mb-1 min-w-0" data-id="${o.id}">
-          <div class="flex items-center gap-1.5 min-w-0">
-            <span class="text-zinc-500 shrink-0">${ui.icon("lock", "w-3.5 h-3.5")}</span>
-            <span class="font-semibold text-zinc-200 truncate" title="${ui.escapeHtml(o.owner_name)}">${ui.escapeHtml(o.owner_name)}</span>
-            <span class="text-zinc-400 truncate min-w-0 flex-1" title="${ui.escapeHtml(outputsLabel(o))}">· ${ui.escapeHtml(outputsLabel(o))}</span>
-            <button class="po-edit text-zinc-500 hover:text-zinc-100 p-0.5" title="${i18n.t("common.edit")}">${ui.icon("pencil", "w-3.5 h-3.5")}</button>
-            <button class="po-delete text-zinc-600 hover:text-red-400 p-0.5" title="${i18n.t("private.delete")}">✕</button>
-          </div>
-          <div class="mt-0.5 leading-snug">${madeHtml(o, defs)}</div>
-          <div class="text-zinc-400 leading-snug">${statusHtml(o, defs)}</div>
-          <button class="po-close mt-1 inline-flex items-center gap-1 text-emerald-400 hover:text-emerald-300">${ui.icon("check", "w-3.5 h-3.5")}${i18n.t("private.retrieved")}</button>
-        </div>`
-      )
+    const box = ui.el("div", { class: "private-orders mt-2 grid gap-1.5" });
+    const list = sortOrders(orders)
+      .map((o) => orderBlock(o, defs, { actions: true }))
       .join("");
     box.innerHTML = `
       ${list}
@@ -194,12 +230,15 @@ views.privateOrders = (() => {
           </select>
         </label>
         <div class="po-inputs grid gap-2"></div>
-        <div class="grid grid-cols-3 gap-2">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <label class="grid gap-1 text-xs text-zinc-400" title="${i18n.t("private.doneBeforeHint")}">${i18n.t("private.doneBefore")}
             <input name="done" inputmode="numeric" class="${input}" placeholder="0" value="${order && order.done_before ? order.done_before : ""}" />
           </label>
           <label class="grid gap-1 text-xs text-zinc-400">${i18n.t("private.cycleLeft")}
             <input name="cycle" class="${input}" placeholder="0:00:52" value="${order && order.cycle_left_seconds ? clock(order.cycle_left_seconds) : ""}" />
+          </label>
+          <label class="grid gap-1 text-xs text-zinc-400">${i18n.t("private.printDate")}
+            <input name="day" type="date" class="${input}" value="${ymd(order ? i18n.parseDate(order.started_at) : new Date())}" max="${ymd(new Date())}" />
           </label>
           <label class="grid gap-1 text-xs text-zinc-400">${i18n.t("private.printTime")}
             <input name="time" class="${input}" placeholder="19:46" value="${hhmm(order ? i18n.parseDate(order.started_at) : new Date())}" />
@@ -211,7 +250,10 @@ views.privateOrders = (() => {
     const f = container.querySelector("form");
     const inputsBox = f.querySelector(".po-inputs");
     const preview = f.querySelector(".po-preview");
-    const originalTime = f.time.value;
+    const originalWhen = `${f.day.value} ${f.time.value}`;
+    // Unchanged date/time on an edit keeps the exact start (seconds included).
+    const startOf = () =>
+      order && `${f.day.value} ${f.time.value}` === originalWhen ? i18n.parseDate(order.started_at) : zonedAt(f.day.value, f.time.value);
     const recipeOf = () => recipes.find((r) => r.key === f.recipe.value);
 
     function drawInputs(prefill) {
@@ -260,7 +302,7 @@ views.privateOrders = (() => {
         return;
       }
       const cycles = Math.min(...solids.map((io) => Math.floor((inputs[io.resource] || 0) / io.qty))) + (cycle > 0 ? 1 : 0);
-      const start = (f.time.value === originalTime && order ? i18n.parseDate(order.started_at) : todayAt(f.time.value)) || new Date();
+      const start = startOf() || new Date();
       const ready = new Date(start.getTime() + (cycle + (cycles - (cycle > 0 ? 1 : 0)) * recipe.time_seconds) * 1000);
       const out = recipe.outputs
         .filter((o) => o.resource)
@@ -274,6 +316,7 @@ views.privateOrders = (() => {
     f.recipe.addEventListener("change", () => drawInputs());
     f.cycle.addEventListener("input", drawPreview);
     f.time.addEventListener("input", drawPreview);
+    f.day.addEventListener("input", drawPreview);
     f.done.addEventListener("input", drawPreview);
     drawInputs();
 
@@ -344,14 +387,14 @@ views.privateOrders = (() => {
         ui.toast(i18n.t("resources.invalidNumber"), true);
         return;
       }
-      let started = null;
-      if (order && f.time.value === originalTime) started = i18n.parseDate(order.started_at);
-      else {
-        started = todayAt(f.time.value);
-        if (!started) {
-          ui.toast(i18n.t("private.invalidTime"), true);
-          return;
-        }
+      const started = startOf();
+      if (!started) {
+        ui.toast(i18n.t("private.invalidTime"), true);
+        return;
+      }
+      if (started.getTime() > Date.now() + 60000) {
+        ui.toast(i18n.t("private.futureTime"), true);
+        return;
       }
       const data = {
         owner_name: f.owner.value.trim(),
@@ -477,5 +520,5 @@ views.privateOrders = (() => {
     });
   }
 
-  return { cardSection };
+  return { cardSection, orderBlock, sortOrders };
 })();

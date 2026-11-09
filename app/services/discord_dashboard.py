@@ -72,10 +72,14 @@ _STRINGS = {
         "footer": "facility-log · ≈ estimado — não sabe de fila pausada, falta de energia nem material movido",
         "minute": "1 min",
         "private": "🔒 Filas privadas",
-        "private_running": "🔒 **{owner}** · {item} · {building} · fabricado {made} · pronto {when}",
-        "private_running_open": "🔒 **{owner}** · {item} · {building} · em produção",
-        "private_ready": "✅ **{owner}** · {item} · {building} · {made} prontos — retirar antes de {when} (vai pro público)",
-        "private_released": "⚠️ **{owner}** · {item} · {building} · não retirado: foi pro estoque público",
+        "private_head": "{icon} **{item}** · {owner} · {building}",
+        "private_running": "`{bar}` {made} · início {start} · pronta {ready}",
+        "private_running_open": "em produção · início {start}",
+        "private_ready": "`{bar}` {made} prontos · **retirar {expires}** (depois vai pro público)",
+        "private_released": "não retirada: foi pro estoque público do prédio {expires}",
+        "summary_private": "🔒 {n} fila(s) privada(s)",
+        "summary_private_ready": "**{n} pronta(s) pra retirar**",
+        "summary_private_gone": "{n} foi(ram) pro público",
         "incoming": "{qty} já fabricados em fila privada (não contam)",
     },
     "en-US": {
@@ -111,10 +115,14 @@ _STRINGS = {
         "footer": "facility-log · ≈ estimated — unaware of paused queues, power shortage or moved stock",
         "minute": "1 min",
         "private": "🔒 Private queues",
-        "private_running": "🔒 **{owner}** · {item} · {building} · made {made} · ready {when}",
-        "private_running_open": "🔒 **{owner}** · {item} · {building} · producing",
-        "private_ready": "✅ **{owner}** · {item} · {building} · {made} ready — retrieve before {when} (goes public)",
-        "private_released": "⚠️ **{owner}** · {item} · {building} · not retrieved: went to the public stockpile",
+        "private_head": "{icon} **{item}** · {owner} · {building}",
+        "private_running": "`{bar}` {made} · started {start} · ready {ready}",
+        "private_running_open": "producing · started {start}",
+        "private_ready": "`{bar}` {made} ready · **retrieve {expires}** (then it goes public)",
+        "private_released": "not retrieved: went to the building's public stockpile {expires}",
+        "summary_private": "🔒 {n} private queue(s)",
+        "summary_private_ready": "**{n} ready to retrieve**",
+        "summary_private_gone": "{n} went public",
         "incoming": "{qty} already made in a private queue (not counted)",
     },
 }
@@ -164,25 +172,33 @@ def _targets_value(targets: list[dict], lang: str) -> str:
     return _clip("\n".join(lines), _FIELD_MAX)
 
 
+_PRIVATE_RANK = {"ready": 0, "running": 1, "released": 2}
+
+
 def _private_value(orders: list[dict], lang: str) -> str:
+    """Ready ones first (someone has to go get them). Two lines each: what /
+    who / where, then a progress bar, how many made and the dates."""
     lines = []
-    for o in orders:
+    for o in sorted(orders, key=lambda o: (_PRIVATE_RANK.get(o["status"], 1), o["ready_at"] or o["started_at"])):
         item = ", ".join(out["name"] for out in o["outputs"]) or o["recipe_key"]
         where = f"{o['building_name']} ({o['building_location']})" if o.get("building_location") else o["building_name"]
-        args = {"owner": o["owner_name"], "item": item, "building": where}
+        icon = {"ready": "✅", "released": "⚠️"}.get(o["status"], "🔒")
+        lines.append(_t("private_head", lang, icon=icon, item=item, owner=o["owner_name"], building=where))
+        out = o["outputs"][0] if o["outputs"] else None
+        done = out["done"] if out else 0
+        total = out["total"] if out and out["total"] is not None else None
+        start = f"{_ts(o['started_at'], 'd')} {_ts(o['started_at'], 't')}"
         if o["status"] == "released":
-            lines.append(_t("private_released", lang, **args))
+            detail = _t("private_released", lang, expires=_ts(o["expires_at"]))
         elif o["status"] == "ready":
-            made = " + ".join(_display_qty(out["done"], out["resource"]) for out in o["outputs"]) or "?"
-            lines.append(_t("private_ready", lang, made=made, when=_ts(o["expires_at"]), **args))
-        elif o["ready_at"]:
-            made = " + ".join(
-                f"{_display_qty(out['done'], out['resource'])}/{_display_qty(out['total'], out['resource'])}"
-                for out in o["outputs"]
-            ) or "?"
-            lines.append(_t("private_running", lang, made=made, when=_ts(o["ready_at"]), **args))
+            made = _display_qty(done, out["resource"]) if out else "?"
+            detail = _t("private_ready", lang, bar=_bar(1), made=made, expires=_ts(o["expires_at"]))
+        elif o["ready_at"] and total:
+            made = f"{_display_qty(done, out['resource'])}/{_display_qty(total, out['resource'])}"
+            detail = _t("private_running", lang, bar=_bar(done / total), made=made, start=start, ready=_ts(o["ready_at"]))
         else:
-            lines.append(_t("private_running_open", lang, **args))
+            detail = _t("private_running_open", lang, start=start)
+        lines.append("　" + detail)
     return _clip("\n".join(lines), _FIELD_MAX)
 
 
@@ -245,23 +261,42 @@ def _building_value(b: dict, buildings: list[dict], lang: str, catalog_lang: str
 
 
 def _stations_value(stations: list[dict], catalog_lang: str) -> str:
-    lines = [f"**{_label(b)}**: " + " · ".join(_stock_parts(b, catalog_lang)) for b in stations]
+    locations = sorted({b.get("location") or "" for b in stations}, key=lambda l: (l == "", l.lower()))
+    if len(locations) < 2:
+        lines = [f"**{_label(b)}**: " + " · ".join(_stock_parts(b, catalog_lang)) for b in stations]
+        return _clip("\n".join(lines), _FIELD_MAX)
+    lines = []
+    for loc in locations:
+        lines.append(f"📍 __{loc or '—'}__")
+        for b in stations:
+            if (b.get("location") or "") == loc:
+                lines.append(f"**{b['name']}**: " + " · ".join(_stock_parts(b, catalog_lang)))
     return _clip("\n".join(lines), _FIELD_MAX)
 
 
-def _summary(producing: list[dict], lang: str) -> str:
+def _summary(producing: list[dict], lang: str, orders: list[dict] | None = None) -> str:
     slots = [s for b in producing for s in b["slots"]]
-    if not slots:
-        return ""
-    running = sum(1 for s in slots if s["running"])
-    lacking = sorted({m for s in slots if not s["running"] for m in s["missing"]})
+    lines = []
+    if slots:
+        running = sum(1 for s in slots if s["running"])
+        lacking = sorted({m for s in slots if not s["running"] for m in s["missing"]})
+        line = f"{_t('summary_running', lang, n=running)} · {_t('summary_stopped', lang, n=len(slots) - running)}"
+        if lacking:
+            line += " · " + _t("summary_lacking", lang, items=", ".join(lacking))
+        lines.append(line)
+    if orders:
+        parts = [_t("summary_private", lang, n=len(orders))]
+        ready = sum(1 for o in orders if o["status"] == "ready")
+        gone = sum(1 for o in orders if o["status"] == "released")
+        if ready:
+            parts.append(_t("summary_private_ready", lang, n=ready))
+        if gone:
+            parts.append(_t("summary_private_gone", lang, n=gone))
+        lines.append(" · ".join(parts))
     stale = sum(1 for b in producing if b["last_logged_at"] and b["elapsed_seconds"] >= STALE_SECONDS)
-    line = f"{_t('summary_running', lang, n=running)} · {_t('summary_stopped', lang, n=len(slots) - running)}"
-    if lacking:
-        line += " · " + _t("summary_lacking", lang, items=", ".join(lacking))
     if stale:
-        line += "\n" + _t("summary_stale", lang, n=stale)
-    return line
+        lines.append(_t("summary_stale", lang, n=stale))
+    return "\n".join(lines)
 
 
 def build_embed(facility_name: str, data: dict, lang: str, catalog_lang: str) -> dict:
@@ -273,14 +308,14 @@ def build_embed(facility_name: str, data: dict, lang: str, catalog_lang: str) ->
     running = sum(1 for s in slots if s["running"])
     # Green: everything runs · amber: something stopped · red: nothing runs.
     color = 0x10B981 if running == len(slots) else (0xF59E0B if running else 0xEF4444)
-    summary = _summary(producing, lang)
+    summary = _summary(producing, lang, data.get("private_orders"))
 
     def assemble(with_stock: bool, with_stations: bool) -> dict:
         fields = []
-        if data["targets"]:
-            fields.append({"name": _t("targets", lang), "value": _targets_value(data["targets"], lang), "inline": False})
         if data.get("private_orders"):
             fields.append({"name": _t("private", lang), "value": _private_value(data["private_orders"], lang), "inline": False})
+        if data["targets"]:
+            fields.append({"name": _t("targets", lang), "value": _targets_value(data["targets"], lang), "inline": False})
         for b in producing[:_MAX_BUILDING_FIELDS]:
             title = f"🏭 {b['name']}" + (f" · 📍{b['location']}" if b.get("location") else "")
             fields.append(

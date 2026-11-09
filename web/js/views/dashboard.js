@@ -161,8 +161,8 @@ views.dashboard = (() => {
     return `
       <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-3 flex flex-col">
         <div class="flex items-baseline justify-between gap-2">
-          <span class="font-semibold truncate min-w-0">${ui.escapeHtml(b.name)}</span>
-          ${b.location ? `<span class="text-xs text-zinc-500 whitespace-nowrap">📍 ${ui.escapeHtml(b.location)}</span>` : ""}
+          <span class="font-display text-lg font-semibold truncate min-w-0">${ui.escapeHtml(b.name)}</span>
+          ${b.location ? `<span class="text-xs text-zinc-500 whitespace-nowrap inline-flex items-center gap-0.5">${ui.icon("mapPin", "w-3 h-3")}${ui.escapeHtml(b.location)}</span>` : ""}
         </div>
         ${lastLogHtml(b)}
         <div class="grid gap-1">${lines || `<span class="text-xs text-zinc-500">${i18n.t("dashboard.noStock")}</span>`}</div>
@@ -170,66 +170,98 @@ views.dashboard = (() => {
       </div>`;
   }
 
-  // Private orders (services/private_orders.py): who, what, where, when.
-  function privateHtml(orders, now) {
+  // Private orders (services/private_orders.py): same block as the card.
+  function privateHtml(orders) {
     if (!orders || !orders.length) return "";
-    const rows = orders
-      .map((o) => {
-        const item = o.outputs.map((x) => x.name).join(", ") || o.recipe_key;
-        const where = o.building_location ? `${o.building_name} (${o.building_location})` : o.building_name;
-        let status;
-        if (o.status === "released") {
-          status = `<span class="text-amber-400">${i18n.t("private.released", { time: when(i18n.parseDate(o.expires_at)) })}</span>`;
-        } else if (o.status === "ready") {
-          const exp = i18n.parseDate(o.expires_at);
-          status = `<span class="text-emerald-400">${i18n.t("private.ready")}</span> · ${i18n.t("private.retrieveBefore", { time: when(exp), span: formatSpan((exp - now) / 1000) })}`;
-        } else if (o.ready_at) {
-          const ready = i18n.parseDate(o.ready_at);
-          const left = o.outputs.map((x) => `${formatQty(x.per_cycle * o.remaining_cycles, x.resource)} ${ui.escapeHtml(x.name)}`).join(" + ");
-          status = `<span class="text-emerald-400">●</span> ${i18n.t("private.left", { left })} · ${i18n.t("private.readyAt", { time: when(ready), span: formatSpan((ready - now) / 1000) })}`;
-        } else {
-          status = `<span class="text-emerald-400">● ${i18n.t("private.running")}</span>`;
-        }
-        return `
-        <div class="bg-zinc-900 border border-zinc-800 rounded p-3 min-w-0">
-          <div class="flex items-center gap-1.5 text-sm min-w-0">
-            <span class="text-zinc-500 shrink-0">${ui.icon("lock", "w-3.5 h-3.5")}</span>
-            <span class="font-semibold truncate">${ui.escapeHtml(o.owner_name)}</span>
-            <span class="text-zinc-400 truncate min-w-0">· ${ui.escapeHtml(item)}</span>
-          </div>
-          <div class="text-xs text-zinc-500 truncate">${ui.escapeHtml(where)}</div>
-          <div class="text-sm mt-1">${o.outputs
-            .map((x) =>
-              x.total != null && o.status === "running"
-                ? i18n.t("private.madeOf", { done: formatQty(x.done, x.resource), total: formatQty(x.total, x.resource), name: ui.escapeHtml(x.name) })
-                : i18n.t("private.made", { done: formatQty(x.done, x.resource), name: ui.escapeHtml(x.name) })
-            )
-            .join(" + ")}</div>
-          <div class="text-xs mt-0.5">${status}</div>
-        </div>`;
-      })
+    const blocks = views.privateOrders
+      .sortOrders(orders)
+      .map((o) =>
+        views.privateOrders.orderBlock(o, defs, { where: o.building_location ? `${o.building_name} (${o.building_location})` : o.building_name })
+      )
       .join("");
     return `
-      <h2 class="text-sm font-semibold text-zinc-300 mb-1">${i18n.t("dashboard.privateTitle")}</h2>
+      <h2 class="text-sm font-semibold text-zinc-300 mb-1 flex items-center gap-1.5">${ui.icon("lock", "w-4 h-4")}${i18n.t("dashboard.privateTitle")}</h2>
       <p class="text-xs text-zinc-500 mb-2">${i18n.t("dashboard.privateHint")}</p>
-      <div class="grid gap-2 mb-6" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">${rows}</div>`;
+      <div class="grid gap-2 mb-6" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">${blocks}</div>`;
   }
 
-  // One line on top: how many queues run, how many stopped and on what.
-  function summaryHtml(producing) {
+  // Tiles on top, the whole facility at a glance: public queues, private
+  // queues, Metas and how fresh the logs are. Each one colored by whether
+  // it needs someone (red/amber) or not.
+  function tile(title, big, sub, tone) {
+    const tones = {
+      ok: "border-emerald-800 text-emerald-300",
+      warn: "border-amber-700 text-amber-300",
+      bad: "border-red-800 text-red-300",
+      none: "border-zinc-800 text-zinc-300",
+    };
+    return `
+      <div class="bg-zinc-900 border border-l-4 ${tones[tone] || tones.none} rounded p-3 min-w-0">
+        <div class="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">${title}</div>
+        <div class="font-display text-2xl font-semibold leading-tight">${big}</div>
+        <div class="text-xs text-zinc-400 mt-0.5">${sub}</div>
+      </div>`;
+  }
+
+  function summaryHtml(data, producing) {
     const slots = producing.flatMap((b) => b.slots);
-    if (!slots.length) return "";
     const running = slots.filter((s) => s.running).length;
     const stopped = slots.length - running;
     const lacking = [...new Set(slots.filter((s) => !s.running).flatMap((s) => s.missing))];
     const stale = producing.filter((b) => b.last_logged_at && b.elapsed_seconds >= STALE_SECONDS).length;
-    const parts = [
-      `<span class="${running ? "text-emerald-400" : "text-zinc-500"}">● ${i18n.t("dashboard.summaryRunning", { n: running })}</span>`,
-      `<span class="${stopped ? "text-red-400" : "text-zinc-500"}">● ${i18n.t("dashboard.summaryStopped", { n: stopped })}</span>`,
+    const orders = data.private_orders || [];
+    const pReady = orders.filter((o) => o.status === "ready").length;
+    const pRun = orders.filter((o) => o.status === "running").length;
+    const pGone = orders.filter((o) => o.status === "released").length;
+    const reached = data.targets.filter((t) => t.projected >= t.target).length;
+    const furthest = [...data.targets].filter((t) => t.projected < t.target).sort((a, b) => a.projected / a.target - b.projected / b.target)[0];
+    const tiles = [
+      tile(
+        i18n.t("dashboard.tilePublic"),
+        slots.length ? i18n.t("dashboard.tileRunning", { n: running, total: slots.length }) : "—",
+        slots.length
+          ? stopped
+            ? i18n.t("dashboard.tileStopped", { n: stopped }) + (lacking.length ? ` · ${i18n.t("dashboard.summaryLacking", { items: ui.escapeHtml(lacking.join(", ")) })}` : "")
+            : i18n.t("dashboard.tileAllRunning")
+          : i18n.t("dashboard.noProduction"),
+        !slots.length ? "none" : stopped === 0 ? "ok" : running ? "warn" : "bad"
+      ),
+      tile(
+        i18n.t("dashboard.tilePrivate"),
+        String(orders.length),
+        orders.length
+          ? [
+              pRun ? i18n.t("dashboard.tilePrivateRunning", { n: pRun }) : "",
+              pReady ? `<span class="text-amber-300">${i18n.t("dashboard.tilePrivateReady", { n: pReady })}</span>` : "",
+              pGone ? `<span class="text-red-300">${i18n.t("dashboard.tilePrivateGone", { n: pGone })}</span>` : "",
+            ]
+              .filter(Boolean)
+              .join(" · ")
+          : i18n.t("dashboard.tilePrivateNone"),
+        pGone ? "bad" : pReady ? "warn" : orders.length ? "ok" : "none"
+      ),
     ];
-    if (lacking.length) parts.push(i18n.t("dashboard.summaryLacking", { items: ui.escapeHtml(lacking.join(", ")) }));
-    if (stale) parts.push(`<span class="text-amber-400">⚠ ${i18n.t("dashboard.summaryStale", { n: stale })}</span>`);
-    return `<div class="bg-zinc-900 border border-zinc-800 rounded px-3 py-2 mb-4 text-sm flex flex-wrap gap-x-4 gap-y-1">${parts.join("")}</div>`;
+    if (data.targets.length) {
+      tiles.push(
+        tile(
+          i18n.t("dashboard.tileTargets"),
+          `${reached}/${data.targets.length}`,
+          furthest
+            ? i18n.t("dashboard.tileFurthest", { name: ui.escapeHtml(furthest.name), pct: pct(furthest.projected, furthest.target) })
+            : i18n.t("dashboard.targetDone"),
+          reached === data.targets.length ? "ok" : "warn"
+        )
+      );
+    }
+    tiles.push(
+      tile(
+        i18n.t("dashboard.tileLogs"),
+        stale ? String(stale) : "✓",
+        stale ? i18n.t("dashboard.summaryStale", { n: stale }) : i18n.t("dashboard.tileLogsOk"),
+        stale ? "warn" : "ok"
+      )
+    );
+    return `<div class="grid gap-2 mb-6" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">${tiles.join("")}</div>`;
   }
 
   function draw(container, data) {
@@ -242,17 +274,37 @@ views.dashboard = (() => {
       `<div class="grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">${list
         .map((b) => buildingHtml(b, now, data.buildings))
         .join("")}</div>`;
+    // Stations by location ("FF", "Porto"…): a facility often has MTSs in
+    // more than one spot, and a flat list of 10+ cards hid that.
+    const byLocation = (list) => {
+      const groups = new Map();
+      for (const b of list) {
+        const key = b.location || "";
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(b);
+      }
+      const keys = [...groups.keys()].sort((a, b) => (a === "") - (b === "") || a.localeCompare(b));
+      if (keys.length < 2) return grid(list);
+      return keys
+        .map(
+          (k) => `
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-zinc-400 mt-3 mb-1.5 flex items-center gap-1">${ui.icon("mapPin", "w-3.5 h-3.5")}${
+            k ? ui.escapeHtml(k) : i18n.t("facilityDetail.noLocation")
+          }</h3>${grid(groups.get(k))}`
+        )
+        .join("");
+    };
     container.querySelector(".dash-body").innerHTML = `
-      ${summaryHtml(producing)}
+      ${summaryHtml(data, producing)}
+      ${privateHtml(data.private_orders)}
       ${targetsHtml(data.targets)}
-      ${privateHtml(data.private_orders, now)}
       <h2 class="text-sm font-semibold text-zinc-300 mb-1">${i18n.t("dashboard.productionTitle")}</h2>
       <p class="text-xs text-zinc-500 mb-2">${i18n.t("dashboard.legend")}</p>
       ${producing.length ? grid(producing) : `<p class="text-sm text-zinc-500">${i18n.t("dashboard.noProduction")}</p>`}
       ${
         stations.length
           ? `<h2 class="text-sm font-semibold text-zinc-300 mt-6 mb-1">${i18n.t("dashboard.stationsTitle")}</h2>
-             <p class="text-xs text-zinc-500 mb-2">${i18n.t("dashboard.stationsHint")}</p>${grid(stations)}`
+             <p class="text-xs text-zinc-500 mb-2">${i18n.t("dashboard.stationsHint")}</p>${byLocation(stations)}`
           : ""
       }
       ${emptyStations.length ? `<p class="text-xs text-zinc-500 mt-2">${i18n.t("dashboard.emptyStations", { list: emptyStations.join(", ") })}</p>` : ""}
