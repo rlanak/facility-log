@@ -1,0 +1,37 @@
+# Runs the tests (stdlib unittest, see tests/) on every push and pull request to main.
+# Nothing is built or published here. The Docker image workflow (docker-image.yml) calls
+# this same file before publishing, so what runs on main is what gates a version tag.
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13" # the image's Python (Dockerfile)
+
+      # requirements.txt minus what no test imports — the server (uvicorn), the screenshot
+      # reader (opencv, numpy, rapidocr, onnxruntime) and the tray icon (pystray), which are
+      # most of the download. The rest installs with the versions requirements.txt asks for.
+      # A test that comes to need one of these: take it off the list, don't skip the test.
+      - name: Install what the tests import
+        run: |
+          grep -viE '^(uvicorn|opencv-python-headless|numpy|rapidocr|onnxruntime|pystray)\b' requirements.txt > "$RUNNER_TEMP/requirements-test.txt"
+          python -m pip install -r "$RUNNER_TEMP/requirements-test.txt"
+
+      - name: Run the tests
+        run: python -m unittest discover -s tests -t .

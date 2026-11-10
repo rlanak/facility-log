@@ -419,7 +419,8 @@ Desligado por padrão; liga com `DISCORD_CLIENT_ID` (env ou `.env`; env real ven
 1. PC + Cloudflare Tunnel (`.env` + `cloudflared` → `http://127.0.0.1:8000`); única opção em que a IA
    local funciona pra quem acessa pela web.
 2. Docker: `docker compose up -d` usa a imagem `ghcr.io/rlanak/facility-log` (publicada pelo
-   workflow `.github/workflows/docker-image.yml` só quando uma tag `vX.Y.Z` é enviada; só amd64). Build
+   workflow `.github/workflows/docker-image.yml` só quando uma tag `vX.Y.Z` é enviada **e os testes
+   passam** — ver "Testes"; só amd64). Build
    local: `docker build -t ghcr.io/rlanak/facility-log:latest .`. O Dockerfile compila o parser num
    estágio Rust; dados em `./data-docker`
    via `FACILITY_LOG_DATA_DIR` (nunca sobre `/app/data`, que esconderia o catálogo).
@@ -435,6 +436,16 @@ o ambiente antes de importar `app`). Cobrem as contas e regras que já quebraram
 Meta que segura estoque, lote tudo-ou-nada, tamanho do embed, fila privada, porta do modo local, recorte
 do leitor, limpeza de prints, catálogo. `tests/helpers.call()` chama o app ASGI direto, sem servidor.
 **Bug corrigido ganha teste.**
+
+**No GitHub** (`.github/workflows/tests.yml`, Python 3.13 — o mesmo do `Dockerfile`): rodam em todo push e
+PR pro `main`, sem publicar nada, e de novo antes de cada imagem — o workflow da imagem chama esse mesmo
+arquivo como job `test`, e o `publish` depende dele (`needs: test`). **A imagem só é publicada se eles
+passarem:** tag com teste quebrado não vira imagem e a que já estava publicada continua valendo — corrigir
+e enviar outra tag. Antes de criar uma tag, conferir que o push do `main` passou. O job instala o
+`requirements.txt` menos o que nenhum teste importa (uvicorn, opencv, numpy, rapidocr, onnxruntime, pystray
+— a lista fica no `tests.yml`), por isso leva segundos; teste novo que precise de um deles → tirar da
+lista, nunca desligar o teste. O filtro é por linha: no `requirements.txt`, cada dependência numa linha
+só, começando pelo nome.
 
 ## Pegadinhas de desenvolvimento
 

@@ -1,5 +1,7 @@
-# Builds the web-mode Docker image and publishes it to GitHub Container Registry
-# (ghcr.io/rlanak/facility-log) — only when a version tag (v1.2.3) is pushed.
+# Runs the tests (tests.yml) and, only if they pass, builds the web-mode Docker image and
+# publishes it to GitHub Container Registry (ghcr.io/rlanak/facility-log) — only when a
+# version tag (v1.2.3) is pushed. A tag whose tests fail publishes nothing: the image
+# already published stays as it is.
 # Pull requests, forks and branch pushes never run this.
 name: Docker image
 
@@ -11,7 +13,15 @@ permissions:
   contents: read
 
 jobs:
+  test:
+    # The same job that runs on every push to main (tests.yml), here as the gate for publish.
+    # Same condition as publish: in a fork there is nothing to gate.
+    if: github.repository == 'rlanak/facility-log'
+    uses: ./.github/workflows/tests.yml
+
   publish:
+    # No image unless the tests passed.
+    needs: test
     # Only the original repository publishes (a fork's copy of this workflow does nothing).
     if: github.repository == 'rlanak/facility-log'
     runs-on: ubuntu-latest
