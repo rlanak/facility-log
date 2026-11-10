@@ -6,8 +6,38 @@ const ui = (() => {
       isError ? "bg-red-900 text-red-100 border border-red-700" : "bg-emerald-900 text-emerald-100 border border-emerald-700"
     }`;
     el.textContent = message;
+    // Click = read it, gone.
+    el.classList.add("cursor-pointer", "max-w-md");
+    el.addEventListener("click", () => el.remove());
     container.appendChild(el);
-    setTimeout(() => el.remove(), 3000);
+    // An error is read, not glanced at: it stays for as long as its text
+    // takes (the two-sentence ones used to vanish in 3s, mid-reading).
+    const ms = isError ? Math.min(15000, Math.max(5000, String(message).length * 75)) : 3000;
+    setTimeout(() => el.remove(), ms);
+  }
+
+  // "25.7k", "1,8k", "32000", "32.000" → number; NaN when it isn't one. The
+  // same rules as the server's number_parser.parse_quantity (keep the two in
+  // step): k/M multiply, a comma is a decimal separator, and without k/M a
+  // single dot before exactly 3 digits is a thousands separator ("2.000" is
+  // two thousand — that's also how this page prints numbers in pt-BR).
+  function parseQuantity(text) {
+    const m = /^\s*([\d.,]+)\s*([kKmM]?)\s*$/.exec(String(text ?? ""));
+    if (!m) return NaN;
+    let num = m[1];
+    const dots = () => num.split(".").length - 1;
+    if (m[2]) {
+      num = num.replaceAll(",", ".");
+      if (dots() > 1) return NaN;
+      return Number(num) * (m[2].toLowerCase() === "k" ? 1e3 : 1e6);
+    }
+    if (num.includes(",") && num.includes(".")) return NaN;
+    if (num.includes(",")) return Number(num.replaceAll(",", "."));
+    if (dots() === 1) {
+      const [whole, decimals] = num.split(".");
+      return decimals.length === 3 ? Number(whole + decimals) : Number(num);
+    }
+    return dots() > 1 ? NaN : Number(num);
   }
 
   async function copyText(text) {
@@ -68,8 +98,16 @@ const ui = (() => {
       if (e.key === "Escape") close();
     }
     closeBtn.addEventListener("click", close);
+    // Closes on a click that both starts and ends on the dark area. A drag
+    // that starts inside the form (selecting text, marking the panel on a
+    // print) and is released outside also "clicks" the overlay — that used
+    // to close the modal and throw away everything typed in it.
+    let pressedOnOverlay = false;
+    overlay.addEventListener("mousedown", (e) => {
+      pressedOnOverlay = e.target === overlay;
+    });
     overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) close();
+      if (e.target === overlay && pressedOnOverlay) close();
     });
     document.addEventListener("keydown", onKey);
 
@@ -113,5 +151,5 @@ const ui = (() => {
     return `<svg class="${cls} shrink-0" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5l9.1 5.25v10.5L12 22.5l-9.1-5.25V6.75z" fill="rgb(var(--c-emerald-600))" stroke="rgb(var(--c-emerald-400))" stroke-width="1"/><path d="M6.5 16.5v-5l3.2 2v-2l3.2 2V7.5h2.6l.9 9z" fill="rgb(var(--c-zinc-950))"/></svg>`;
   }
 
-  return { toast, copyText, escapeHtml, el, openModal, icon, logo };
+  return { toast, copyText, escapeHtml, el, openModal, icon, logo, parseQuantity };
 })();

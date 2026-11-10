@@ -211,6 +211,9 @@ docker compose exec -T -u app facility-log python -c "import sqlite3; s=sqlite3.
 
 (gera `data-docker/backup.db`).
 
+Os prints enviados ficam guardados e entram em todo backup, mas só são usados enquanto são lidos. Pra
+não acumular, `FACILITY_LOG_UPLOAD_DAYS=30` no `.env` apaga os com mais de 30 dias (desligado por padrão).
+
 ---
 
 ## Problemas comuns

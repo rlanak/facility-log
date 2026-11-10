@@ -57,27 +57,45 @@ def sanitize(raw: str) -> dict:
     return {"available": True, "raw_text": text if has_digit else (raw or ""), "guess": text if has_digit else ""}
 
 
+# Longest side, in px, of what goes to a reader. A quantity is ~60x20px and
+# gets the full upscale; a selection far bigger than a number (a whole panel
+# marked in manual mode, or a made-up box) is enlarged less, or shrunk — at 6x
+# a full 2560x1440 screenshot took about 1 GB of memory, on a 2 GB server.
+MAX_READ_SIDE = 1600
+
+
+def _crop(image_path: Path, box: tuple[int, int, int, int]) -> Image.Image:
+    """The box, kept inside the image (at least 1x1)."""
+    with Image.open(image_path) as img:
+        width, height = img.size
+        x0, y0, x1, y1 = box
+        x0 = max(0, min(x0, width - 1))
+        y0 = max(0, min(y0, height - 1))
+        x1 = max(x0 + 1, min(x1, width))
+        y1 = max(y0 + 1, min(y1, height))
+        return img.crop((x0, y0, x1, y1)).convert("RGB")
+
+
+def _enlarge(crop: Image.Image, scale: int, resample) -> Image.Image:
+    longest = max(crop.width, crop.height)
+    scale = max(1, min(scale, MAX_READ_SIDE // longest))
+    if scale > 1:
+        return crop.resize((crop.width * scale, crop.height * scale), resample)
+    if longest > MAX_READ_SIDE:
+        crop.thumbnail((MAX_READ_SIDE, MAX_READ_SIDE))
+    return crop
+
+
 def _prepare_crop(image_path: Path, box: tuple[int, int, int, int]) -> Image.Image:
     """Grayscale, high-contrast, 6x crop for the OCR engine. NEAREST, not
     LANCZOS: stockpile counts are only ~10-15px tall in a thin font, and
     smoothing blurs the strokes into mush at this size."""
-    with Image.open(image_path) as img:
-        img = img.convert("RGB")
-        width, height = img.size
-        x0, y0, x1, y1 = box
-        x0 = max(0, min(x0, width))
-        y0 = max(0, min(y0, height))
-        x1 = max(x0 + 1, min(x1, width))
-        y1 = max(y0 + 1, min(y1, height))
-        crop = img.crop((x0, y0, x1, y1))
-    crop = crop.resize((crop.width * 6, crop.height * 6), Image.NEAREST)
+    crop = _enlarge(_crop(image_path, box), 6, Image.NEAREST)
     return ImageOps.autocontrast(ImageOps.grayscale(crop))
 
 
 def _crop_png(image_path: Path, box: tuple[int, int, int, int], scale: int = 4) -> bytes:
-    with Image.open(image_path) as img:
-        crop = img.convert("RGB").crop(box)
-    crop = crop.resize((max(1, crop.width * scale), max(1, crop.height * scale)), Image.LANCZOS)
+    crop = _enlarge(_crop(image_path, box), scale, Image.LANCZOS)
     buf = io.BytesIO()
     crop.save(buf, "PNG")
     return buf.getvalue()
@@ -140,10 +158,12 @@ def read_clock(image_path: Path) -> dict:
         return {"seconds": None, "raw_text": ""}
     with Image.open(image_path) as img:
         img = img.convert("RGB")
-        # Small screenshots (a Discord crop) read better a bit bigger.
+        # Small screenshots (a Discord crop) read better a bit bigger — unless
+        # it's a narrow but very tall image, which would only eat memory.
         if img.width < 1200:
             factor = 2 if img.width >= 600 else 3
-            img = img.resize((img.width * factor, img.height * factor), Image.LANCZOS)
+            if img.width * img.height * factor * factor <= 16_000_000:
+                img = img.resize((img.width * factor, img.height * factor), Image.LANCZOS)
         arr = np.array(img)
     try:
         out = _rapid_full_engine()(arr)

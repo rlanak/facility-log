@@ -163,7 +163,7 @@ views.privateOrders = (() => {
   }
 
   // The card's "Filas privadas" block: one line per open order + the add button.
-  function cardSection({ building, recipes, orders, defs, buildings, resources, onChange }) {
+  function cardSection({ building, recipes, orders, defs, buildings, resources, onChange, recipeLabel }) {
     const box = ui.el("div", { class: "private-orders mt-2 grid gap-1.5" });
     const list = sortOrders(orders)
       .map((o) => orderBlock(o, defs, { actions: true }))
@@ -174,12 +174,12 @@ views.privateOrders = (() => {
 
     const title = (key) => `${i18n.t(key)} — ${i18n.buildingName(building, null)}`;
     box.querySelector(".po-add").addEventListener("click", () =>
-      ui.openModal(title("private.newTitle"), (body, close) => form(body, { building, recipes, defs, order: null, onSaved: () => (close(), onChange()) }), { maxWidth: "max-w-lg" })
+      ui.openModal(title("private.newTitle"), (body, close) => form(body, { building, recipes, defs, order: null, recipeLabel, onSaved: () => (close(), onChange()) }), { maxWidth: "max-w-lg" })
     );
     box.querySelectorAll("[data-id]").forEach((row) => {
       const order = orders.find((o) => String(o.id) === row.dataset.id);
       row.querySelector(".po-edit").addEventListener("click", () =>
-        ui.openModal(title("private.editTitle"), (body, close) => form(body, { building, recipes, defs, order, onSaved: () => (close(), onChange()) }), { maxWidth: "max-w-lg" })
+        ui.openModal(title("private.editTitle"), (body, close) => form(body, { building, recipes, defs, order, recipeLabel, onSaved: () => (close(), onChange()) }), { maxWidth: "max-w-lg" })
       );
       row.querySelector(".po-delete").addEventListener("click", async () => {
         if (!confirm(i18n.t("private.deleteConfirm", { owner: order.owner_name, item: outputsLabel(order) }))) return;
@@ -201,12 +201,22 @@ views.privateOrders = (() => {
     return recipe.inputs.filter((io) => io.resource && !(defs[io.resource] && defs[io.resource].is_liquid));
   }
 
+  // A recipe amount in stock units. The catalog states liquids in liters
+  // (see foxhole_data.recipe_io_qty on the server); qtyLabel() takes units.
+  function unitsOf(io, defs) {
+    const def = defs[io.resource];
+    const qty = io.qty ?? 1;
+    return def && def.is_liquid && def.liters_per_unit ? qty / def.liters_per_unit : qty;
+  }
+
   // New / edit form. The preview below repeats the server's math so the
   // player sees "32 × 300mm, pronto ~20:49" before saving.
-  function form(container, { building, recipes, defs, order, onSaved }) {
+  function form(container, { building, recipes, defs, order, onSaved, recipeLabel }) {
     const me = window.appMe && window.appMe.user ? window.appMe.user.name : "";
-    const recipeLabel = (r) =>
-      r.outputs.map((o) => `${o.qty ?? 1}x ${i18n.catalogName(defs[o.resource]) || o.resource}`).join(" + ");
+    // The card passes the building's own labels (they tell apart recipes
+    // that make the same item — see facilityDetail.recipeLabel).
+    recipeLabel =
+      recipeLabel || ((r) => r.outputs.map((o) => `${o.qty ?? 1}x ${i18n.catalogName(defs[o.resource]) || o.resource}`).join(" + "));
     container.innerHTML = `
       <form class="grid gap-3">
         <p class="text-xs text-zinc-500">${i18n.t("private.formHint")}</p>
@@ -280,12 +290,13 @@ views.privateOrders = (() => {
 
     function values() {
       const inputs = {};
+      // ui.parseQuantity: the game (and the print reader) writes "1.2k".
       for (const el of inputsBox.querySelectorAll("input")) {
-        const n = el.value.trim() === "" ? 0 : Number(el.value.replace(",", "."));
+        const n = el.value.trim() === "" ? 0 : ui.parseQuantity(el.value);
         inputs[el.dataset.key] = n;
       }
       const doneText = f.done.value.trim();
-      const done = doneText === "" ? 0 : Number(doneText);
+      const done = doneText === "" ? 0 : ui.parseQuantity(doneText);
       return { inputs, cycle: parseClock(f.cycle.value), done: Number.isInteger(done) && done >= 0 ? done : NaN };
     }
 
@@ -306,10 +317,12 @@ views.privateOrders = (() => {
       const ready = new Date(start.getTime() + (cycle + (cycles - (cycle > 0 ? 1 : 0)) * recipe.time_seconds) * 1000);
       const out = recipe.outputs
         .filter((o) => o.resource)
-        .map((o) => `${qtyLabel((o.qty ?? 1) * cycles, o.resource, defs)} ${i18n.catalogName(defs[o.resource]) || o.resource}`)
+        .map((o) => `${qtyLabel(unitsOf(o, defs) * cycles, o.resource, defs)} ${i18n.catalogName(defs[o.resource]) || o.resource}`)
         .join(" + ");
       let text = cycles > 0 ? i18n.t("private.preview", { cycles, out, time: when(ready) }) : i18n.t("private.previewNone");
-      if (done > 0) text += " · " + i18n.t("private.previewDone", { done, total: done + cycles });
+      // "Já fabricado" is in items, not cycles: a cycle of Cmats makes 3.
+      const perCycle = recipe.outputs.filter((o) => o.resource).map((o) => unitsOf(o, defs))[0] || 1;
+      if (done > 0) text += " · " + i18n.t("private.previewDone", { done, total: done + cycles * perCycle });
       preview.textContent = text;
     }
 
@@ -476,7 +489,7 @@ views.privateOrders = (() => {
         })
         .join("");
       const total = (el) => {
-        const n = Number(el.value.replace(",", "."));
+        const n = ui.parseQuantity(el.value);
         el.parentElement.querySelector(".po-total").textContent = isNaN(n) ? "" : `= ${qtyLabel(Number(el.dataset.current) + n, el.dataset.key, defs)}`;
       };
       rows.querySelectorAll("input").forEach((el) => {
@@ -495,7 +508,7 @@ views.privateOrders = (() => {
         if (dest) {
           const entries = [];
           for (const el of rows.querySelectorAll("input")) {
-            const n = Number(el.value.replace(",", "."));
+            const n = ui.parseQuantity(el.value);
             if (isNaN(n) || n < 0) {
               ui.toast(i18n.t("resources.invalidNumber"), true);
               return;
@@ -505,7 +518,8 @@ views.privateOrders = (() => {
             entries.push({
               resource_name: def ? def.name_en : el.dataset.key,
               resource_def_key: el.dataset.key,
-              quantity_raw: String(Number(el.dataset.current) + n),
+              // 2 decimals at most: the server reads "12.345" as twelve thousand.
+              quantity_raw: String(Math.round((Number(el.dataset.current) + n) * 100) / 100),
               storage: "normal",
             });
           }

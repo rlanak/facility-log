@@ -136,6 +136,23 @@ views.facilityDetail = (() => {
     return `${secs}s`;
   }
 
+  // "3x Dawn ve.II (1min15)". When another recipe of the building makes the
+  // same thing (Cmats from salvage alone / with petrol / with coke; gravel
+  // from coal or from salvage), what goes in is the only difference, so it
+  // goes in the name: "3x Cmat ← 15x Sucata + 25L Gasolina (25s)".
+  function ioText(io) {
+    const def = foxholeResourceDefs[io.resource];
+    const name = i18n.catalogName(def) || io.resource;
+    return def && def.is_liquid ? `${io.qty ?? 1}L ${name}` : `${io.qty ?? 1}x ${name}`;
+  }
+  function recipeLabel(foxholeType, recipe, withTime = true) {
+    const makes = (r) => r.outputs.map((o) => o.resource).sort().join("+");
+    const twin = foxholeType.recipes.some((r) => r !== recipe && makes(r) === makes(recipe));
+    let label = recipe.outputs.map(ioText).join(" + ");
+    if (twin) label += ` ← ${recipe.inputs.filter((io) => io.resource).map(ioText).join(" + ")}`;
+    return withTime ? `${label} (${formatCycleTime(recipe.time_seconds)})` : label;
+  }
+
   function tabLink(tab, label, activeTab) {
     const isActive = tab === activeTab;
     const href = tab === "buildings" ? `#/facilities/${facilityId}` : `#/facilities/${facilityId}/${tab}`;
@@ -241,8 +258,12 @@ views.facilityDetail = (() => {
     document.getElementById("rename-facility").addEventListener("click", async () => {
       const name = prompt(i18n.t("facilityDetail.renamePrompt"), facility.name);
       if (!name || !name.trim()) return;
-      await api.updateFacility(facilityId, { name: name.trim() });
-      render(app, facilityId, activeTab);
+      try {
+        await api.updateFacility(facilityId, { name: name.trim() });
+        render(app, facilityId, activeTab);
+      } catch (err) {
+        ui.toast(err.message, true);
+      }
     });
 
     document.getElementById("delete-facility").addEventListener("click", async () => {
@@ -686,6 +707,7 @@ views.facilityDetail = (() => {
           buildings: orderDestinations,
           resources: allResources,
           onChange,
+          recipeLabel: (r) => recipeLabel(foxholeType, r, false),
         })
       );
     }
@@ -707,9 +729,11 @@ views.facilityDetail = (() => {
         // resource units (galões) — accept a trailing L and convert so the
         // user doesn't have to do that math by hand (e.g. "5000L" for a
         // full 50L/unit tank instead of typing "100").
-        const litersMatch = qty.match(/^([\d.,]+)\s*[lL]$/);
+        const litersMatch = qty.match(/^(.*?)\s*[lL]$/);
         if (litersMatch) {
-          const liters = parseFloat(litersMatch[1].replace(",", "."));
+          // Read like every other number: "2.500L" is 2500 liters (the tank
+          // line right above prints it that way), not 2.5.
+          const liters = ui.parseQuantity(litersMatch[1]);
           if (isNaN(liters)) {
             ui.toast(i18n.t("resources.invalidNumber"), true);
             return;
@@ -750,8 +774,12 @@ views.facilityDetail = (() => {
 
     card.querySelector(".delete-building").addEventListener("click", async () => {
       if (!confirm(i18n.t("facilityDetail.deleteBuildingConfirm", { name: buildingDisplayName }))) return;
-      await api.deleteBuilding(building.id);
-      onChange();
+      try {
+        await api.deleteBuilding(building.id);
+        onChange();
+      } catch (err) {
+        ui.toast(err.message, true);
+      }
     });
 
     card.querySelector(".edit-building").addEventListener("click", () => {
@@ -792,10 +820,16 @@ views.facilityDetail = (() => {
 
     card.querySelector(".open-stock-modal").addEventListener("click", () => {
       ui.openModal(`${i18n.t("facilityDetail.launchStock")} — ${buildingDisplayName}`, (body, close) => {
-        buildStockForm(body, building, foxholeType, () => {
-          onChange();
-          close();
-        });
+        buildStockForm(
+          body,
+          building,
+          foxholeType,
+          () => {
+            onChange();
+            close();
+          },
+          stock
+        );
       });
     });
 
@@ -923,13 +957,6 @@ views.facilityDetail = (() => {
       return groups;
     }
 
-    function recipeLabel(recipe) {
-      const outputs = recipe.outputs
-        .map((o) => `${o.qty ?? 1}x ${i18n.catalogName(foxholeResourceDefs[o.resource]) || o.resource}`)
-        .join(" + ");
-      return `${outputs} (${formatDuration(recipe.time_seconds)})`;
-    }
-
     function recipeOptionsHtml(selectedKey) {
       return (
         `<option value="">${i18n.t("facilityDetail.noRecipe")}</option>` +
@@ -940,7 +967,7 @@ views.facilityDetail = (() => {
             ${recipes
               .map(
                 ({ recipe: r, allowed }) =>
-                  `<option value="${r.key}" ${r.key === selectedKey ? "selected" : ""}>${allowed ? "" : "⚠ "}${ui.escapeHtml(recipeLabel(r))}${r.note ? " ⚠" : ""}</option>`
+                  `<option value="${r.key}" ${r.key === selectedKey ? "selected" : ""}>${allowed ? "" : "⚠ "}${ui.escapeHtml(recipeLabel(foxholeType, r))}${r.note ? " ⚠" : ""}</option>`
               )
               .join("")}
           </optgroup>`
@@ -1043,19 +1070,26 @@ views.facilityDetail = (() => {
     });
   }
 
-  function buildStockForm(container, building, foxholeType, onChange) {
+  function buildStockForm(container, building, foxholeType, onChange, stock = []) {
     if (foxholeType) {
-      buildPredefinedStockForm(container, building, foxholeType, onChange);
+      buildPredefinedStockForm(container, building, foxholeType, onChange, stock);
     } else {
       buildFreeformStockForm(container, building, onChange);
     }
   }
 
-  function buildPredefinedStockForm(container, building, foxholeType, onChange) {
+  function buildPredefinedStockForm(container, building, foxholeType, onChange, stock = []) {
     const resources = resourcesForBuildingType(foxholeType);
     const currentByKey = Object.fromEntries(
       allResources.filter((r) => r.resource_def_key).map((r) => [r.resource_def_key, r])
     );
+    // What's logged now, next to each field: the number typed replaces it
+    // (stock is a snapshot), so seeing it avoids typing "what was added".
+    const loggedByKey = {};
+    for (const s of stock) {
+      const resource = allResources.find((r) => r.id === s.resource_id);
+      if (s.storage === "normal" && resource && resource.resource_def_key) loggedByKey[resource.resource_def_key] = s.quantity;
+    }
 
     const hint = i18n.t("facilityDetail.predefinedHint", { ex1: "<code>25.7k</code>", ex2: "<code>1,8k</code>", ex3: "<code>32000</code>" });
     container.innerHTML = `
@@ -1081,6 +1115,9 @@ views.facilityDetail = (() => {
         <div class="flex items-center gap-2" data-name="${ui.escapeHtml(`${r.name} ${r.search || ""}`.toLowerCase())}">
           ${thumb}
           <span class="flex-1 min-w-0 truncate text-sm" title="${ui.escapeHtml(r.name)}">${ui.escapeHtml(r.name)}</span>
+          <span class="shrink-0 text-xs tabular-nums text-zinc-500" title="${i18n.t("facilityDetail.currentQty")}">${
+            loggedByKey[r.key] > 0 ? formatQty(loggedByKey[r.key]) : ""
+          }</span>
           <input placeholder="${i18n.t("facilityDetail.qtyPlaceholder")}" data-key="${r.key}" data-current-id="${current ? current.id : ""}"
             class="w-28 shrink-0 bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500 row-qty" />
         </div>`;

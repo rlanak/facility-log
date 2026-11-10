@@ -5,7 +5,6 @@ private-facility check in auth.gate already covers them."""
 
 import json
 from datetime import datetime, timezone
-from pathlib import Path
 
 from PIL import Image
 
@@ -13,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app import auth, crud, models, schemas
-from app.database import UPLOADS_DIR, get_db
+from app.database import get_db, upload_path
 from app.services import capture, foxhole_data, icon_match_service, private_orders
 from app.services.capture import readers
 from app.services.errors_i18n import err
@@ -67,7 +66,8 @@ def _apply(order: models.PrivateOrder, data: schemas.PrivateOrderIn, building: m
         raise HTTPException(status_code=422, detail=err("invalid_quantity", lang))
     order.done_before = data.done_before
     started = data.started_at or _now()
-    order.started_at = started if started.tzinfo else started.replace(tzinfo=timezone.utc)
+    # Stored as UTC (SQLite keeps no offset): a time sent with another offset is converted, not relabeled.
+    order.started_at = started.astimezone(timezone.utc) if started.tzinfo else started.replace(tzinfo=timezone.utc)
 
 
 def _check_queues(db: Session, building: models.Building, lang: str, exclude_id: int | None = None):
@@ -105,9 +105,9 @@ def read_order_print(
     image = crud.get_upload_image(db, data.image_id)
     if not image or image.building_id != building.id:
         raise HTTPException(status_code=404, detail=err("image_not_found", lang))
-    path = Path(image.file_path)
-    if not path.is_file():
-        path = UPLOADS_DIR / path.name
+    path = upload_path(image.file_path)
+    if not path.is_file():  # already cleaned up (services/upload_cleanup.py)
+        raise HTTPException(status_code=404, detail=err("image_not_found", lang))
     if not icon_match_service.is_available():
         return {"available": False}
     _chosen, _effective, reader = capture.resolve_reader(db)

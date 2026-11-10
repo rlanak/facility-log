@@ -3,6 +3,7 @@ from app import envfile  # noqa: F401  (must run before app.auth reads the envir
 import asyncio
 import os
 from contextlib import asynccontextmanager
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI
 from starlette.middleware.sessions import SessionMiddleware
@@ -15,7 +16,7 @@ from app.database import UPLOADS_DIR, Base, apply_migrations, engine
 from app.paths import APP_DIR
 from app.routers import auth as auth_routes
 from app.routers import buildings, facilities, foxhole, images, private_orders, reports, resources, save, settings, stock
-from app.services import discord_dashboard
+from app.services import discord_dashboard, upload_cleanup
 
 Base.metadata.create_all(bind=engine)
 apply_migrations()
@@ -65,10 +66,15 @@ CSP = "; ".join(
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    # Discord webhook dashboards (opt-in per facility; idle when none is set).
-    task = asyncio.create_task(discord_dashboard.run_forever())
+    tasks = [
+        # Discord webhook dashboards (opt-in per facility; idle when none is set).
+        asyncio.create_task(discord_dashboard.run_forever()),
+        # Old screenshots (FACILITY_LOG_UPLOAD_DAYS; see the module).
+        asyncio.create_task(upload_cleanup.run_forever()),
+    ]
     yield
-    task.cancel()
+    for task in tasks:
+        task.cancel()
 
 
 app = FastAPI(title="Facility Log", lifespan=lifespan)
@@ -85,13 +91,41 @@ if not auth.config.enabled and os.environ.get("FACILITY_LOG_REQUIRE_LOGIN") == "
     raise RuntimeError("FACILITY_LOG_REQUIRE_LOGIN=1 but the Discord login isn't configured (see .env.example)")
 
 
-@app.middleware("http")
+_LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
+
+
+def _from_this_page(request) -> bool:
+    """Local mode has no login: the only thing keeping another website out of
+    the app is the browser, and it leaves two doors open (10/11/2026).
+    - A page whose domain resolves to 127.0.0.1 (DNS rebinding) talks to the
+      app as if it were its own server — but the Host header is that domain's,
+      never localhost.
+    - Any page can send a form/upload/empty POST here without asking (no
+      CORS preflight for those) — but the browser says where it came from in
+      Origin, which is only this app's own address for the app's own pages."""
+    try:
+        if request.url.hostname not in _LOCAL_HOSTS:
+            return False
+        origin = request.headers.get("origin")
+        if origin and request.method not in ("GET", "HEAD", "OPTIONS"):
+            return urlsplit(origin).hostname in _LOCAL_HOSTS
+    except ValueError:  # a Host/Origin that isn't even an address
+        return False
+    return True
+
+
 async def security_headers(request, call_next):
-    if not auth.config.enabled and os.environ.get("FACILITY_LOG_ALLOW_OPEN") != "1" and not auth.is_local_request(request):
-        return PlainTextResponse(
-            "facility-log em modo local só responde neste PC. Pra acessar de fora, ligue o login pelo Discord (.env).",
-            status_code=403,
-        )
+    if not auth.config.enabled and os.environ.get("FACILITY_LOG_ALLOW_OPEN") != "1":
+        if not auth.is_local_request(request):
+            return PlainTextResponse(
+                "facility-log em modo local só responde neste PC. Pra acessar de fora, ligue o login pelo Discord (.env).",
+                status_code=403,
+            )
+        if not _from_this_page(request):
+            return PlainTextResponse(
+                "facility-log em modo local só responde a pedidos da própria página, aberta em http://localhost (ou 127.0.0.1).",
+                status_code=403,
+            )
     response = await call_next(request)
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
@@ -107,7 +141,13 @@ if auth.config.enabled:
     if missing:
         raise RuntimeError(f"Discord login is on (DISCORD_CLIENT_ID set) but missing: {', '.join(missing)}")
     app.middleware("http")(auth.gate)
-    # Added after the gate so it wraps it (outermost) — the gate reads the session.
+
+# Added after the gate, so it wraps it: the gate's own answers (401, the 404
+# of someone else's private facility) get the security headers too.
+app.middleware("http")(security_headers)
+
+if auth.config.enabled:
+    # Added last, so it wraps everything (outermost) — the gate reads the session.
     app.add_middleware(
         SessionMiddleware,
         secret_key=auth.config.session_secret,

@@ -214,6 +214,10 @@ docker compose exec -T -u app facility-log python -c "import sqlite3; s=sqlite3.
 
 (creates `data-docker/backup.db`).
 
+Uploaded screenshots are kept and go into every backup, though they are only used while being read. To
+keep them from piling up, `FACILITY_LOG_UPLOAD_DAYS=30` in `.env` deletes those older than 30 days (off
+by default).
+
 ---
 
 ## Troubleshooting

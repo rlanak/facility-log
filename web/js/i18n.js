@@ -171,6 +171,15 @@ const i18n = (() => {
       "dashboard.tileFurthest": "mais longe: {name} ({pct}%)",
       "dashboard.tileLogs": "Lançamentos antigos",
       "dashboard.tileLogsOk": "todos os prédios lançados nas últimas 24h",
+      "print.unreadNote": "Achados no print mas sem número — ficam com o valor de antes (preencha pra atualizar; remova a linha se o item acabou):",
+      "report.chars": "{n}/2000",
+      "report.charsHint": "Caracteres desta parte (o Discord aceita até 2000 por mensagem)",
+      "dashboard.idleTitle": "Prédios sem fila",
+      "dashboard.idleHint": "Têm estoque lançado mas nenhuma fila configurada: contam nas Metas, não entram na estimativa.",
+      "facilityDetail.currentQty": "Estoque lançado agora",
+      "saveImport.olderThanLog": "⚠ O jogo atualizou este pin há {ago}, mas o prédio tem lançamento mais novo (há {last}). Salvar trocaria dado novo por antigo — abra o pin no mapa do jogo e leia o save de novo.",
+      "saveImport.bulkOlder": "desmarcado: o pin é mais antigo que o último lançamento do prédio (há {last})",
+      "saveImport.bulkNoZero": "Nada é zerado aqui enquanto houver item não reconhecido.",
       "private.add": "Fila privada",
       "private.addHint": "Registrar uma fila privada (Personal) feita neste prédio no jogo",
       "private.newTitle": "Nova fila privada",
@@ -293,7 +302,7 @@ const i18n = (() => {
       "targets.colMissing": "Falta",
       "targets.remove": "Remover meta",
       "targets.removeConfirm": "Remover essa meta?",
-      "targets.editHint": "Clique na meta pra mudar (aceita 3000, 3k ou 5000L pra líquidos; vazio remove). Clique no item pra mudar apelido e origem.",
+      "targets.editHint": "Clique na meta pra mudar (aceita 3000, 3.000, 3k ou 5000L pra líquidos; vazio remove). Clique no item pra mudar apelido e origem.",
       "targets.unlimitedNote": "↑ marcado como abundante (∞): o relatório ignora essa meta.",
       "item.openHint": "apelido e origem",
       "item.nickname": "Apelido",
@@ -645,6 +654,15 @@ const i18n = (() => {
       "dashboard.tileFurthest": "furthest: {name} ({pct}%)",
       "dashboard.tileLogs": "Old logs",
       "dashboard.tileLogsOk": "every building logged in the last 24h",
+      "print.unreadNote": "Found in the screenshot but without a number — they keep their previous value (fill it in to update; remove the row if the item ran out):",
+      "report.chars": "{n}/2000",
+      "report.charsHint": "Characters in this part (Discord takes up to 2000 per message)",
+      "dashboard.idleTitle": "Buildings without queues",
+      "dashboard.idleHint": "They have logged stock but no queue set up: they count toward Targets, not toward the estimate.",
+      "facilityDetail.currentQty": "Stock logged now",
+      "saveImport.olderThanLog": "⚠ The game refreshed this pin {ago} ago, but the building has a newer log ({last} ago). Saving would replace new data with old — open the pin on the game map and read the save again.",
+      "saveImport.bulkOlder": "unticked: the pin is older than the building's last log ({last} ago)",
+      "saveImport.bulkNoZero": "Nothing is zeroed here while there is an unrecognized item.",
       "private.add": "Private queue",
       "private.addHint": "Log a private (Personal) queue placed in this building in the game",
       "private.newTitle": "New private queue",
@@ -767,7 +785,7 @@ const i18n = (() => {
       "targets.colMissing": "Missing",
       "targets.remove": "Remove target",
       "targets.removeConfirm": "Remove this target?",
-      "targets.editHint": "Click a target to change it (accepts 3000, 3k or 5000L for liquids; empty removes). Click an item to change its nickname and origin.",
+      "targets.editHint": "Click a target to change it (accepts 3000, 3.000, 3k or 5000L for liquids; empty removes). Click an item to change its nickname and origin.",
       "targets.unlimitedNote": "↑ marked abundant (∞): the report ignores this target.",
       "item.openHint": "nickname and origin",
       "item.nickname": "Nickname",
@@ -1030,7 +1048,8 @@ const i18n = (() => {
     let str = table[key] ?? STRINGS[DEFAULT_LANG][key] ?? key;
     if (vars) {
       for (const [k, v] of Object.entries(vars)) {
-        str = str.replaceAll(`{${k}}`, v);
+        // A function: a "$&" or "$1" inside a name must stay text, not a replacement pattern.
+        str = str.replaceAll(`{${k}}`, () => v);
       }
     }
     return str;

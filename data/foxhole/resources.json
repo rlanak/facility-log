@@ -1349,8 +1349,8 @@
   },
   "250mm_purity_shell": {
     "name": {
-      "en": "250mm \"Purity\" Shell",
-      "pt": "250mm \"Purity\" Shell"
+      "en": "250mm “Purity” Shell",
+      "pt": "Projétil 250mm “Purity”"
     },
     "farmable": false,
     "icon": "/assets/foxhole/items/MortarTankAmmo.png",

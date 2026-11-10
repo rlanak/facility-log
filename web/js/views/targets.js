@@ -27,18 +27,15 @@ views.targets = (() => {
     return def && def.is_liquid ? units * def.liters_per_unit : units;
   }
 
-  // "3000", "3k", "1,5k", "5000L" → units; null = empty (remove); NaN = invalid.
+  // "3000", "3.000", "3k", "1,5k", "5000L" → units; null = empty (remove);
+  // NaN = invalid. Numbers are read like everywhere else (ui.parseQuantity):
+  // this used its own reading, where "2.000" — the way the columns next to
+  // the field print two thousand — became a Meta of 2.
   function parseAmount(text, def) {
-    let s = text.trim().toLowerCase().replace(/\s+/g, "").replace(",", ".");
+    const s = text.trim().replace(/\s*l$/i, "");
     if (!s) return null;
-    s = s.replace(/l$/, "");
-    let mult = 1;
-    if (s.endsWith("k")) {
-      mult = 1000;
-      s = s.slice(0, -1);
-    }
-    if (!/^\d+(\.\d+)?$/.test(s)) return NaN;
-    const shown = parseFloat(s) * mult;
+    const shown = ui.parseQuantity(s);
+    if (Number.isNaN(shown)) return NaN;
     return def && def.is_liquid ? Math.round((shown / def.liters_per_unit) * 100) / 100 : shown;
   }
 
@@ -272,8 +269,12 @@ views.targets = (() => {
       listEl.querySelectorAll(".remove-target").forEach((btn) => {
         btn.addEventListener("click", async () => {
           if (!confirm(i18n.t("targets.removeConfirm"))) return;
-          await api.setFacilityTarget(facilityId, { resource_id: Number(btn.dataset.id), target_max: null });
-          await refresh();
+          try {
+            await api.setFacilityTarget(facilityId, { resource_id: Number(btn.dataset.id), target_max: null });
+            await refresh();
+          } catch (err) {
+            ui.toast(err.message, true);
+          }
         });
       });
 

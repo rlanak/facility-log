@@ -1,3 +1,5 @@
+import math
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from sqlalchemy import func, select
@@ -28,7 +30,12 @@ def create_resource(db: Session, data: schemas.ResourceCreate) -> models.Resourc
     return resource
 
 
-def get_or_create_resource(db: Session, name: str, resource_def_key: str | None = None) -> models.Resource:
+def get_or_create_resource(
+    db: Session, name: str, resource_def_key: str | None = None, commit: bool = True
+) -> models.Resource:
+    """commit=False: the new row is only flushed (it has an id) and stays in
+    the caller's transaction — add_stock_entries() rolls everything back when
+    a later line of the same batch is refused."""
     # A catalog-linked resource is the same resource whatever name it was
     # saved under (e.g. the user created "Cmat" linked to construction
     # materials) — match on the link first so a save/OCR import doesn't
@@ -54,8 +61,11 @@ def get_or_create_resource(db: Session, name: str, resource_def_key: str | None 
         name=name.strip(), resource_def_key=resource_def_key, farmable=farmable, unlimited=unlimited, icon=icon
     )
     db.add(resource)
-    db.commit()
-    db.refresh(resource)
+    if commit:
+        db.commit()
+        db.refresh(resource)
+    else:
+        db.flush()
     return resource
 
 
@@ -347,6 +357,24 @@ def delete_stock_entries(db: Session, building_id: int, resource_id: int, storag
     return len(entries)
 
 
+# No stockpile holds a billion of anything: a value this big is a typo, and
+# an infinite one (a 400-digit number) would break every later read as JSON.
+MAX_QUANTITY = 1_000_000_000
+
+
+def _entry_time(value: datetime | None, now: datetime) -> datetime | None:
+    """When the numbers were true, when the caller knows better than "now" —
+    a save pin carries the game's own last-updated time, and logging stale
+    numbers as fresh would hide how old they are (Dashboard). None when
+    there's none or it makes no sense (in the future, or before 2020)."""
+    if value is None:
+        return None
+    value = value.astimezone(timezone.utc) if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    if value > now + timedelta(minutes=5) or value.year < 2020:
+        return None
+    return min(value, now)
+
+
 def add_stock_entries(
     db: Session,
     building_id: int,
@@ -361,56 +389,78 @@ def add_stock_entries(
     there is. Any item whose current normal stock is above 0 and that isn't in
     `entries` gets a 0 entry (appended, not deleted: history stays, and the
     0 overrides the old value in every "current stock" read). Tanks are never
-    touched — the screenshot doesn't show them."""
+    touched — the screenshot doesn't show them.
+
+    All or nothing: every line is checked before any is written, in one
+    transaction. (A batch with a refused line used to keep the lines before
+    it: creating a new resource committed whatever was already pending.)"""
     catalog_lang = catalog_lang or lang
-    parsed = [(entry, parse_quantity(entry.quantity_raw)) for entry in entries]
+    now = models.utcnow()
     previous = get_current_stock_for_building(db, building_id) if zero_missing else []
 
-    created: list[models.StockEntry] = []
-    for entry, quantity in parsed:
-        resource = get_or_create_resource(db, entry.resource_name, entry.resource_def_key)
-        def_key = entry.resource_def_key or resource.resource_def_key
-        # Cap only applies to the tank itself — crate/"normal" stock of the
-        # same liquid has no limit, same as any other resource.
-        max_units = foxhole_data.liquid_tank_max_units(def_key) if def_key and entry.storage == "tank" else None
-        # Rounded to 2 decimals on both sides: the frontend's "5000L" ->
-        # units conversion rounds to 2 decimals before submitting, which can
-        # land a hair above the backend's full-precision max (e.g. 166.67 vs
-        # 166.666...) and falsely trip this check for an exact full tank.
-        if max_units is not None and round(quantity, 2) > round(max_units, 2):
-            raise ValueError(
-                errors_i18n.err("liquid_tank_exceeded", lang).format(
-                    name=resolve_resource_name(resource, catalog_lang), max=round(max_units, 1)
+    try:
+        checked: list[tuple[schemas.StockEntryIn, float, models.Resource]] = []
+        for entry in entries:
+            try:
+                quantity = parse_quantity(entry.quantity_raw)
+            except ValueError:
+                raise ValueError(errors_i18n.err("quantity_unreadable", lang, value=entry.quantity_raw))
+            if not entry.resource_name.strip():
+                raise ValueError(errors_i18n.err("resource_not_found", lang))
+            resource = get_or_create_resource(db, entry.resource_name, entry.resource_def_key, commit=False)
+            if not math.isfinite(quantity) or quantity > MAX_QUANTITY:
+                raise ValueError(errors_i18n.err("quantity_too_big", lang, name=resolve_resource_name(resource, catalog_lang)))
+            def_key = entry.resource_def_key or resource.resource_def_key
+            # Cap only applies to the tank itself — crate/"normal" stock of the
+            # same liquid has no limit, same as any other resource.
+            max_units = foxhole_data.liquid_tank_max_units(def_key) if def_key and entry.storage == "tank" else None
+            # Rounded to 2 decimals on both sides: the frontend's "5000L" ->
+            # units conversion rounds to 2 decimals before submitting, which can
+            # land a hair above the backend's full-precision max (e.g. 166.67 vs
+            # 166.666...) and falsely trip this check for an exact full tank.
+            if max_units is not None and round(quantity, 2) > round(max_units, 2):
+                raise ValueError(
+                    errors_i18n.err("liquid_tank_exceeded", lang).format(
+                        name=resolve_resource_name(resource, catalog_lang), max=round(max_units, 1)
+                    )
                 )
-            )
-        stock_entry = models.StockEntry(
-            building_id=building_id,
-            resource_id=resource.id,
-            quantity=quantity,
-            storage=entry.storage,
-            source=entry.source,
-            source_image_id=entry.source_image_id,
-            created_by_id=created_by_id,
-        )
-        db.add(stock_entry)
-        created.append(stock_entry)
-    if zero_missing:
-        listed = {(e.resource_id, e.storage) for e in created}
-        source = entries[0].source if entries else "manual"
-        for old in previous:
-            if old.storage != "normal" or old.quantity <= 0 or (old.resource_id, old.storage) in listed:
-                continue
-            zero_entry = models.StockEntry(
+            checked.append((entry, quantity, resource))
+
+        created: list[models.StockEntry] = []
+        for entry, quantity, resource in checked:
+            stock_entry = models.StockEntry(
                 building_id=building_id,
-                resource_id=old.resource_id,
-                quantity=0,
-                storage="normal",
-                source=source,
+                resource_id=resource.id,
+                quantity=quantity,
+                storage=entry.storage,
+                source=entry.source,
+                source_image_id=entry.source_image_id,
                 created_by_id=created_by_id,
+                recorded_at=_entry_time(entry.recorded_at, now) or now,
             )
-            db.add(zero_entry)
-            created.append(zero_entry)
-    db.commit()
+            db.add(stock_entry)
+            created.append(stock_entry)
+        if zero_missing:
+            listed = {(e.resource_id, e.storage) for e in created}
+            source = entries[0].source if entries else "manual"
+            for old in previous:
+                if old.storage != "normal" or old.quantity <= 0 or (old.resource_id, old.storage) in listed:
+                    continue
+                zero_entry = models.StockEntry(
+                    building_id=building_id,
+                    resource_id=old.resource_id,
+                    quantity=0,
+                    storage="normal",
+                    source=source,
+                    created_by_id=created_by_id,
+                    recorded_at=now,
+                )
+                db.add(zero_entry)
+                created.append(zero_entry)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     for entry in created:
         db.refresh(entry)
     return created

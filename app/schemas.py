@@ -2,7 +2,7 @@ from datetime import datetime
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ResourceBase(BaseModel):
@@ -100,7 +100,9 @@ class BuildingUpdate(BaseModel):
 
 class ProductionSlot(BaseModel):
     recipe_key: str
-    queue_count: int = 1
+    # Never negative: a negative row used to offset another one over the
+    # building's limit in the total check (routers/buildings.py).
+    queue_count: int = Field(default=1, ge=0, le=1000)
 
 
 class BuildingOut(BuildingBase):
@@ -160,7 +162,10 @@ class StockEntryIn(BaseModel):
     source: str = "manual"
     source_image_id: int | None = None
     resource_def_key: str | None = None
-    storage: str = "normal"
+    storage: Literal["normal", "tank"] = "normal"
+    # When the numbers were true, if not "now": a save pin's own last-updated
+    # time (UTC ISO). See crud._entry_time().
+    recorded_at: datetime | None = None
 
 
 class StockEntryOut(BaseModel):

@@ -69,6 +69,7 @@ _STRINGS = {
         "never_logged": "nada lançado ainda",
         "stations": "🗄️ Estações (estoque lançado)",
         "more_buildings": "+{n} prédios não cabem na mensagem",
+        "more": "… +{n}",
         "footer": "facility-log · ≈ estimado — não sabe de fila pausada, falta de energia nem material movido",
         "minute": "1 min",
         "private": "🔒 Filas privadas",
@@ -112,6 +113,7 @@ _STRINGS = {
         "never_logged": "nothing logged yet",
         "stations": "🗄️ Stations (logged stock)",
         "more_buildings": "+{n} buildings don't fit in the message",
+        "more": "… +{n}",
         "footer": "facility-log · ≈ estimated — unaware of paused queues, power shortage or moved stock",
         "minute": "1 min",
         "private": "🔒 Private queues",
@@ -143,6 +145,25 @@ def _clip(text: str, limit: int) -> str:
     return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
+def _clip_lines(lines: list[str], limit: int, tail, group: int = 1) -> str:
+    """Lines that fit in `limit`, never half of one: a cut in the middle of a
+    line left an open `code`/**bold** or half a <t:…> timestamp showing as raw
+    text. `group` lines belong together (a private order takes two).
+    `tail(hidden)` is the last line saying how many groups were left out."""
+    text = "\n".join(lines)
+    if len(text) <= limit:
+        return text
+    groups = [lines[i : i + group] for i in range(0, len(lines), group)]
+    kept: list[str] = []
+    for index, chunk in enumerate(groups):
+        candidate = "\n".join(kept + chunk + [tail(len(groups) - index - 1)])
+        if len(candidate) > limit:
+            break
+        kept += chunk
+    hidden = len(groups) - len(kept) // group
+    return _clip("\n".join(kept + [tail(hidden)]), limit)
+
+
 def _bar(fraction: float, width: int = 10) -> str:
     filled = max(0, min(width, round(fraction * width)))
     return "▰" * filled + "▱" * (width - filled)
@@ -169,7 +190,8 @@ def _targets_value(targets: list[dict], lang: str) -> str:
         if t.get("incoming") and frac < 1:
             line += " · " + _t("incoming", lang, qty=_display_qty(t["incoming"], key))
         lines.append(line)
-    return _clip("\n".join(lines), _FIELD_MAX)
+    # Furthest from the Meta first, so those are the ones that stay.
+    return _clip_lines(lines, _FIELD_MAX, lambda n: _t("more", lang, n=n))
 
 
 _PRIVATE_RANK = {"ready": 0, "running": 1, "released": 2}
@@ -199,7 +221,7 @@ def _private_value(orders: list[dict], lang: str) -> str:
         else:
             detail = _t("private_running_open", lang, start=start)
         lines.append("　" + detail)
-    return _clip("\n".join(lines), _FIELD_MAX)
+    return _clip_lines(lines, _FIELD_MAX, lambda n: _t("more", lang, n=n), group=2)
 
 
 def _elsewhere(key: str, building: dict, buildings: list[dict], lang: str) -> list[str]:
@@ -228,7 +250,11 @@ def _stock_parts(b: dict, catalog_lang: str) -> list[str]:
     return parts
 
 
-def _building_value(b: dict, buildings: list[dict], lang: str, catalog_lang: str, with_stock: bool) -> str:
+def _building_value(
+    b: dict, buildings: list[dict], lang: str, catalog_lang: str, with_stock: bool, hints: bool = True
+) -> str:
+    """hints=False: only the state of each queue — no "available elsewhere"
+    nor "made since the log" lines (dropped when the message is too big)."""
     lines = [_logged_line(b, lang)]
     for s in b["slots"]:
         names = ", ".join(p["name"] for p in s["produced"]) or s["recipe_key"]
@@ -246,18 +272,21 @@ def _building_value(b: dict, buildings: list[dict], lang: str, catalog_lang: str
                 for k in s.get("missing_keys", [])
                 if (where := _elsewhere(k, b, buildings, lang))
             ]
-            if found:
+            if found and hints:
                 lines.append("　" + _t("elsewhere", lang, list=" · ".join(found)))
         made = [p for p in s["produced"] if p["qty"] >= 0.5]
-        if made:
+        if made and hints:
             lines.append(
                 "　" + " · ".join(_t("made", lang, qty=_display_qty(p["qty"], p["resource"]), name=p["name"]) for p in made)
             )
+    text = _clip_lines(lines, _FIELD_MAX, lambda n: "…")
     if with_stock:
         parts = _stock_parts(b, catalog_lang)
-        if parts:
-            lines.append(f"{_t('stock', lang)} " + " · ".join(parts))
-    return _clip("\n".join(lines), _FIELD_MAX)
+        room = _FIELD_MAX - len(text) - 1
+        # Plain text, safe to cut anywhere — but not worth a few characters.
+        if parts and room >= 40:
+            text += "\n" + _clip(f"{_t('stock', lang)} " + " · ".join(parts), room)
+    return text
 
 
 def _stations_value(stations: list[dict], catalog_lang: str) -> str:
@@ -310,21 +339,23 @@ def build_embed(facility_name: str, data: dict, lang: str, catalog_lang: str) ->
     color = 0x10B981 if running == len(slots) else (0xF59E0B if running else 0xEF4444)
     summary = _summary(producing, lang, data.get("private_orders"))
 
-    def assemble(with_stock: bool, with_stations: bool) -> dict:
+    def assemble(with_stock: bool, with_stations: bool, hints: bool, shown: list[dict], total: int) -> dict:
         fields = []
         if data.get("private_orders"):
             fields.append({"name": _t("private", lang), "value": _private_value(data["private_orders"], lang), "inline": False})
         if data["targets"]:
             fields.append({"name": _t("targets", lang), "value": _targets_value(data["targets"], lang), "inline": False})
-        for b in producing[:_MAX_BUILDING_FIELDS]:
+        for b in shown:
             title = f"🏭 {b['name']}" + (f" · 📍{b['location']}" if b.get("location") else "")
             fields.append(
-                {"name": _clip(title, 256), "value": _building_value(b, buildings, lang, catalog_lang, with_stock), "inline": False}
+                {
+                    "name": _clip(title, 256),
+                    "value": _building_value(b, buildings, lang, catalog_lang, with_stock, hints),
+                    "inline": False,
+                }
             )
-        if len(producing) > _MAX_BUILDING_FIELDS:
-            fields.append(
-                {"name": "…", "value": _t("more_buildings", lang, n=len(producing) - _MAX_BUILDING_FIELDS), "inline": False}
-            )
+        if total > len(shown):
+            fields.append({"name": "…", "value": _t("more_buildings", lang, n=total - len(shown)), "inline": False})
         if not producing:
             fields.append({"name": _t("production", lang), "value": _t("no_production", lang), "inline": False})
         if with_stations and stations:
@@ -341,9 +372,18 @@ def build_embed(facility_name: str, data: dict, lang: str, catalog_lang: str) ->
             "timestamp": now.isoformat(),
         }
 
-    # Too big for one message: drop the stations first, then the stock lines.
-    for with_stock, with_stations in ((True, True), (True, False), (False, False)):
-        embed = assemble(with_stock, with_stations)
+    # Too big for one message (Discord refuses the edit and the panel freezes):
+    # drop the stations, then the stock lines, then the hints under each queue.
+    shown = producing[:_MAX_BUILDING_FIELDS]
+    for with_stock, with_stations, hints in ((True, True, True), (True, False, True), (False, False, True), (False, False, False)):
+        embed = assemble(with_stock, with_stations, hints, shown, len(producing))
+        if _embed_size(embed) <= _EMBED_BUDGET:
+            return embed
+    # Still too big (a dozen buildings stopped at once did it): fewer
+    # buildings, the ones with a stopped queue first — they need someone.
+    by_need = sorted(producing, key=lambda b: all(s["running"] for s in b["slots"]))
+    for count in range(len(shown) - 1, -1, -1):
+        embed = assemble(False, False, False, by_need[:count], len(producing))
         if _embed_size(embed) <= _EMBED_BUDGET:
             break
     return embed

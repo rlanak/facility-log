@@ -269,6 +269,9 @@ views.dashboard = (() => {
     const producing = data.buildings.filter((b) => b.slots.length);
     const allStations = data.buildings.filter((b) => b.storage && !b.slots.length);
     const stations = allStations.filter((b) => Object.values(b.logged).some((q) => q >= 0.5));
+    // Factories with stock but no queue set up: their stock counts toward the
+    // Metas above, so it has to be somewhere on this page too.
+    const idle = data.buildings.filter((b) => !b.storage && !b.slots.length && Object.values(b.logged).some((q) => q >= 0.5));
     const emptyStations = allStations.filter((b) => !stations.includes(b)).map((b) => ui.escapeHtml(b.location ? `${b.name} (${b.location})` : b.name));
     const grid = (list) =>
       `<div class="grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">${list
@@ -308,6 +311,12 @@ views.dashboard = (() => {
           : ""
       }
       ${emptyStations.length ? `<p class="text-xs text-zinc-500 mt-2">${i18n.t("dashboard.emptyStations", { list: emptyStations.join(", ") })}</p>` : ""}
+      ${
+        idle.length
+          ? `<h2 class="text-sm font-semibold text-zinc-300 mt-6 mb-1">${i18n.t("dashboard.idleTitle")}</h2>
+             <p class="text-xs text-zinc-500 mb-2">${i18n.t("dashboard.idleHint")}</p>${grid(idle)}`
+          : ""
+      }
       <p class="text-xs text-zinc-600 mt-4">${i18n.t("dashboard.footer")}</p>`;
   }
 

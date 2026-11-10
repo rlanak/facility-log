@@ -1,6 +1,6 @@
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
@@ -14,6 +14,17 @@ DATA_DIR = Path(os.environ.get("FACILITY_LOG_DATA_DIR") or APP_DIR / "data")
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 UPLOADS_DIR = DATA_DIR / "uploads"
 UPLOADS_DIR.mkdir(exist_ok=True)
+
+
+
+def upload_path(file_path: str) -> Path:
+    """Where an uploaded screenshot is now. upload_images.file_path is the
+    absolute path it had when saved, and the data folder has moved since —
+    once to another folder, then from Windows to a Linux server, where
+    "E:\\...\\uploads\\x.png" isn't even a path. Only the file name is
+    trusted (PureWindowsPath splits on both kinds of slash)."""
+    return UPLOADS_DIR / PureWindowsPath(file_path).name
+
 
 DATABASE_URL = f"sqlite:///{DATA_DIR / 'facility_log.db'}"
 
@@ -91,6 +102,35 @@ def _encrypt_plain_secrets(conn) -> int:
     return count
 
 
+# Recipes removed from the catalog (09/11/2026, wiki audit): four special-issue
+# recipes existed twice, once without the base item they are made from. Queues
+# set on the wrong copy move to the right one (same product, same time).
+_RENAMED_RECIPES = {
+    "dawn_ve_ii": "dusk_ce_iii",
+    "quickhatch_rt_i": "catara_mo_ii",
+    "krr3_792_auger": "argenti_r_ii",
+    "incendiary_mortar_shell": "shrapnel_mortar_shell_special",
+}
+
+
+def _rename_recipes(conn) -> None:
+    rows = conn.exec_driver_sql(
+        "SELECT id, production_slots FROM buildings WHERE building_type_key = 'infantry_kit_factory'"
+    ).fetchall()
+    for building_id, slots_json in rows:
+        try:
+            slots = json.loads(slots_json or "[]")
+        except ValueError:
+            continue
+        changed = False
+        for slot in slots:
+            new_key = _RENAMED_RECIPES.get(slot.get("recipe_key"))
+            if new_key:
+                slot["recipe_key"], changed = new_key, True
+        if changed:
+            conn.exec_driver_sql("UPDATE buildings SET production_slots = ? WHERE id = ?", (json.dumps(slots), building_id))
+
+
 def apply_migrations() -> None:
     with engine.connect() as conn:
         encrypted_now = _encrypt_plain_secrets(conn)
@@ -144,6 +184,7 @@ def apply_migrations() -> None:
             conn.exec_driver_sql(
                 "UPDATE buildings SET production_slots = ? WHERE id = ?", (slots_json, building_id)
             )
+        _rename_recipes(conn)
         conn.commit()
     if encrypted_now:
         # The plain values would still sit in free pages of the file: rewrite it once.

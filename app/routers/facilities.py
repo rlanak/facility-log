@@ -83,8 +83,10 @@ def get_facility_stock(facility_id: int, lang: str = "pt-BR", catalog_lang: str 
                     resource_name=crud.resolve_resource_name(e.resource, catalog_lang or lang),
                     resource_icon=e.resource.icon,
                     quantity=e.quantity,
+                    storage=e.storage,
                     source=e.source,
                     recorded_at=e.recorded_at,
+                    created_by_name=e.created_by.name if e.created_by else None,
                 )
                 for e in entries
             ],

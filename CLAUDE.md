@@ -29,6 +29,7 @@ python -m venv .venv
 .venv/Scripts/python.exe scripts/build_save_parser.py   # opcional: leitor do save (precisa de cargo)
 .venv/Scripts/python.exe scripts/create_shortcut.py     # opcional: atalho com ícone na bandeja
 .venv/Scripts/python.exe run.py                         # dev: console + auto-reload
+.venv/Scripts/python.exe -m unittest discover -s tests -t .   # testes (ver "Testes")
 ```
 
 `http://localhost:8000` — um processo uvicorn serve API e frontend. `run.py --tray` (o atalho) roda
@@ -56,6 +57,7 @@ app/
     projection.py         estimativa do Dashboard (estoque projetado pelas filas)
     private_orders.py     filas privadas: quantos faltam, quando fica pronta, 28h
     discord_dashboard.py  painel no Discord por webhook + laço de 60s
+    upload_cleanup.py     apaga prints antigos — só se FACILITY_LOG_UPLOAD_DAYS (desligado por padrão)
     icon_match_service.py detecção de itens no print (template matching)
     capture/              quem lê o número no servidor: RapidOCR, Ollama ou API
     save_reader.py        lê o save via tools/save-parser
@@ -70,6 +72,7 @@ data/foxhole/  resources.json, building_types.json — catálogo versionado
 data/          banco, uploads, icon_exemplars — dados do usuário, gitignored
 tools/save-parser/  leitor do save em Rust (CLI) — tem o próprio CLAUDE.md
 scripts/       build_save_parser.py, create_shortcut.py
+tests/         unittest da stdlib, nada pra instalar — ver "Testes"
 ```
 
 ## Modelo de dados
@@ -93,7 +96,9 @@ scripts/       build_save_parser.py, create_shortcut.py
 - `stock_entries` — **log append-only**: estoque atual = linha mais recente de
   prédio+recurso+`storage` (`"normal"` ou `"tank"`). Excluir (`DELETE .../stock/{resource_id}?storage=`)
   apaga todo o histórico daquela combinação ("não devia ter lançado"), sem afetar relatórios já gerados.
-  `created_by_id` no modo web.
+  `created_by_id` no modo web. `recorded_at` é a hora do lançamento — ou, vindo do save, a hora em que o
+  jogo atualizou o pin (`StockEntryIn.recorded_at`, `crud._entry_time`). Um lote (`POST .../stock`) é
+  **tudo ou nada**: uma linha recusada não salva nenhuma (criar recurso novo no meio commitava as anteriores).
 - `reports` — snapshot congelado: `markdown_content`, `discord_content` (versão consolidada do Discord),
   `stock_snapshot`, `lang` (idioma da geração), `created_by_id`.
 - `upload_images`, `codename_aliases` (código do jogo → recurso escolhido pelo usuário), `users`
@@ -116,7 +121,12 @@ canal mais claro), porque o detector lê o alfa. Quando FIR e wiki discordam, **
 receita pra cálculo passa por `foxhole_data.recipe_io_qty(io)` (converte por `liters_per_unit`);
 ler `io["qty"]` direto dá estoque de líquido 30-50x errado.
 
-Depois de atualização do jogo, conferir receitas contra a wiki (tempo, insumo, produto).
+Depois de atualização do jogo, conferir receitas contra a wiki (tempo, insumo, produto — e insumo
+**faltando**: quatro receitas de arma especial existiam em dobro, a cópia sem a arma base;
+`tests/test_catalog.py` pega esse padrão). Receita removida do catálogo: mapear a chave antiga em
+`database._RENAMED_RECIPES`, senão a fila do prédio fica apontando pro nada. Na conferência, duas
+diferenças são esperadas: **Tenta Torpedo** (Large Shell Factory) é Warden e fica de fora, e a tabela da
+wiki chama `Abisme AT-99` de "Abisme AT-99 Mine" (só o nome difere).
 
 ## i18n — duas camadas independentes
 
@@ -181,8 +191,8 @@ retirada vai pro estoque público do prédio **28h depois de pronta**. No app:
 
 ## Meta → cálculo de cadeia (`material_chain.py`)
 
-Pra cada Meta da facility abaixo do estoque, percorre as receitas de trás pra frente abatendo estoque
-em cada nível, até folhas:
+Pra cada Meta da facility, percorre as receitas de trás pra frente abatendo estoque em cada nível, até
+folhas:
 - `farmable` → "Farm necessário" (nunca decomposto em receita, mesmo que exista);
 - `imported` → "Importar";
 - `unlimited` → sempre disponível (também nunca limita estimativa e some do relatório);
@@ -192,6 +202,12 @@ em cada nível, até folhas:
 **De onde vem o estoque:** o produto da Meta conta em qualquer prédio; os **insumos** só nos prédios
 que rodam aquela receita (mesmo tipo + mesma receita), mais as estações de armazenamento (MTS/RTS,
 compartilhadas). Receita que ninguém roda usa os prédios do tipo sem nada em produção.
+
+**Meta segura o próprio estoque:** todas as Metas entram no resolver, as já batidas também — cada uma
+reserva a sua quantidade e a cadeia de outra Meta só usa o que sobra acima dela. (Deixar as batidas de
+fora fazia a conta pular: Meta de 1000 Cmat com 999 em estoque pedia 201 ciclos — 1 + os 200 do 120mm —
+e com 1000 não pedia nenhum.) A reserva sai primeiro das fábricas e por último das estações, que são o
+único estoque que toda receita enxerga.
 
 **Receita ambígua** (mais de uma produz o item): a que a facility já tem em produção > módulo Base >
 primeiro candidato.
@@ -214,7 +230,9 @@ overflow automático tanque→caixa; transferência de líquido entre prédios.
 `report_generator.generate_report(..., targets)` gera os blocos do app (cabeçalho, estoque por prédio,
 recomendação) e, separado, `discord_content`: total consolidado da facility (`build_totals_block()`) +
 recomendação com uma linha por item (`bulleted=True`). O Histórico remonta as partes do Discord a
-partir de `discord_content`.
+partir de `discord_content`. Bloco maior que uma mensagem (a recomendação é um parágrafo só: com uma
+dúzia de Metas passava de 2000 sozinha) é cortado em quebra de linha (`_split_long`), sem deixar título
+de lista sozinho no fim da parte; bloco que cabe continua inteiro. A aba mostra `n/2000` em cada parte.
 
 Pegadinha do Pydantic: campo novo num dict de `production.py` precisa ir no schema
 (`ProductionEstimateOut`/`Item`), senão o `response_model` filtra calado.
@@ -240,12 +258,14 @@ Decisões do detector (medidas em prints reais — não desfazer sem medir de no
 - Slot com número que nenhum ícone explicou volta como "item não reconhecido" (grade deduzida dos
   slots reconhecidos; precisa de ≥ 2).
 - Inventário de veículo (mesmo item em vários slots) não é suportado.
-- **Zerar o que não está no print** (caixa no modal, lembrada em `localStorage["printZeroMissing"]`, ligada por padrão): o painel STOCKPILE lista tudo que existe, então item lançado no prédio que o print não mostra ganha uma linha **0** (`POST .../stock?zero_missing=true`, `crud.add_stock_entries`) — nunca apaga histórico, nunca mexe em tanque. A caixa mostra antes quais itens vão zerar. Linha com 0 some do card e do relatório (o cálculo ainda a vê).
+- **Zerar o que não está no print** (caixa no modal, lembrada em `localStorage["printZeroMissing"]`, ligada por padrão): o painel STOCKPILE lista tudo que existe, então item lançado no prédio que o print não mostra ganha uma linha **0** — nunca apaga histórico, nunca mexe em tanque. A caixa mostra antes quais itens vão zerar, e o formulário manda esses zeros como lançamentos (exatamente a lista da caixa; o `?zero_missing=true` do servidor continua existindo). Item **achado no print mas sem número lido** não zera: fica com o valor de antes e a caixa avisa (zerava junto com o resto). Linha com 0 some do card e do relatório (o cálculo ainda a vê).
 
 **Quem lê o número no servidor** é escolhido em Configurações (`app_settings`, global): `rapidocr`
 (padrão), `local_vlm` (Ollama na máquina do app) e `api_vlm` (Anthropic ou endpoint compatível com
 OpenAI, chave do usuário). Indisponível → `capture.resolve_reader()` cai pro RapidOCR e o modal avisa.
-Erro vira "não leu", nunca 500. A API devolve só `api_key_set` + 4 últimos caracteres. Tesseract foi
+Erro vira "não leu", nunca 500. O recorte que vai pro leitor tem no máximo `MAX_READ_SIDE` (1600px) no
+lado maior: um número ganha a ampliação inteira (6x), seleção grande demais é ampliada menos ou reduzida
+(uma tela inteira marcada no modo manual gastava ~1 GB em 6x). A API devolve só `api_key_set` + 4 últimos caracteres. Tesseract foi
 removido (acertava 18/106).
 
 **A ideia da IA local é a IA do PC de cada pessoa, não a do servidor.** No modo local o servidor É o PC
@@ -300,8 +320,9 @@ navegador na própria máquina (`auth.is_local_request`); usuário remoto envia 
 
 - **Arquivo lembrado** (`web/js/saveFile.js`, modo web): Chrome/Edge guardam o *handle* do `.sav` no IndexedDB (File System Access API) — depois é só "Ler de novo", sempre o conteúdo atual (o navegador pode pedir permissão uma vez por sessão; com permissão já dada, lê sozinho ao abrir). Firefox não deixa site guardar arquivo: reaproveita o `File` enquanto a aba estiver aberta. Navegador nunca acessa a pasta sem o usuário escolher o arquivo uma vez.
 - O seletor de pin mostra os 2 primeiros itens de cada pin (vários pins com o mesmo nome e quadrado) e "📌 já é <prédio (local)>" pros pins vinculados a outro prédio da facility; a pré-seleção pula esses.
-- Pin do save lista tudo que há no estoque: item lançado no prédio que sumiu do pin ganha 0 (caixa, ligada por padrão; linha desmarcada não zera).
-- **"📌 Atualizar vinculados do save"** (aba Prédios, só aparece com algum prédio vinculado; `saveImport.renderBulkUI`): lê o save uma vez e mostra, por prédio vinculado, atual → save (editável, prédio desmarcável), incluindo os zeros. Código que o catálogo não conhece fica de fora (resolve no formulário do prédio).
+- Pin do save lista tudo que há no estoque: item lançado no prédio que sumiu do pin ganha 0 (caixa, ligada por padrão; linha desmarcada não zera; item que acabou de ser escolhido pra um código desconhecido também não).
+- **Hora do pin:** o que vem do save é gravado com a hora em que o jogo atualizou o pin, não a da importação — número de horas atrás não vira "recém-lançado" no Dashboard. Pin mais antigo que o último lançamento do prédio: aviso no formulário e, no "Atualizar vinculados", o prédio já vem desmarcado.
+- **"📌 Atualizar vinculados do save"** (aba Prédios, só aparece com algum prédio vinculado; `saveImport.renderBulkUI`): lê o save uma vez e mostra, por prédio vinculado, atual → save (editável, prédio desmarcável), incluindo os zeros. Código que o catálogo não conhece fica de fora (resolve no formulário do prédio), e com um deles no pin nada é zerado naquele prédio.
 
 Bug do jogo: tooltip pinado para de atualizar se a estrutura for melhorada — despinar e pinar de novo.
 Não conferido: se `Quantity` é item ou caixa em stockpile que guarda caixa.
@@ -310,6 +331,15 @@ Não conferido: se `Quantity` é item ou caixa em stockpile que guarda caixa.
 
 - **Visual:** ícones em SVG de linha (`ui.icon(nome, classes)`, lista em `ui.js`) no lugar de emoji em botões, abas e cabeçalhos — emoji muda de desenho em cada sistema; logo = hexágono do mapa com fábrica (`ui.logo()`, `web/assets/logo.svg` é o favicon). Títulos, nomes de prédio e números do card na fonte de títulos. Home: card por facility com ícones dos tipos de prédio, filas rodando/paradas e Metas em % (`GET .../dashboard` de cada uma, carregado depois da lista).
 - **Modais** (`ui.openModal`) pra formulários grandes (lançar estoque, print, produção, editar prédio).
+  Só fecham com clique que começa **e** termina no fundo escuro: arrastar de dentro (selecionar texto,
+  marcar o painel no print) e soltar fora também "clica" no fundo e fechava o modal com tudo que estava nele.
+- **Números digitados:** uma regra só — `ui.parseQuantity` no navegador = `number_parser.parse_quantity`
+  no servidor (`25.7k`, `1,8k`, `32000`, `32.000`; sem k/M, ponto antes de exatamente 3 dígitos é milhar,
+  que é como a própria tela escreve em pt-BR). Mudou um, muda o outro. Número calculado pelo navegador vai
+  com no máximo 2 casas ("12.345" o servidor lê como doze mil).
+- **Nome de receita** (`facilityDetail.recipeLabel`, também na fila privada): produto + tempo do ciclo;
+  quando outra receita do prédio faz o mesmo item, os insumos entram no nome
+  (`3x Cmat ← 15x Sucata + 25x Coque`). "Lançar estoque" mostra ao lado de cada campo o valor lançado agora.
 - **Cards de prédio** agrupados (por tipo — padrão —, tipo+upgrade, local, local+tipo;
   `localStorage["buildingGrouping"]`). Grade `repeat(auto-fill, minmax(280px, 1fr))` sem `items-start`,
   card `flex flex-col h-full`, rodapé `mt-auto`. **Nada de `overflow-hidden` no card inteiro** (já cortou
@@ -329,19 +359,20 @@ Não conferido: se `Quantity` é item ou caixa em stockpile que guarda caixa.
   privadas, Metas atingidas, lançamentos antigos; borda verde/âmbar/vermelha), depois filas privadas,
   Metas com %, horários com data quando não são de hoje, aviso em prédio com lançamento de mais
   de 24h, onde mais na facility tem o insumo que acabou (`missing_keys`) e as estações (MTS/RTS) com o
-  estoque lançado, agrupadas por local quando há mais de um.
+  estoque lançado, agrupadas por local quando há mais de um. Prédio com estoque mas sem fila aparece em
+  "Prédios sem fila" (conta nas Metas, então tem que estar na página).
 
 ## Painel no Discord por webhook (`discord_dashboard.py`)
 
 Sem bot: o webhook posta uma mensagem e depois só a **edita**. Configurado por facility (caixa "📣 No
-Discord" da aba Dashboard; `facility_webhooks`). Único processo em segundo plano do app: tarefa asyncio
-no `lifespan` que a cada 60s edita a mensagem de cada facility com webhook (pula webhook enviado há
-menos de 55s). Contagens usam `<t:unix:R>`, que o Discord redesenha sozinho. PATCH 404 → posta outra;
+Discord" da aba Dashboard; `facility_webhooks`). Tarefa asyncio no `lifespan` (a outra é a limpeza de
+prints, quando ligada) que a cada 60s edita a mensagem de cada facility com webhook (pula webhook
+enviado há menos de 55s). Contagens usam `<t:unix:R>`, que o Discord redesenha sozinho. PATCH 404 → posta outra;
 "Parar" apaga a mensagem; erro vai pra `last_error`, nunca derruba o laço. Tópico opcional
 (`thread_id`, `?thread_id=` em toda chamada). Texto no idioma da interface, nomes no do catálogo. Embed
 mostra o mesmo que a aba (resumo com as filas privadas, filas privadas com barra e datas, Metas com %, aviso de lançamento antigo, onde mais tem o insumo que
 acabou, estações com estoque agrupadas por local); cor verde = tudo rodando, âmbar = algo parado, vermelho = nada rodando.
-Passou de ~5800 caracteres → tira primeiro as estações, depois as linhas de estoque; máx. 21 prédios. Só aceita URL
+Passou de ~5800 caracteres (o Discord recusa acima de 6000 e o painel congela) → tira as estações, depois as linhas de estoque, depois as dicas de cada fila ("tem em outro prédio", "+N desde o lançamento") e por fim mostra menos prédios, os de fila parada primeiro (`+N prédios não cabem`); máx. 21 prédios. Campo que passa de 1024 é cortado em linha inteira (`_clip_lines`, termina em `… +N`), nunca no meio de um `<t:…>`. Só aceita URL
 `https://discord.com/api/webhooks/...` (e ptb/canary/discordapp).
 
 ## Modo web (`auth.py`, `routers/auth.py`)
@@ -371,11 +402,15 @@ Desligado por padrão; liga com `DISCORD_CLIENT_ID` (env ou `.env`; env real ven
   `data/secret.key`. Perder a chave = esses segredos viram vazio.
 - A API nunca devolve a URL do webhook (só "…abcd").
 - Modo local só responde a este PC: pedido com cabeçalho de proxy ou de outra máquina leva 403
-  (`FACILITY_LOG_ALLOW_OPEN=1` libera pra LAN). O Dockerfile define `FACILITY_LOG_REQUIRE_LOGIN=1`.
-- Cabeçalhos `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: same-origin`; compose publica só em
-  `127.0.0.1`.
+  (`FACILITY_LOG_ALLOW_OPEN=1` libera pra LAN). E só à própria página (`main._from_this_page`): `Host`
+  que não seja localhost/127.0.0.1 (site cujo domínio aponta pra 127.0.0.1 — DNS rebinding) e
+  POST/PUT/DELETE com `Origin` de outro site (upload e POST sem corpo não passam por preflight) também
+  levam 403. O Dockerfile define `FACILITY_LOG_REQUIRE_LOGIN=1`.
+- Cabeçalhos `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: same-origin` em toda resposta,
+  inclusive as do `auth.gate` (o middleware dos cabeçalhos é registrado depois dele); compose publica só
+  em `127.0.0.1` e limita o log do container (10 MB × 3).
 - **Content-Security-Policy** (`main.CSP`): script só do próprio site e do Tailwind CDN **com versão fixa** (`cdn.tailwindcss.com/3.4.17`), **nenhum `<script>` inline** (a config do Tailwind fica em `web/js/tailwind-config.js`), `connect-src` só o site e `localhost:*` (Ollama da pessoa). Recurso externo novo (fonte, imagem, API chamada pelo navegador) precisa entrar no CSP, senão o navegador bloqueia calado.
-- **Upload de print** (`routers/images.py`): a imagem é decodificada (Pillow) e só PNG/JPEG/WEBP de verdade fica, salva com a extensão do formato real — nunca a do nome enviado (um `.html` disfarçado virava página do próprio site). Máx. 20 MB e 40 Mpx. `/uploads` só serve `.png/.jpg/.jpeg/.webp` (`ImageOnlyStaticFiles`). `.sav` lido no máximo até `MAX_SAVE_BYTES`.
+- **Upload de print** (`routers/images.py`): a imagem é decodificada (Pillow) e só PNG/JPEG/WEBP de verdade fica, salva com a extensão do formato real — nunca a do nome enviado (um `.html` disfarçado virava página do próprio site). Máx. 20 MB e 40 Mpx. `/uploads` só serve `.png/.jpg/.jpeg/.webp` (`ImageOnlyStaticFiles`). `.sav` lido no máximo até `MAX_SAVE_BYTES`. `upload_images.file_path` é o caminho absoluto de quando foi salvo e a pasta já mudou (até de Windows pra Linux): só o nome do arquivo vale (`database.upload_path`). Print só serve enquanto é lido e nada o mostra de novo; mesmo assim só é apagado se `FACILITY_LOG_UPLOAD_DAYS` disser quantos dias guardar (`services/upload_cleanup.py` — desligado por padrão: apagar arquivo de alguém não é decisão do app).
 - **Configurações são de todos com o cargo**: mudar `api_base_url` ou `api_kind` sem digitar a chave de novo **apaga a chave salva** (senão qualquer membro mandava a chave do dono pra outro endereço); endereços só `http(s)://`.
 - **Container sem root**: `docker-entrypoint.sh` entra como root só pra dar `/data` ao usuário `app` (uid/gid 1000) e roda o app com `setpriv`; compose com `no-new-privileges` e só as capabilities `CHOWN`/`SETUID`/`SETGID` (o processo do app fica sem nenhuma). Comando dentro do container que escreve em `/data` (backup) vai com `docker compose exec -u app` — o root de lá não tem permissão nos arquivos.
 - Conferir CVEs: `pip-audit` (local e com o `pip freeze` do container), OSV pro `Cargo.lock` do parser e grype/trivy na imagem publicada.
@@ -391,6 +426,15 @@ Desligado por padrão; liga com `DISCORD_CLIENT_ID` (env ou `.env`; env real ven
 3. Sem abrir porta: opção 2 numa VM pequena (2 vCPU / 2 GB) + **Tailscale Funnel**
    (`sudo tailscale funnel --bg 8000`) — HTTPS e endereço `*.ts.net` fixos, grátis. Isolar com tag na
    VM, sem ela como origem de nenhuma regra da política do Tailscale, e só ela com o atributo `funnel`.
+
+## Testes
+
+`tests/` — unittest da stdlib, nada pra instalar: `.venv/Scripts/python.exe -m unittest discover -s tests -t .`
+Rodam numa pasta de dados temporária e em modo local, seja qual for o `.env` (`tests/__init__.py` ajusta
+o ambiente antes de importar `app`). Cobrem as contas e regras que já quebraram: partes do Discord ≤ 2000,
+Meta que segura estoque, lote tudo-ou-nada, tamanho do embed, fila privada, porta do modo local, recorte
+do leitor, limpeza de prints, catálogo. `tests/helpers.call()` chama o app ASGI direto, sem servidor.
+**Bug corrigido ganha teste.**
 
 ## Pegadinhas de desenvolvimento
 

@@ -15,6 +15,12 @@ services:
     volumes:
       - ./data-docker:/data
     restart: unless-stopped
+    # Docker's default keeps the container log growing forever.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     # Hardening: no privilege gain inside the container, and only the
     # capabilities the entrypoint needs to hand /data to the app user and
     # drop to it (docker-entrypoint.sh).

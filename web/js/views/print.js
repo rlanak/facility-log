@@ -236,7 +236,8 @@ views.print = (() => {
         ctx.lineWidth = 2;
         ctx.strokeRect(start.x, start.y, p.x - start.x, p.y - start.y);
       });
-      window.addEventListener("mouseup", (e) => {
+      window.addEventListener("mouseup", function onUp(e) {
+        if (!document.body.contains(canvas)) return window.removeEventListener("mouseup", onUp);
         if (!dragging) return;
         dragging = false;
         const p = pos(e);
@@ -487,12 +488,12 @@ views.print = (() => {
       renderZeroBox();
     }
 
-    // Logged items the print doesn't list — a preview of what the server
-    // will zero (it does its own matching on save).
-    function missingFromPrint() {
+    // Logged items the print doesn't list: what gets a 0 on save.
+    // countUnread: rows with an item but no number count as listed too.
+    function missingFromPrint(countUnread = false) {
       const keptIds = new Set();
       for (const c of crops) {
-        if (!c.resourceName.trim() || !c.quantityRaw.trim()) continue;
+        if (!c.resourceName.trim() || (!c.quantityRaw.trim() && !countUnread)) continue;
         const key = confirmedDefKey(c);
         const lower = c.resourceName.trim().toLowerCase();
         for (const r of resources) {
@@ -503,10 +504,29 @@ views.print = (() => {
       return currentStock.filter((s) => !keptIds.has(s.resource_id));
     }
 
+    // Logged items the print DOES show, but whose number wasn't read (the
+    // row has no quantity). The item is there — an empty field must never
+    // turn into "ran out": these keep the value they had (they used to be
+    // zeroed with everything else that wasn't sent).
+    function unreadInStock() {
+      const reallyMissing = new Set(missingFromPrint(true).map((s) => s.resource_id));
+      return missingFromPrint().filter((s) => !reallyMissing.has(s.resource_id));
+    }
+
     function renderZeroBox() {
-      const missing = crops.length ? missingFromPrint() : [];
+      const missing = crops.length ? missingFromPrint(true) : [];
+      const unread = crops.length ? unreadInStock() : [];
       zeroBox.innerHTML = "";
-      zeroBox.classList.toggle("hidden", missing.length === 0);
+      zeroBox.classList.toggle("hidden", missing.length === 0 && unread.length === 0);
+      if (unread.length) {
+        zeroBox.appendChild(
+          el(
+            "p",
+            { class: "text-xs text-sky-300" + (missing.length ? " mb-2" : "") },
+            `${i18n.t("print.unreadNote")} ${unread.map((s) => s.resource_name).join(", ")}`
+          )
+        );
+      }
       if (!missing.length) return;
       const checkbox = el("input", { type: "checkbox", class: "accent-emerald-600" });
       checkbox.checked = zeroMissing;
@@ -562,8 +582,15 @@ views.print = (() => {
         return;
       }
       try {
-        const zeroing = zeroMissing && missingFromPrint().length > 0;
-        await api.addBuildingStock(building.id, entries, { zeroMissing: zeroing });
+        // The zeros: exactly the items the box lists, sent as entries.
+        const zeros = zeroMissing ? missingFromPrint(true) : [];
+        const zeroEntries = zeros.flatMap((s) => {
+          const r = resources.find((x) => x.id === s.resource_id);
+          return r
+            ? [{ resource_name: r.name, resource_def_key: r.resource_def_key, quantity_raw: "0", source: "ocr", source_image_id: image.id }]
+            : [];
+        });
+        await api.addBuildingStock(building.id, entries.concat(zeroEntries));
         // Teach the detector: each confirmed auto-detected slot becomes a
         // real exemplar of that item (how it tells Assembly Materials tiers
         // apart). Best effort — a failure here never blocks the save.

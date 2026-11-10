@@ -72,8 +72,7 @@ const api = (() => {
     deleteResource: (id) => request("DELETE", `/api/resources/${id}`),
 
     getBuildingStock: (buildingId) => request("GET", `/api/buildings/${buildingId}/stock`),
-    addBuildingStock: (buildingId, entries, { zeroMissing = false } = {}) =>
-      request("POST", `/api/buildings/${buildingId}/stock${zeroMissing ? "?zero_missing=true" : ""}`, entries),
+    addBuildingStock: (buildingId, entries) => request("POST", `/api/buildings/${buildingId}/stock`, entries),
     deleteBuildingStockItem: (buildingId, resourceId, storage) =>
       request("DELETE", `/api/buildings/${buildingId}/stock/${resourceId}?storage=${encodeURIComponent(storage)}`),
 

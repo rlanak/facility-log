@@ -38,7 +38,7 @@ def _find_recipe_for_output(resource_key: str, preferred: dict) -> tuple[str, di
     # default when the facility isn't already producing this resource
     # anywhere — least assumptions about what the player has unlocked.
     for bt_key, recipe in candidates:
-        if recipe.get("module") in (None, "Base"):
+        if (recipe.get("module") or "Base").startswith("Base"):  # "Base", "Base (Uniforms)"
             return (bt_key, recipe)
     return candidates[0]
 
@@ -131,9 +131,14 @@ def resolve_requirements(
     imports: dict[str, float] = {}
     buildings = list(buildings)
     pools = _building_pools(buildings)
-    all_ids = list(stock_by_building)
     type_defs = foxhole_data.get_building_type_defs()
     storage_ids = [b.id for b in buildings if type_defs.get(b.building_type_key, {}).get("storage")]
+    # A Meta's own product is taken from the factories first and from the
+    # stations last: what sits in a station is the only stock every recipe
+    # can use as input, so it's the last to be held by a Meta.
+    all_ids = [bid for bid in stock_by_building if bid not in storage_ids] + [
+        bid for bid in stock_by_building if bid in storage_ids
+    ]
 
     def pool_for(bt_key: str, recipe_key: str) -> list:
         # The building's own stock first, then the shared storage stations.

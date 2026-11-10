@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app import crud, schemas
-from app.database import UPLOADS_DIR, get_db
+from app.database import UPLOADS_DIR, get_db, upload_path
 from app.services import capture, foxhole_data, icon_match_service
 from app.services.errors_i18n import err
 
@@ -39,18 +39,14 @@ def _image_suffix(contents: bytes) -> str | None:
 
 
 def _image_path(image) -> Path:
-    # file_path is stored absolute; if the app folder moved since upload
-    # (it did once), fall back to the same
-    # file name under the current uploads folder.
-    path = Path(image.file_path)
-    return path if path.is_file() else UPLOADS_DIR / path.name
+    return upload_path(image.file_path)
 
 
 def _image_to_out(image) -> schemas.UploadImageOut:
     return schemas.UploadImageOut(
         id=image.id,
         building_id=image.building_id,
-        url=f"/uploads/{Path(image.file_path).name}",
+        url=f"/uploads/{upload_path(image.file_path).name}",
         uploaded_at=image.uploaded_at,
     )
 
@@ -138,6 +134,10 @@ def save_icon_exemplars(image_id: int, items: list[schemas.IconExemplarIn], lang
     path = _image_path(image)
     for item in items:
         if not foxhole_data.get_resource_def(item.resource_def_key) or item.box_width < 8 or item.box_height < 8:
+            continue
+        # An icon slot is a few dozen px; a huge box is not one (and would be
+        # kept as a template the detector then slides over every print).
+        if item.box_width > 256 or item.box_height > 256:
             continue
         icon_match_service.add_exemplar(
             path, (item.box_x, item.box_y, item.box_x + item.box_width, item.box_y + item.box_height), item.resource_def_key

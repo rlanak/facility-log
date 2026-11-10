@@ -176,10 +176,15 @@ def build_building_paragraph(
     if building.role:
         title += f" _({building.role})_"
 
+    # A list, in recipe order: the tank lines come out the same every time.
     liquid_keys = (
-        set(foxhole_data.active_liquid_keys(building.building_type_key, building.production_slots)) - set(unlimited_keys)
+        [
+            key
+            for key in foxhole_data.active_liquid_keys(building.building_type_key, building.production_slots)
+            if key not in unlimited_keys
+        ]
         if building.building_type_key
-        else set()
+        else []
     )
     # Only the tank entry is pulled out into its own "Tanque de Líquido" line
     # below — a liquid's crate/"normal" stock (overflow once the tank's
@@ -361,10 +366,15 @@ def build_recommendation_block(
     unlimited_keys = crud.unlimited_resource_keys(all_resources)
     catalog_targets: list[tuple[models.Resource, float, float]] = []
     freeform_targets: list[tuple[models.Resource, float, float]] = []
+    # Every catalog Meta, reached or not: each one holds its own amount of
+    # stock (see the resolve_requirements() call below).
+    held_targets: list[models.Resource] = []
     for resource in all_resources:
         target = targets.get(resource.id)
         if not target or target <= 0 or resource.resource_def_key in unlimited_keys:
             continue
+        if resource.resource_def_key:
+            held_targets.append(resource)
         current = (
             stock_by_def_key.get(resource.resource_def_key, 0)
             if resource.resource_def_key
@@ -386,15 +396,21 @@ def build_recommendation_block(
         b.id: _totals_by_def_key([ResourceTotal(e.resource, e.quantity) for e in entries])
         for b, entries in stock_by_building.items()
     }
-    chain_targets = sorted(catalog_targets, key=lambda x: crud.resolve_resource_name(x[0], catalog_lang))
+    chain_targets = sorted(held_targets, key=lambda r: crud.resolve_resource_name(r, catalog_lang))
     # Pass the full target here, not the already-subtracted `deficit` —
     # stock_pool still holds this resource's full current stock, and
     # resolve_requirements() does its own have-vs-needed netting against
     # that same pool. Passing `deficit` would net the current stock a
     # second time, so a Meta on a resource that already has some stock
     # under-counted (or even zeroed out) the real production need.
+    #
+    # Metas already reached go in too (10/11/2026): a Meta holds its own
+    # amount, so another Meta's chain can only use what's above it. Leaving
+    # the reached ones out let a chain eat into them — with a Meta of 1000
+    # Cmats, 999 in stock asked for 201 cycles of Cmats (1 + the 200 the
+    # 120mm Meta needs) while 1000 in stock asked for none.
     result = material_chain.resolve_requirements(
-        [(r.resource_def_key, targets[r.id]) for r, _current, _deficit in chain_targets],
+        [(r.resource_def_key, targets[r.id]) for r in chain_targets],
         stock_pool,
         stock_by_building.keys(),
         preferred_recipes,
@@ -557,7 +573,42 @@ def build_totals_block(
     return body
 
 
+def _split_long(paragraph: str, limit: int) -> list[str]:
+    """A paragraph longer than one message, cut at line breaks (the
+    recommendation block is a single paragraph: with a dozen Metas it alone
+    passed 2000 characters). A list's title isn't left alone at the end of a
+    piece; a single endless line is cut at the limit."""
+    if len(paragraph) <= limit:
+        return [paragraph]
+    chunks: list[str] = []
+    current = ""
+    for line in paragraph.split("\n"):
+        while len(line) > limit:
+            if current:
+                chunks.append(current)
+                current = ""
+            chunks.append(line[:limit])
+            line = line[limit:]
+        if not current:
+            current = line
+        elif len(current) + 1 + len(line) <= limit:
+            current += "\n" + line
+        else:
+            kept = current.split("\n")
+            title = kept[-1]
+            if line.startswith("• ") and len(kept) > 1 and not title.startswith("• ") and len(title) + 1 + len(line) <= limit:
+                chunks.append("\n".join(kept[:-1]))
+                current = title + "\n" + line
+            else:
+                chunks.append(current)
+                current = line
+    if current:
+        chunks.append(current)
+    return chunks
+
+
 def _pack_paragraphs(paragraphs: list[str], limit: int) -> list[str]:
+    paragraphs = [piece for paragraph in paragraphs for piece in _split_long(paragraph, limit)]
     parts: list[str] = []
     current: list[str] = []
     current_len = 0

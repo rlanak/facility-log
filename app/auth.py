@@ -240,8 +240,9 @@ def _private_facility_blocked(path: str, query_params, user_id: int) -> bool:
                 r = db.get(models.Report, obj_id)
                 facility_id = r.facility_id if r else None
             break
-        if facility_id is None and query_params.get("facility_id", "").isdigit():
-            facility_id = int(query_params["facility_id"])
+        raw_id = query_params.get("facility_id", "")
+        if facility_id is None and raw_id.isascii() and raw_id.isdigit():  # "²".isdigit() is True, but int("²") fails
+            facility_id = int(raw_id)
         if facility_id is None:
             return False
         facility = db.get(models.Facility, facility_id)

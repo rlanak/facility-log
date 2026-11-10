@@ -1,6 +1,8 @@
 import re
 
-_CLEAN_RE = re.compile(r"^\s*([\d.,]+)\s*([kKmM]?)\s*$")
+# 0-9 only (\d also takes other scripts' digits): the browser reads the same
+# strings with web/js/ui.js parseQuantity — keep the two in step.
+_CLEAN_RE = re.compile(r"^\s*([0-9.,]+)\s*([kKmM]?)\s*$")
 
 
 def parse_quantity(raw: str) -> float:

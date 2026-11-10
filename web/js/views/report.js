@@ -1,11 +1,17 @@
 window.views = window.views || {};
 
 views.report = (() => {
-  function copyableBlock(label, text) {
+  // limit: Discord's per-message size, shown as "1873/2000" on the parts
+  // meant to be pasted there (red if a part ever passes it).
+  function copyableBlock(label, text, limit = 0) {
     const box = ui.el("div", { class: "bg-zinc-900 border border-zinc-800 rounded-lg p-3" });
+    const count = limit
+      ? `<span class="text-[11px] tabular-nums ${text.length > limit ? "text-red-400 font-semibold" : "text-zinc-500"}" title="${i18n.t("report.charsHint")}">${i18n.t("report.chars", { n: text.length })}</span>`
+      : "";
     box.innerHTML = `
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-xs font-semibold text-zinc-400 uppercase tracking-wide">${ui.escapeHtml(label)}</span>
+      <div class="flex items-center justify-between gap-2 mb-2">
+        <span class="text-xs font-semibold text-zinc-400 uppercase tracking-wide flex-1 min-w-0">${ui.escapeHtml(label)}</span>
+        ${count}
         <button class="copy-btn text-xs bg-zinc-800 hover:bg-zinc-700 px-2 py-1 rounded">${i18n.t("report.copy")}</button>
       </div>
       <textarea class="markdown-block w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm" rows="6">${ui.escapeHtml(text)}</textarea>
@@ -39,7 +45,7 @@ views.report = (() => {
     const partsWrap = ui.el("div", { class: "grid gap-3" });
     report.parts.forEach((part, i) => {
       const label = report.parts.length > 1 ? i18n.t("report.part", { i: i + 1, n: report.parts.length }) : i18n.t("report.message");
-      partsWrap.appendChild(copyableBlock(label, part));
+      partsWrap.appendChild(copyableBlock(label, part, 2000));
     });
     container.appendChild(partsWrap);
   }

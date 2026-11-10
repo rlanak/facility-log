@@ -37,8 +37,22 @@ views.saveImport = (() => {
         quantity: entry.quantity,
       }));
   }
-  const zeroEntries = (zeros) =>
-    zeros.map((z) => ({ resource_name: z.resource_name, resource_def_key: z.resource_def_key, quantity_raw: "0", source: "save" }));
+  const zeroEntries = (zeros, pin) =>
+    zeros.map((z) => ({ resource_name: z.resource_name, resource_def_key: z.resource_def_key, quantity_raw: "0", source: "save", recorded_at: pinTime(pin) }));
+
+  // When the game last refreshed the pin: logged as the entries' own time
+  // (server: crud._entry_time), so numbers from hours ago don't count as
+  // fresh on the Dashboard.
+  const pinTime = (pin) => (pin && pin.last_updated_unix > 0 ? new Date(pin.last_updated_unix * 1000).toISOString() : null);
+
+  // Unix seconds of the building's newest log of ordinary (non-tank) stock,
+  // or 0 — to warn when a pin is older than what's already logged.
+  function lastLogUnix(stock) {
+    const times = stock.filter((s) => s.storage === "normal").map((s) => i18n.parseDate(s.recorded_at).getTime() / 1000);
+    return times.length ? Math.max(...times) : 0;
+  }
+  // A minute of slack: the pin's own time is what gets logged on import.
+  const olderThanLog = (pin, lastUnix) => lastUnix > 0 && pin.last_updated_unix < lastUnix - 60;
 
   function itemLabel(def, fallback) {
     return [def && def.icon ? el("img", { src: def.icon, class: "inline h-5 w-5 mr-1 align-middle" }) : null, def ? i18n.catalogName(def) : fallback];
@@ -166,10 +180,27 @@ views.saveImport = (() => {
         );
       }
 
+      const staleEl = el("p", { class: "text-xs text-amber-400 mb-3 hidden" });
       const rowsEl = el("div", { class: "grid gap-2 mb-3" });
       const zeroEl = el("div", { class: "mb-3" });
+      body.appendChild(staleEl);
       body.appendChild(rowsEl);
       body.appendChild(zeroEl);
+      // The pin's reading is older than what the building already has
+      // logged: importing would put old numbers over newer ones.
+      let lastLog = 0;
+      const syncStale = () => {
+        const stale = olderThanLog(current, lastLog);
+        staleEl.classList.toggle("hidden", !stale);
+        if (stale) staleEl.textContent = i18n.t("saveImport.olderThanLog", { ago: ago(current.last_updated_unix), last: ago(lastLog) });
+      };
+      api
+        .getBuildingStock(building.id)
+        .then((stock) => {
+          lastLog = lastLogUnix(stock);
+          syncStale();
+        })
+        .catch(() => {});
       const saveBtn = el(
         "button",
         { class: "bg-emerald-700 hover:bg-emerald-600 px-4 py-2 rounded text-sm font-semibold" },
@@ -240,6 +271,7 @@ views.saveImport = (() => {
       select.addEventListener("change", () => {
         current = pins.find((p) => p.key === select.value);
         syncTaken();
+        syncStale();
         renderRows();
       });
       syncTaken();
@@ -252,7 +284,10 @@ views.saveImport = (() => {
           ui.toast(i18n.t("saveImport.pickUnknown", { codename: unresolved[0].codename }), true);
           return;
         }
-        const zeroing = zeroOn ? zeros : [];
+        // An item just named for an unknown code is in the pin after all:
+        // it gets the pin's number, never a 0 on top of it.
+        const named = new Set(chosen.map((r) => r.pickedKey).filter(Boolean));
+        const zeroing = zeroOn ? zeros.filter((z) => !named.has(z.resource_def_key)) : [];
         if (chosen.length === 0 && zeroing.length === 0) {
           ui.toast(i18n.t("saveImport.nothingToSave"), true);
           return;
@@ -272,9 +307,10 @@ views.saveImport = (() => {
                   resource_def_key: key,
                   quantity_raw: r.quantityRaw.trim(),
                   source: "save",
+                  recorded_at: pinTime(current),
                 };
               })
-              .concat(zeroEntries(zeroing))
+              .concat(zeroEntries(zeroing, current))
           );
           ui.toast(i18n.t("saveImport.saved", { n: chosen.length + zeroing.length }));
           onSaved();
@@ -321,12 +357,17 @@ views.saveImport = (() => {
         }
         const known = pin.items.filter((i) => i.resource_def_key);
         const unknown = pin.items.filter((i) => !i.resource_def_key);
-        const zeros = await zeroCandidates(b.id, new Set(known.map((i) => i.resource_def_key)), resources);
-        const plan = { building: b, pin, include: true, rows: [] };
+        // An unknown code may be one of the logged items under a name the
+        // catalog doesn't have yet: with one in the pin, nothing is zeroed.
+        const zeros = unknown.length ? [] : await zeroCandidates(b.id, new Set(known.map((i) => i.resource_def_key)), resources);
+        // Pin read before the building's last log: left out unless ticked.
+        const lastLog = lastLogUnix(stock);
+        const stale = olderThanLog(pin, lastLog);
+        const plan = { building: b, pin, include: !stale, rows: [] };
         plans.push(plan);
 
         const check = el("input", { type: "checkbox", class: "shrink-0" });
-        check.checked = true;
+        check.checked = plan.include;
         check.addEventListener("change", () => {
           plan.include = check.checked;
           table.classList.toggle("opacity-40", !check.checked);
@@ -338,7 +379,8 @@ views.saveImport = (() => {
             el("span", { class: "text-xs text-zinc-500 truncate" }, `${pin.label} · ${i18n.t("saveImport.readAgo", { ago: ago(pin.last_updated_unix) })}`),
           ])
         );
-        const table = el("div", { class: "mt-2 grid gap-1 text-sm" });
+        if (stale) card.appendChild(el("p", { class: "text-xs text-amber-400 mt-1" }, `⚠ ${i18n.t("saveImport.bulkOlder", { last: ago(lastLog) })}`));
+        const table = el("div", { class: "mt-2 grid gap-1 text-sm" + (stale ? " opacity-40" : "") });
         card.appendChild(table);
         const addRow = (key, label, before, after, isZero) => {
           const row = { key, quantityRaw: String(after) };
@@ -363,7 +405,11 @@ views.saveImport = (() => {
         if (!known.length && !zeros.length) table.appendChild(el("p", { class: "text-xs text-zinc-500" }, i18n.t("saveImport.emptyPin")));
         if (unknown.length) {
           table.appendChild(
-            el("p", { class: "text-xs text-amber-400" }, i18n.t("saveImport.bulkUnknown", { codes: unknown.map((u) => u.codename).join(", ") }))
+            el(
+              "p",
+              { class: "text-xs text-amber-400" },
+              `${i18n.t("saveImport.bulkUnknown", { codes: unknown.map((u) => u.codename).join(", ") })} ${i18n.t("saveImport.bulkNoZero")}`
+            )
           );
         }
       }
@@ -392,6 +438,7 @@ views.saveImport = (() => {
                 resource_def_key: r.key,
                 quantity_raw: r.quantityRaw.trim(),
                 source: "save",
+                recorded_at: pinTime(p.pin),
               }));
             if (entries.length) await api.addBuildingStock(p.building.id, entries);
           }
