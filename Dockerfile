@@ -2,7 +2,8 @@
 #
 #   docker build -t ghcr.io/rlanak/facility-log:latest .
 #
-# Published automatically for each version tag by .github/workflows/docker-image.yml.
+# Published automatically for each version tag by .github/workflows/docker-image.yml,
+# once the tests pass (.github/workflows/tests.yml).
 
 # --- 1. Build the Rust save reader (tools/save-parser) for Linux -------------
 FROM rust:1-slim AS parser
