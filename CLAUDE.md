@@ -270,7 +270,7 @@ OpenAI, chave do usuário). Indisponível → `capture.resolve_reader()` cai pro
 Erro vira "não leu", nunca 500. O recorte que vai pro leitor tem no máximo `MAX_READ_SIDE` (1600px) no
 lado maior: um número ganha a ampliação inteira (6x), seleção grande demais é ampliada menos ou reduzida
 (uma tela inteira marcada no modo manual gastava ~1 GB em 6x). A API devolve só `api_key_set` + 4 últimos caracteres. Tesseract foi
-removido (acertava 18/106).
+removido (acertava 18 de 106 numa medição anterior).
 
 **A ideia da IA local é a IA do PC de cada pessoa, não a do servidor.** No modo local o servidor É o PC
 dela, então `local_vlm` aparece normal. **No modo web** (login ligado) `local_vlm` some
@@ -286,15 +286,18 @@ cai pro servidor (`readNumber` em `print.js`). Pré-requisito da pessoa: Ollama 
 pedir permissão de acesso à rede local. Testado com a página em localhost (origem já liberada por
 padrão no Ollama): leitura pelo navegador igual à do servidor nos 10 números de um print.
 
-Medido em 32 prints reais (106 valores):
+Medido em 20 prints reais (76 valores: 29 com os ícones do jogo, 47 com mod de ícones), do painel
+marcado até o número — item detectado errado conta como erro, seja qual for o leitor:
 
-| Leitor | Roda em | Memória de vídeo | Acertos | Tempo relativo |
-|---|---|---|---|---|
-| RapidOCR | CPU | — | 91 | 1x |
-| **glm-ocr** | Ollama | ~2,7 GB | 97 | ~1,1x |
-| qwen3.5:9b | Ollama | ~6,3 GB | 98 | ~3x |
-| qwen3-vl:4b | Ollama | não medida | 98 | ~10x |
-| qwen3-vl:8b | Ollama | mais de 8 GB | não terminou no limite de 120s por número | — |
+| Leitor | Roda em | Memória de vídeo | Acertos (de 76) | Ícones do jogo (de 29) | Com mod (de 47) | Tempo relativo |
+|---|---|---|---|---|---|---|
+| RapidOCR | CPU | — | 61 | 25 | 36 | 1x |
+| **glm-ocr** | Ollama | ~2,7 GB | 69 | 29 | 40 | ~1,4x |
+| qwen3.5:9b | Ollama | ~6,3 GB | 72 | 29 | 43 | ~2,6x |
+
+Os 4 erros que sobram no `qwen3.5:9b` são de detecção (ícone redesenhado pelo mod), não de leitura. `qwen3-vl:4b` e
+`qwen3-vl:8b` ficaram fora desta medição: numa anterior o 4b acertava o mesmo que o `qwen3.5:9b` em ~10x
+o tempo do RapidOCR, e o 8b pedia mais de 8 GB e não terminava no limite de 120s por número.
 
 Escolha pela memória de vídeo livre (o jogo divide a placa): sem placa → RapidOCR; ~4 GB → `glm-ocr`
 (recomendado); 8 GB+ → `qwen3.5:9b` também serve.
