@@ -42,7 +42,9 @@ Modo web: `.env` (ver `.env.example`) ou Docker (`docker compose up -d`, imagem 
 ## Stack e estrutura
 
 Python + FastAPI + SQLite (SQLAlchemy, migrações manuais em `database.apply_migrations()`). Frontend
-HTML/JS puro + Tailwind via CDN, sem build — o FastAPI serve `web/` como estático (sem cache).
+HTML/JS puro + Tailwind (o script do Play CDN, cópia em `web/vendor/` — gera o CSS no navegador), sem
+build — o FastAPI serve `web/` como estático, sem cache (`no-store`), menos o que foi baixado pra
+`web/vendor/<nome>/`: esses o navegador guarda por um ano, por isso versão nova = nome de arquivo novo. **A página não carrega nada de outro site.**
 
 ```
 app/
@@ -68,6 +70,8 @@ web/js/  api.js (sempre anexa ?lang&catalog_lang), ui.js (toast, el(), openModal
          personalAI.js (leitura com a IA do PC da pessoa, pelo navegador),
          i18n.js, views/ (facilities, facilityDetail, targets, itemPanel, print, report, saveImport,
          settings, dashboard, privateOrders)
+web/vendor/  arquivos de terceiros servidos pelo próprio app: Tailwind 3.4.17 e a fonte Saira Condensed,
+         com licença, origem e SHA-256 no README.md de lá
 data/foxhole/  resources.json, building_types.json — catálogo versionado
 data/          banco, uploads, icon_exemplars — dados do usuário, gitignored
 tools/save-parser/  leitor do save em Rust (CLI) — tem o próprio CLAUDE.md
@@ -330,6 +334,7 @@ Não conferido: se `Quantity` é item ou caixa em stockpile que guarda caixa.
 ## Telas
 
 - **Visual:** ícones em SVG de linha (`ui.icon(nome, classes)`, lista em `ui.js`) no lugar de emoji em botões, abas e cabeçalhos — emoji muda de desenho em cada sistema; logo = hexágono do mapa com fábrica (`ui.logo()`, `web/assets/logo.svg` é o favicon). Títulos, nomes de prédio e números do card na fonte de títulos. Home: card por facility com ícones dos tipos de prédio, filas rodando/paradas e Metas em % (`GET .../dashboard` de cada uma, carregado depois da lista).
+- **Celular** (conferir em 375px): cabeçalho em duas linhas curtas — marca + quem está logado, depois os links (só ícone abaixo de `sm`) e os idiomas. `style.css` dá a todo `.grid` sem colunas uma coluna que encolhe (`minmax(0, 1fr)`): a coluna "auto" padrão cresce com o filho mais largo (print, nome comprido) e empurrava o formulário pra fora da tela. Em linha `flex`, `select`/`input` com `flex-1` precisa de `min-w-0`.
 - **Modais** (`ui.openModal`) pra formulários grandes (lançar estoque, print, produção, editar prédio).
   Só fecham com clique que começa **e** termina no fundo escuro: arrastar de dentro (selecionar texto,
   marcar o painel no print) e soltar fora também "clica" no fundo e fechava o modal com tudo que estava nele.
@@ -351,7 +356,7 @@ Não conferido: se `Quantity` é item ou caixa em stockpile que guarda caixa.
 - **Painel do item** (`itemPanel.js`): apelido (global) + origem de escolha única, gravada por facility
   (`PUT /api/facilities/{id}/item-origins`).
 - **Histórico**: relatórios com "Excluir".
-- **Aparência** (Configurações, `web/js/theme.js`, `localStorage["theme"]`, só naquele navegador): o `tailwind.config` aponta toda cor usada (`zinc` = neutro, `emerald` = destaque, mais red/amber/sky/indigo) pra variáveis CSS `--c-<cor>-<tom>`; um tema só troca as variáveis. Temas prontos (**Colonial** = padrão, verde-oliva; **Clássico** = Tailwind original zinc/emerald) + cor de destaque, tom do fundo, claro/escuro, fonte dos títulos ("Militar" = Saira Condensed do Google Fonts, cai pra fonte do texto offline; h1/h2/`.font-display` usam `--display-font`), fonte e tamanho do texto; "código do tema" (JSON sanitizado) pra compartilhar. Por isso: **usar só essas famílias de cor nas telas** (cor fora delas não acompanha o tema), nada de `text-white` em fundo neutro (some no claro) e cor em canvas/estilo inline via `theme.rgb("emerald", 500)`. No claro, o neutro é por papel (950 = página, 900 = card), os tons 300/400 coloridos escurecem (texto) e 800-950 clareiam (fundos), e ícones do jogo ganham contorno escuro (`style.css`).
+- **Aparência** (Configurações, `web/js/theme.js`, `localStorage["theme"]`, só naquele navegador): o `tailwind.config` aponta toda cor usada (`zinc` = neutro, `emerald` = destaque, mais red/amber/sky/indigo) pra variáveis CSS `--c-<cor>-<tom>`; um tema só troca as variáveis. Temas prontos (**Colonial** = padrão, verde-oliva; **Clássico** = Tailwind original zinc/emerald) + cor de destaque, tom do fundo, claro/escuro, fonte dos títulos ("Militar" = Saira Condensed, servida de `web/vendor/` — funciona sem internet; h1/h2/`.font-display` usam `--display-font`), fonte e tamanho do texto; "código do tema" (JSON sanitizado) pra compartilhar. Por isso: **usar só essas famílias de cor nas telas** (cor fora delas não acompanha o tema), nada de `text-white` em fundo neutro (some no claro) e cor em canvas/estilo inline via `theme.rgb("emerald", 500)`. No claro, o neutro é por papel (950 = página, 900 = card), os tons 300/400 coloridos escurecem (texto) e 800-950 clareiam (fundos), e ícones do jogo ganham contorno escuro (`style.css`).
 - **Dashboard** (`dashboard.js`, `projection.py`; rota `#/facilities/<id>/dashboard`, o antigo `/live`
   ainda abre): estoque projetado supondo que as filas rodaram sem parar desde o último lançamento de cada
   prédio (só rodadas completas; para quando um insumo acaba). **Nunca é gravado** — conta feita na leitura,
@@ -409,7 +414,7 @@ Desligado por padrão; liga com `DISCORD_CLIENT_ID` (env ou `.env`; env real ven
 - Cabeçalhos `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: same-origin` em toda resposta,
   inclusive as do `auth.gate` (o middleware dos cabeçalhos é registrado depois dele); compose publica só
   em `127.0.0.1` e limita o log do container (10 MB × 3).
-- **Content-Security-Policy** (`main.CSP`): script só do próprio site e do Tailwind CDN **com versão fixa** (`cdn.tailwindcss.com/3.4.17`), **nenhum `<script>` inline** (a config do Tailwind fica em `web/js/tailwind-config.js`), `connect-src` só o site e `localhost:*` (Ollama da pessoa). Recurso externo novo (fonte, imagem, API chamada pelo navegador) precisa entrar no CSP, senão o navegador bloqueia calado.
+- **Content-Security-Policy** (`main.CSP`): script, estilo e fonte **só do próprio site** (`script-src 'self'`) — nenhum CDN: o Tailwind (script do Play CDN 3.4.17) e a Saira Condensed são cópias em `web/vendor/`, porque o modo local tem que abrir com o visual inteiro sem internet e script de outro servidor rodaria na sessão de todo mundo. `style-src` tem `'unsafe-inline'` porque o Tailwind escreve o CSS num `<style>`. **Nenhum `<script>` inline** (a config do Tailwind fica em `web/js/tailwind-config.js`; ordem no `index.html`: `theme.js` → Tailwind → `tailwind-config.js`), `connect-src` só o site e `localhost:*` (Ollama da pessoa). Biblioteca ou fonte nova: baixar pra `web/vendor/` com a licença e anotar no README de lá, nunca apontar pra outro site — `tests/test_app.py` recusa `index.html` que carregue algo de fora ou `script-src`/`style-src`/`font-src` com outro domínio. Outro recurso externo (imagem, API chamada pelo navegador) precisa entrar no CSP, senão o navegador bloqueia calado.
 - **Upload de print** (`routers/images.py`): a imagem é decodificada (Pillow) e só PNG/JPEG/WEBP de verdade fica, salva com a extensão do formato real — nunca a do nome enviado (um `.html` disfarçado virava página do próprio site). Máx. 20 MB e 40 Mpx. `/uploads` só serve `.png/.jpg/.jpeg/.webp` (`ImageOnlyStaticFiles`). `.sav` lido no máximo até `MAX_SAVE_BYTES`. `upload_images.file_path` é o caminho absoluto de quando foi salvo e a pasta já mudou (até de Windows pra Linux): só o nome do arquivo vale (`database.upload_path`). Print só serve enquanto é lido e nada o mostra de novo; mesmo assim só é apagado se `FACILITY_LOG_UPLOAD_DAYS` disser quantos dias guardar (`services/upload_cleanup.py` — desligado por padrão: apagar arquivo de alguém não é decisão do app).
 - **Configurações são de todos com o cargo**: mudar `api_base_url` ou `api_kind` sem digitar a chave de novo **apaga a chave salva** (senão qualquer membro mandava a chave do dono pra outro endereço); endereços só `http(s)://`.
 - **Container sem root**: `docker-entrypoint.sh` entra como root só pra dar `/data` ao usuário `app` (uid/gid 1000) e roda o app com `setpriv`; compose com `no-new-privileges` e só as capabilities `CHOWN`/`SETUID`/`SETGID` (o processo do app fica sem nenhuma). Comando dentro do container que escreve em `/data` (backup) vai com `docker compose exec -u app` — o root de lá não tem permissão nos arquivos.
@@ -428,13 +433,31 @@ Desligado por padrão; liga com `DISCORD_CLIENT_ID` (env ou `.env`; env real ven
    (`sudo tailscale funnel --bg 8000`) — HTTPS e endereço `*.ts.net` fixos, grátis. Isolar com tag na
    VM, sem ela como origem de nenhuma regra da política do Tailscale, e só ela com o atributo `funnel`.
 
+**Versões dos pacotes na imagem (`constraints.txt`):** o `requirements.txt` só diz o mínimo; a imagem
+instala com `-c constraints.txt`, a versão exata de cada pacote (dependências indiretas também), resolvida
+pra Linux + Python 3.13. Tag nova = mesmas versões, até alguém trocar de propósito. O modo local não usa
+esse arquivo. O build **falha** se instalar algo que não está nele, ou se o `requirements.txt` pedir uma
+versão acima da fixada. Precisa do `uv` (`pip install uv`), que resolve pra Linux a partir de qualquer
+sistema — `pip freeze` no Windows não serve (lá não há `uvloop` nem `python-xlib`, e sobra `colorama`):
+
+```bash
+# mudou o requirements.txt: acerta o arquivo sem mexer nas versões já fixadas
+uv pip compile requirements.txt --python-version 3.13 --python-platform linux -o constraints.txt
+# atualizar de propósito: um pacote (--upgrade-package fastapi) ou tudo (--upgrade)
+uv pip compile requirements.txt --python-version 3.13 --python-platform linux -o constraints.txt --upgrade
+```
+
+Depois: ler o `git diff constraints.txt` e rodar os testes com essas versões antes da tag. Versão fixa
+não recebe correção de segurança sozinha: `pip-audit -r constraints.txt --no-deps --disable-pip` mostra
+se alguma tem CVE. Imagens base e pacotes do Debian continuam pegando a versão mais nova a cada build.
+
 ## Testes
 
 `tests/` — unittest da stdlib, nada pra instalar: `.venv/Scripts/python.exe -m unittest discover -s tests -t .`
 Rodam numa pasta de dados temporária e em modo local, seja qual for o `.env` (`tests/__init__.py` ajusta
 o ambiente antes de importar `app`). Cobrem as contas e regras que já quebraram: partes do Discord ≤ 2000,
-Meta que segura estoque, lote tudo-ou-nada, tamanho do embed, fila privada, porta do modo local, recorte
-do leitor, limpeza de prints, catálogo. `tests/helpers.call()` chama o app ASGI direto, sem servidor.
+Meta que segura estoque, lote tudo-ou-nada, tamanho do embed, fila privada, porta do modo local, página que
+não carrega nada de outro site, recorte do leitor, limpeza de prints, catálogo. `tests/helpers.call()` chama o app ASGI direto, sem servidor.
 **Bug corrigido ganha teste.**
 
 **No GitHub** (`.github/workflows/tests.yml`, Python 3.13 — o mesmo do `Dockerfile`): rodam em todo push e

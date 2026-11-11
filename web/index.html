@@ -5,22 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Facility Log</title>
   <link rel="icon" type="image/svg+xml" href="/assets/logo.svg" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&display=swap" />
+  <!-- Nothing here comes from another site (web/vendor/README.md): the page
+       works with no internet and the CSP allows scripts, styles and fonts
+       only from the app itself. Order matters: theme, Tailwind, its config. -->
+  <link rel="stylesheet" href="/vendor/saira-condensed.css" />
   <script src="/js/theme.js"></script>
-  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="/vendor/tailwindcss/tailwind-3.4.17.js"></script>
   <script src="/js/tailwind-config.js"></script>
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body class="bg-zinc-950 text-zinc-100 min-h-screen">
   <header class="border-b border-zinc-800 bg-zinc-900/60 sticky top-0 z-10 backdrop-blur">
-    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+    <!-- Phone: two short rows (brand + who is logged in, then the links, as
+         icons only, and the languages). From sm up: one row, with the names. -->
+    <div class="max-w-5xl mx-auto px-4 py-2 sm:py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
       <a href="#/" id="brand" class="flex items-center gap-2 font-display text-xl font-bold uppercase tracking-wider whitespace-nowrap">Facility Log</a>
-      <nav class="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 text-sm">
-        <a href="#/" data-icon="factory" class="flex items-center gap-1.5 hover:text-emerald-400"><span data-i18n="nav.facilities">Facilities</span></a>
-        <a href="#/settings" data-icon="sliders" class="flex items-center gap-1.5 hover:text-emerald-400"><span data-i18n="nav.settings">Configurações</span></a>
-        <span id="user-box" class="hidden items-center gap-2"></span>
+      <span id="user-box" class="hidden items-center gap-2 ml-auto min-w-0 sm:order-last sm:ml-0"></span>
+      <nav class="w-full sm:w-auto sm:ml-auto flex items-center gap-x-4 text-sm min-w-0">
+        <a href="#/" data-icon="factory" aria-label="Facilities" class="flex items-center gap-1.5 p-1 sm:p-0 [&>svg]:w-5 [&>svg]:h-5 sm:[&>svg]:w-4 sm:[&>svg]:h-4 hover:text-emerald-400"><span class="hidden sm:inline" data-i18n="nav.facilities">Facilities</span></a>
+        <a href="#/settings" data-icon="sliders" aria-label="Configurações" class="flex items-center gap-1.5 p-1 sm:p-0 [&>svg]:w-5 [&>svg]:h-5 sm:[&>svg]:w-4 sm:[&>svg]:h-4 hover:text-emerald-400 mr-auto sm:mr-0"><span class="hidden sm:inline" data-i18n="nav.settings">Configurações</span></a>
         <select id="lang-switcher" title="Idioma da interface" class="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs focus:outline-none focus:border-emerald-500">
           <option value="pt-BR">🇧🇷 Português</option>
           <option value="en-US">🇺🇸 English</option>

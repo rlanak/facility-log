@@ -45,3 +45,11 @@ h2,
 :root[data-theme="light"] img[src^="/assets/foxhole/"] {
   filter: drop-shadow(0 0 1px rgb(0 0 0 / 0.85)) drop-shadow(0 0 0.5px rgb(0 0 0 / 0.85));
 }
+
+/* A grid with no columns set gets one "auto" column, which grows with its
+   widest child (a long item name, a wide print) and pushes the form out of a
+   phone's screen. One column that can shrink instead; any grid-cols-* class
+   still wins (:where has no specificity). */
+:where(.grid) {
+  grid-template-columns: minmax(0, 1fr);
+}

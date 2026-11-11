@@ -25,11 +25,20 @@ apply_migrations()
 class NoCacheStaticFiles(StaticFiles):
     """This is a locally-run app that gets updated via `git pull`, so the browser
     must always re-check with the server instead of serving a stale cached copy
-    of app.js/index.html from a previous version."""
+    of app.js/index.html from a previous version.
+
+    The exception is what was downloaded into web/vendor/<name>/ (Tailwind,
+    the heading font): those files are never edited — a new version gets a new
+    file name — so the browser may keep them. Without this, web mode sent the
+    400 KB Tailwind script again on every page load."""
 
     async def get_response(self, path: str, scope: Scope):
         response = await super().get_response(path, scope)
-        response.headers["Cache-Control"] = "no-store"
+        parts = path.replace("\\", "/").split("/")
+        if parts[0] == "vendor" and len(parts) > 2 and response.status_code in (200, 304):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        else:
+            response.headers["Cache-Control"] = "no-store"
         return response
 
 
@@ -44,16 +53,18 @@ class ImageOnlyStaticFiles(StaticFiles):
         return await super().get_response(path, scope)
 
 
-# Defense in depth against injected HTML: scripts only from this site and the
-# pinned Tailwind CDN (no inline scripts), styles also from Google Fonts,
-# images from this site and Discord avatars, fetches to this site and to the
-# user's own Ollama on their PC ("IA do meu computador", any localhost port).
+# Defense in depth against injected HTML: scripts, styles and fonts only from
+# this site (Tailwind and the heading font are copies in web/vendor/ — no CDN,
+# no inline scripts; Tailwind writes its CSS into a <style>, hence
+# 'unsafe-inline' for styles), images from this site and Discord avatars,
+# fetches to this site and to the user's own Ollama on their PC ("IA do meu
+# computador", any localhost port).
 CSP = "; ".join(
     [
         "default-src 'self'",
-        "script-src 'self' https://cdn.tailwindcss.com",
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-        "font-src 'self' https://fonts.gstatic.com",
+        "script-src 'self'",
+        "style-src 'self' 'unsafe-inline'",
+        "font-src 'self'",
         "img-src 'self' data: blob: https://cdn.discordapp.com",
         "connect-src 'self' http://localhost:* http://127.0.0.1:*",
         "object-src 'none'",

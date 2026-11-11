@@ -218,9 +218,9 @@ views.privateOrders = (() => {
     recipeLabel =
       recipeLabel || ((r) => r.outputs.map((o) => `${o.qty ?? 1}x ${i18n.catalogName(defs[o.resource]) || o.resource}`).join(" + "));
     container.innerHTML = `
-      <form class="grid gap-3">
+      <form class="grid grid-cols-1 gap-3">
         <p class="text-xs text-zinc-500">${i18n.t("private.formHint")}</p>
-        <div class="po-print border border-dashed border-zinc-700 rounded p-3 text-xs text-zinc-400 grid gap-2">
+        <div class="po-print border border-dashed border-zinc-700 rounded p-3 text-xs text-zinc-400 grid grid-cols-1 gap-2">
           <div class="flex flex-wrap items-center gap-2">
             ${ui.icon("camera", "w-4 h-4")}
             <span class="flex-1 min-w-0">${i18n.t("private.printHint")}</span>
@@ -228,7 +228,7 @@ views.privateOrders = (() => {
               <input type="file" accept="image/png,image/jpeg,image/webp" class="hidden po-file" />
             </label>
           </div>
-          <img class="po-thumb hidden max-h-32 object-contain rounded border border-zinc-800" alt="" />
+          <img class="po-thumb hidden max-h-32 max-w-full object-contain rounded border border-zinc-800" alt="" />
           <p class="po-print-status hidden"></p>
         </div>
         <label class="grid gap-1 text-xs text-zinc-400">${i18n.t("private.owner")}

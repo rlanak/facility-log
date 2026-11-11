@@ -1013,7 +1013,7 @@ views.facilityDetail = (() => {
     function addSlotRow(recipeKey, queueCount) {
       const row = ui.el("div", { class: "flex gap-2 items-center" });
       row.innerHTML = `
-        <select class="slot-recipe flex-1 bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500">
+        <select class="slot-recipe flex-1 min-w-0 bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500">
           ${recipeOptionsHtml(recipeKey)}
         </select>
         <input type="number" min="1" max="${foxholeType.queue_slots}" value="${queueCount || 1}"

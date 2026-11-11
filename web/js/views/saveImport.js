@@ -373,10 +373,11 @@ views.saveImport = (() => {
           table.classList.toggle("opacity-40", !check.checked);
         });
         card.appendChild(
-          el("label", { class: "flex items-center gap-2 cursor-pointer min-w-0" }, [
+          // Phone: the pin goes under the building's name instead of squeezing it.
+          el("label", { class: "flex flex-wrap sm:flex-nowrap items-center gap-x-2 cursor-pointer min-w-0" }, [
             check,
-            el("span", { class: "font-semibold truncate" }, b.name),
-            el("span", { class: "text-xs text-zinc-500 truncate" }, `${pin.label} · ${i18n.t("saveImport.readAgo", { ago: ago(pin.last_updated_unix) })}`),
+            el("span", { class: "font-semibold truncate flex-1 sm:flex-none min-w-0" }, b.name),
+            el("span", { class: "text-xs text-zinc-500 truncate w-full sm:w-auto min-w-0" }, `${pin.label} · ${i18n.t("saveImport.readAgo", { ago: ago(pin.last_updated_unix) })}`),
           ])
         );
         if (stale) card.appendChild(el("p", { class: "text-xs text-amber-400 mt-1" }, `⚠ ${i18n.t("saveImport.bulkOlder", { last: ago(lastLog) })}`));
@@ -385,14 +386,14 @@ views.saveImport = (() => {
         const addRow = (key, label, before, after, isZero) => {
           const row = { key, quantityRaw: String(after) };
           plan.rows.push(row);
-          const input = el("input", { class: `${inputClass} w-24 py-0.5 text-right tabular-nums` });
+          const input = el("input", { class: `${inputClass} w-20 sm:w-24 shrink-0 py-0.5 text-right tabular-nums` });
           input.value = row.quantityRaw;
           input.addEventListener("input", () => (row.quantityRaw = input.value));
           const changed = before !== after;
           table.appendChild(
             el("div", { class: "flex items-center gap-2 min-w-0" }, [
-              el("span", { class: "flex-1 min-w-0 truncate" + (isZero ? " text-amber-400" : "") }, label),
-              el("span", { class: "w-20 text-right tabular-nums text-zinc-500" }, before == null ? "—" : String(before)),
+              el("span", { class: "flex-1 min-w-0 break-words sm:truncate" + (isZero ? " text-amber-400" : "") }, label),
+              el("span", { class: "w-12 sm:w-20 shrink-0 text-right tabular-nums text-zinc-500" }, before == null ? "—" : String(before)),
               el("span", { class: changed ? "text-emerald-400" : "text-zinc-600" }, "→"),
               input,
             ])

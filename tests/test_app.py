@@ -1,5 +1,7 @@
 import json
+import re
 import unittest
+from html.parser import HTMLParser
 
 from app import crud, schemas
 from app.database import SessionLocal
@@ -42,6 +44,92 @@ class LocalModeDoor(unittest.TestCase):
     def test_another_machine_is_refused(self):
         status, _, _ = call(app, "GET", "/api/facilities", client=("192.168.0.50", 40000))
         self.assertEqual(status, 403)
+
+
+class _Loaded(HTMLParser):
+    """What a page loads: every <script src>, <link href> and <img src>, and
+    whether any <script> carries its code inline."""
+
+    def __init__(self):
+        super().__init__()
+        self.urls: list[str] = []
+        self.inline_scripts = 0
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == "script" and "src" not in attrs:
+            self.inline_scripts += 1
+        url = attrs.get("src") if tag in ("script", "img") else attrs.get("href") if tag == "link" else None
+        if url:
+            self.urls.append(url)
+
+
+class PageNeedsNoOtherSite(unittest.TestCase):
+    """Local mode must open with its full look with no internet, and no script
+    from someone else's server may run in a logged-in session: Tailwind and
+    the heading font are copies in web/vendor/, not a CDN."""
+
+    @staticmethod
+    def _own_path(url: str) -> bool:
+        return url.startswith("/") and not url.startswith("//")
+
+    def test_scripts_styles_and_fonts_only_from_the_app(self):
+        _, headers, _ = call(app, "GET", "/")
+        rules = dict(rule.strip().split(" ", 1) for rule in headers["content-security-policy"].split(";"))
+        self.assertEqual(rules["default-src"], "'self'")
+        self.assertEqual(rules["script-src"], "'self'")
+        self.assertEqual(rules["style-src"], "'self' 'unsafe-inline'")
+        self.assertEqual(rules["font-src"], "'self'")
+
+    def test_the_page_loads_only_files_the_app_serves(self):
+        status, _, body = call(app, "GET", "/")
+        self.assertEqual(status, 200)
+        page = _Loaded()
+        page.feed(body.decode("utf-8"))
+        self.assertEqual(page.inline_scripts, 0, "the CSP allows no inline <script>")
+        self.assertTrue(any("tailwind" in url for url in page.urls), page.urls)
+        for url in page.urls:
+            with self.subTest(url=url):
+                self.assertTrue(self._own_path(url), "loaded from another site")
+                status, _, _ = call(app, "GET", url)
+                self.assertEqual(status, 200)
+
+    def test_the_heading_font_files_are_served(self):
+        status, headers, body = call(app, "GET", "/vendor/saira-condensed.css")
+        self.assertEqual(status, 200)
+        self.assertIn("text/css", headers["content-type"])
+        fonts = re.findall(r"url\(\s*[\"']?([^\"')]+)", body.decode("utf-8"))
+        self.assertEqual(len(fonts), 9)  # weights 500/600/700 x latin, latin-ext, vietnamese
+        for font in fonts:
+            with self.subTest(font=font):
+                self.assertNotIn(":", font, "loaded from another site")
+                status, _, data = call(app, "GET", f"/vendor/{font}")
+                self.assertEqual(status, 200)
+                self.assertEqual(data[:4], b"wOF2")
+
+
+class BrowserCache(unittest.TestCase):
+    """The app's own files are never cached (an update must show up at once);
+    the downloaded ones in web/vendor/<name>/ never change, so they are."""
+
+    def test_only_the_downloaded_vendor_files_are_kept_by_the_browser(self):
+        kept = ("/vendor/tailwindcss/tailwind-3.4.17.js", "/vendor/saira-condensed/saira-condensed-600-latin.woff2")
+        fresh = ("/", "/js/app.js", "/css/style.css", "/vendor/saira-condensed.css", "/vendor/README.md")
+        for path in kept:
+            with self.subTest(path=path):
+                status, headers, _ = call(app, "GET", path)
+                self.assertEqual(status, 200)
+                self.assertIn("immutable", headers["cache-control"])
+        for path in fresh:
+            with self.subTest(path=path):
+                status, headers, _ = call(app, "GET", path)
+                self.assertEqual(status, 200)
+                self.assertEqual(headers["cache-control"], "no-store")
+
+    def test_a_missing_vendor_file_is_not_cached(self):
+        status, headers, _ = call(app, "GET", "/vendor/tailwindcss/nope.js")
+        self.assertEqual(status, 404)
+        self.assertNotIn("immutable", headers.get("cache-control", ""))
 
 
 class Api(unittest.TestCase):

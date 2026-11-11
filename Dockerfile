@@ -25,8 +25,14 @@ RUN apt-get update \
 RUN groupadd --gid 1000 app && useradd --uid 1000 --gid app --no-create-home --shell /usr/sbin/nologin app
 
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# constraints.txt holds the exact version of every package, so the image gets
+# the same ones whenever it is built ("Deploy" in CLAUDE.md: how to update it).
+# The check after the install fails the build if something was installed that
+# is not pinned there — it would quietly float to its newest release again.
+COPY requirements.txt constraints.txt ./
+RUN pip install --no-cache-dir -r requirements.txt -c constraints.txt \
+    && unpinned="$(pip freeze -r constraints.txt 2>/dev/null | sed '1,/^## The following requirements were added by pip freeze:/d')" \
+    && if [ -n "$unpinned" ]; then echo "Installed but not pinned in constraints.txt:" >&2; echo "$unpinned" >&2; exit 1; fi
 
 COPY app ./app
 COPY web ./web

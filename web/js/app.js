@@ -34,8 +34,8 @@
     const box = document.getElementById("user-box");
     if (!me || !me.user) return;
     box.innerHTML = "";
-    if (me.user.avatar_url) box.appendChild(ui.el("img", { src: me.user.avatar_url, class: "w-6 h-6 rounded-full" }));
-    box.appendChild(ui.el("span", { class: "text-xs text-zinc-300" }, me.user.name));
+    if (me.user.avatar_url) box.appendChild(ui.el("img", { src: me.user.avatar_url, class: "w-6 h-6 rounded-full shrink-0" }));
+    box.appendChild(ui.el("span", { class: "text-xs text-zinc-300 truncate max-w-[9rem]" }, me.user.name));
     box.appendChild(
       ui.el("button", { class: "text-zinc-500 hover:text-zinc-200", title: i18n.t("privacy.title"), onclick: showPrivacy, html: ui.icon("shield") })
     );
