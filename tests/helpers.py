@@ -65,7 +65,10 @@ def call(app, method: str, path: str, headers: dict | None = None, body=None, cl
     async def receive():
         nonlocal requested
         if requested:
-            return {"type": "http.disconnect"}
+            # The client stays connected until the answer is complete, like a
+            # real one. Answering "disconnected" here made newer Starlette
+            # stop sending a file halfway (it watches for that while it sends).
+            await asyncio.Event().wait()
         requested = True
         return {"type": "http.request", "body": body, "more_body": False}
 
