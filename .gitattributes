@@ -1,2 +1,6 @@
 # Shell scripts run inside the Linux image: always LF.
 *.sh text eol=lf
+
+# Downloaded third-party files: byte-for-byte what the source served, on every
+# checkout (line-ending conversion would change the SHA-256 in the README there).
+web/vendor/** -text

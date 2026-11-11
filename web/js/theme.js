@@ -1,5 +1,5 @@
 // Appearance, per browser (localStorage["theme"]). Loaded in <head> before
-// the Tailwind CDN script: every Tailwind color the app uses (zinc = neutral,
+// the Tailwind script (web/vendor/): every Tailwind color the app uses (zinc = neutral,
 // emerald = accent, plus red/amber/sky/indigo) is pointed at a CSS variable
 // (see tailwindConfig()), so a theme is just a set of variables on <html> —
 // no view knows about themes, and changing one repaints the page live.
@@ -35,8 +35,8 @@ const theme = (() => {
     serif: 'ui-serif, Georgia, Cambria, "Times New Roman", serif, "Segoe UI Emoji"',
     mono: 'ui-monospace, SFMono-Regular, Consolas, Menlo, monospace, "Segoe UI Emoji"',
   };
-  // Headings/names: a condensed military-style face (Google Fonts, loaded in
-  // index.html; offline it falls back to the text font) or the text font.
+  // Headings/names: a condensed military-style face (served by the app from
+  // web/vendor/, so it needs no internet) or the text font.
   const DISPLAYS = {
     military: '"Saira Condensed", var(--app-font)',
     body: "var(--app-font)",

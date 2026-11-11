@@ -25,9 +25,8 @@ old name would not reach anyone who already has it.
 
 ## SHA-256
 
-Of the files as downloaded. The text ones have LF line endings; a Windows
-checkout with `core.autocrlf` rewrites them, which changes the hash but not
-what they do.
+Of the files as downloaded. `.gitattributes` turns line-ending conversion off
+for this folder, so every checkout has these exact bytes.
 
 | File | Name at the source | SHA-256 |
 |---|---|---|
