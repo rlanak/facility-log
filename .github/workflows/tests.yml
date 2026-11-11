@@ -26,12 +26,13 @@ jobs:
 
       # requirements.txt minus what no test imports — the server (uvicorn), the screenshot
       # reader (opencv, numpy, rapidocr, onnxruntime) and the tray icon (pystray), which are
-      # most of the download. The rest installs with the versions requirements.txt asks for.
+      # most of the download. The rest installs with the exact versions the image gets
+      # (constraints.txt), so the tests run on what is published.
       # A test that comes to need one of these: take it off the list, don't skip the test.
       - name: Install what the tests import
         run: |
           grep -viE '^(uvicorn|opencv-python-headless|numpy|rapidocr|onnxruntime|pystray)\b' requirements.txt > "$RUNNER_TEMP/requirements-test.txt"
-          python -m pip install -r "$RUNNER_TEMP/requirements-test.txt"
+          python -m pip install -r "$RUNNER_TEMP/requirements-test.txt" -c constraints.txt
 
       - name: Run the tests
         run: python -m unittest discover -s tests -t .

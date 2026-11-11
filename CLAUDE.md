@@ -466,7 +466,7 @@ arquivo como job `test`, e o `publish` depende dele (`needs: test`). **A imagem 
 passarem:** tag com teste quebrado não vira imagem e a que já estava publicada continua valendo — corrigir
 e enviar outra tag. Antes de criar uma tag, conferir que o push do `main` passou. O job instala o
 `requirements.txt` menos o que nenhum teste importa (uvicorn, opencv, numpy, rapidocr, onnxruntime, pystray
-— a lista fica no `tests.yml`), por isso leva segundos; teste novo que precise de um deles → tirar da
+— a lista fica no `tests.yml`), nas versões do `constraints.txt` (as mesmas da imagem), por isso leva segundos; teste novo que precise de um deles → tirar da
 lista, nunca desligar o teste. O filtro é por linha: no `requirements.txt`, cada dependência numa linha
 só, começando pelo nome.
 
