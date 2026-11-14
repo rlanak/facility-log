@@ -189,7 +189,12 @@ Ollama with `glm-ocr` and the site's address allowed in Ollama
 screen. If the person's AI doesn't answer, the server reader takes over.
 
 If your server has a GPU and Ollama, `FACILITY_LOG_SERVER_OLLAMA=1` in `.env` makes the server's own
-"Local AI" option available to everyone (hidden by default on the web).
+"Local AI" option available to everyone (hidden by default on the web). Its address then comes from
+`FACILITY_LOG_OLLAMA_URL` (default `http://127.0.0.1:11434`), not from the settings page.
+
+On the web the server only calls a capture API on a public internet address — a private one (the
+server's own network, cloud metadata) is refused, and redirects are not followed. If your API really
+is on a private address, set `FACILITY_LOG_ALLOW_PRIVATE_URLS=1`.
 
 ### Game save on the web
 

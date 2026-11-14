@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app import schemas
 from app.database import get_db
-from app.services import capture
+from app.services import capture, netguard
 from app.services.errors_i18n import err
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -45,6 +45,16 @@ def update_capture_settings(data: schemas.CaptureSettingsIn, lang: str = "pt-BR"
     if not _valid_url(values.get("api_base_url")) or not _valid_url(values.get("ollama_url")):
         raise HTTPException(status_code=422, detail=err("invalid_url", lang))
     current = capture.get_settings(db)
+    # Security (14/11/2026): the server calls these addresses, and on the web
+    # any member can save them. Only public addresses there (netguard), and
+    # the server's Ollama address isn't a setting at all.
+    if capture.ollama_url_locked():
+        values.pop("ollama_url", None)
+    if "api_base_url" in values and values["api_base_url"]:
+        try:
+            netguard.check_url(values["api_base_url"])
+        except netguard.BlockedAddress:
+            raise HTTPException(status_code=422, detail=err("private_url", lang))
     if values.get("capture_provider") not in (None, *capture.PROVIDERS) or (
         values.get("capture_provider") == "local_vlm" and not capture.server_local_ai_allowed()
     ):

@@ -214,6 +214,9 @@ _FACILITY_PATHS = [
 ]
 
 
+_UPLOAD_PATH = re.compile(r"^/uploads/([0-9a-f]{32}\.(?:png|jpg|jpeg|webp))$")
+
+
 def _private_facility_blocked(path: str, query_params, user_id: int) -> bool:
     """True when the request touches a private facility that isn't this
     user's. Unknown ids pass through (the route answers 404 itself)."""
@@ -222,6 +225,16 @@ def _private_facility_blocked(path: str, query_params, user_id: int) -> bool:
 
     with SessionLocal() as db:
         facility_id = None
+        upload = _UPLOAD_PATH.match(path)
+        if upload:
+            # A print's link (14/11/2026): the name can't be guessed, but a
+            # leaked link used to open for anyone logged in. file_path holds
+            # the full path of when it was saved; only the name counts.
+            img = (
+                db.query(models.UploadImage).filter(models.UploadImage.file_path.endswith(upload.group(1))).first()
+            )
+            b = db.get(models.Building, img.building_id) if img else None
+            facility_id = b.facility_id if b else None
         for pattern, kind in _FACILITY_PATHS:
             m = pattern.match(path)
             if not m:
@@ -264,7 +277,7 @@ async def gate(request, call_next):
     protected = path.startswith("/api/") or path.startswith("/uploads/")
     if protected and path != "/api/me" and request.state.user is None:
         return JSONResponse({"detail": "login_required"}, status_code=401)
-    if request.state.user is not None and path.startswith("/api/") and await run_in_threadpool(
+    if request.state.user is not None and protected and await run_in_threadpool(
         _private_facility_blocked, path, request.query_params, request.state.user.id
     ):
         # Same answer as a facility that doesn't exist: a private one isn't

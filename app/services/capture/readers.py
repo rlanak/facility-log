@@ -27,6 +27,8 @@ from pathlib import Path
 
 from PIL import Image, ImageOps
 
+from app.services import netguard
+
 _KEEP_RE = re.compile(r"[0-9.,kKmM]")
 # A quantity is digits (with . or ,) and at most a trailing k/M — a stray
 # letter before the digits is noise (RapidOCR read "1" as "M1").
@@ -101,11 +103,15 @@ def _crop_png(image_path: Path, box: tuple[int, int, int, int], scale: int = 4) 
     return buf.getvalue()
 
 
-def _post_json(url: str, body: dict, headers: dict | None = None, timeout: int = 120) -> dict:
+def _post_json(url: str, body: dict, headers: dict | None = None, timeout: int = 120, guarded: bool = False) -> dict:
+    """guarded: the address was typed in Configurações by any member — on the
+    web it may only be a public one (see netguard). Ollama isn't: there the
+    address is the operator's (capture.get_settings)."""
     req = urllib.request.Request(
         url, data=json.dumps(body).encode("utf-8"), headers={"Content-Type": "application/json", **(headers or {})}
     )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
+    opener = netguard.urlopen if guarded else urllib.request.urlopen
+    with opener(req, timeout=timeout) as resp:
         return json.loads(resp.read())
 
 
@@ -249,6 +255,7 @@ def read_api(
                 ],
             },
             headers={"x-api-key": api_key, "anthropic-version": "2023-06-01"},
+            guarded=True,
         )
         text = "".join(block.get("text", "") for block in data.get("content", []))
     else:
@@ -271,6 +278,7 @@ def read_api(
                 ],
             },
             headers={"Authorization": f"Bearer {api_key}"},
+            guarded=True,
         )
         text = data["choices"][0]["message"]["content"] or ""
     return sanitize(text)

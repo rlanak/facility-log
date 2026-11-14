@@ -54,9 +54,22 @@ DEFAULTS = {
 }
 
 
+def ollama_url_locked() -> bool:
+    """On the web the server's Ollama address is the operator's to set
+    (FACILITY_LOG_OLLAMA_URL), never a member's: the server calls it, and
+    it is normally a private address — exactly what a member must not be
+    able to choose (see netguard)."""
+    from app import auth
+
+    return auth.config.enabled
+
+
 def get_settings(db: Session) -> dict:
     stored = {s.key: s.value for s in db.query(models.AppSetting).filter(models.AppSetting.key.in_(DEFAULTS))}
-    return {key: stored.get(key, default) for key, default in DEFAULTS.items()}
+    settings = {key: stored.get(key, default) for key, default in DEFAULTS.items()}
+    if ollama_url_locked():
+        settings["ollama_url"] = os.environ.get("FACILITY_LOG_OLLAMA_URL", "").strip() or DEFAULTS["ollama_url"]
+    return settings
 
 
 def save_settings(db: Session, values: dict) -> None:
