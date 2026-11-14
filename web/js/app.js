@@ -94,16 +94,26 @@
   function setupLangSwitcher() {
     const select = document.getElementById("lang-switcher");
     select.value = i18n.getLang();
-    select.addEventListener("change", () => {
-      i18n.setLang(select.value);
-      location.reload();
-    });
-
     const catalogSelect = document.getElementById("catalog-lang-switcher");
     catalogSelect.value = i18n.getCatalogLang();
+
+    // No page reload: the header's fixed text is rewritten and the current
+    // screen is drawn again (every view fetches its data on render, and
+    // api.js sends the new languages with each call).
+    function redraw() {
+      document.documentElement.lang = i18n.getLang();
+      catalogSelect.value = i18n.getCatalogLang(); // follows the interface until one is picked
+      i18n.applyStaticText();
+      renderUserBox();
+      router();
+    }
+    select.addEventListener("change", () => {
+      i18n.setLang(select.value);
+      redraw();
+    });
     catalogSelect.addEventListener("change", () => {
       i18n.setCatalogLang(catalogSelect.value);
-      location.reload();
+      redraw();
     });
   }
 
