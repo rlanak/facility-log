@@ -34,6 +34,9 @@ def list_foxhole_building_types():
             "wiki_url": data.get("wiki_url"),
             "icon": data.get("icon"),
             "recipes": data["recipes"],
+            # Portuguese names of the upgrade modules ("module" in each recipe
+            # stays the English identifier, it is what buildings store).
+            "module_names_pt": data.get("module_names_pt", {}),
             # Storage stations (MTS/RTS): what the stockpile takes, per the wiki.
             "storage": data.get("storage", False),
             "stockpile_capacity": data.get("stockpile_capacity"),

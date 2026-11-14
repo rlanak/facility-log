@@ -85,7 +85,11 @@ views.facilityDetail = (() => {
     }
     return null;
   }
-  function upgradeLabel(mod) {
+  // Module name in the catalog language. The module itself ("Forge Upgrade")
+  // is an identifier: it is what the building stores and recipes carry.
+  function upgradeLabel(mod, foxholeType) {
+    const pt = foxholeType && foxholeType.module_names_pt && foxholeType.module_names_pt[mod];
+    if (pt && i18n.getCatalogLang() !== "en-US") return pt;
     return mod.replace(/ Upgrade$/, "");
   }
 
@@ -466,7 +470,7 @@ views.facilityDetail = (() => {
               : null,
             ui.el("h2", { class: "text-lg font-semibold uppercase tracking-wide text-zinc-200 min-w-0 truncate" }, [locationLabel, typeLabel].filter(Boolean).join(" · ")),
             hasUpgrades
-              ? ui.el("span", { class: "text-xs text-sky-400 whitespace-nowrap" }, `· ${upgrade ? upgradeLabel(upgrade) : i18n.t("facilityDetail.noUpgrade")}`)
+              ? ui.el("span", { class: "text-xs text-sky-400 whitespace-nowrap" }, `· ${upgrade ? upgradeLabel(upgrade, type) : i18n.t("facilityDetail.noUpgrade")}`)
               : null,
             ui.el("span", { class: "text-xs font-semibold text-zinc-400 bg-zinc-800 rounded-full px-2 py-0.5" }, String(members.length)),
             ui.el("span", { class: "flex-1 h-px bg-zinc-800" }),
@@ -609,8 +613,8 @@ views.facilityDetail = (() => {
           <p class="font-display text-lg font-semibold leading-tight truncate" title="${ui.escapeHtml(buildingDisplayName)}">${ui.escapeHtml(buildingDisplayName)}</p>
           ${
             upgrade || building.location || building.save_pin_key
-              ? `<p class="text-[11px] truncate flex items-center gap-2 min-w-0" title="${ui.escapeHtml([upgrade, building.location, building.save_pin_key ? i18n.t("facilityDetail.pinLinked") : ""].filter(Boolean).join(" · "))}">${[
-                  upgrade ? `<span class="text-sky-400 inline-flex items-center gap-0.5 min-w-0"><span class="truncate">${ui.icon("arrowUp", "w-3 h-3")}${ui.escapeHtml(upgradeLabel(upgrade))}</span></span>` : "",
+              ? `<p class="text-[11px] truncate flex items-center gap-2 min-w-0" title="${ui.escapeHtml([upgrade && upgradeLabel(upgrade, foxholeType), building.location, building.save_pin_key ? i18n.t("facilityDetail.pinLinked") : ""].filter(Boolean).join(" · "))}">${[
+                  upgrade ? `<span class="text-sky-400 inline-flex items-center gap-0.5 min-w-0"><span class="truncate">${ui.icon("arrowUp", "w-3 h-3")}${ui.escapeHtml(upgradeLabel(upgrade, foxholeType))}</span></span>` : "",
                   building.location ? `<span class="text-zinc-500 inline-flex items-center gap-0.5 shrink-0">${ui.icon("mapPin", "w-3 h-3")}${ui.escapeHtml(building.location)}</span>` : "",
                   building.save_pin_key ? `<span class="text-emerald-500 inline-flex shrink-0" title="${i18n.t("facilityDetail.pinLinked")}">${ui.icon("pin", "w-3 h-3")}</span>` : "",
                 ]
@@ -963,7 +967,7 @@ views.facilityDetail = (() => {
         Object.entries(recipesByModule(selectedKey))
           .map(
             ([mod, recipes]) => `
-          <optgroup label="${ui.escapeHtml(mod)}">
+          <optgroup label="${ui.escapeHtml(upgradeLabel(mod, foxholeType))}">
             ${recipes
               .map(
                 ({ recipe: r, allowed }) =>
@@ -984,7 +988,7 @@ views.facilityDetail = (() => {
                  ${i18n.t("facilityDetail.upgrade")}
                  <select class="building-upgrade bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500">
                    <option value="">${i18n.t("facilityDetail.noUpgrade")}</option>
-                   ${upgrades.map((m) => `<option value="${ui.escapeHtml(m)}" ${m === selectedUpgrade ? "selected" : ""}>${ui.escapeHtml(upgradeLabel(m))}</option>`).join("")}
+                   ${upgrades.map((m) => `<option value="${ui.escapeHtml(m)}" ${m === selectedUpgrade ? "selected" : ""}>${ui.escapeHtml(upgradeLabel(m, foxholeType))}</option>`).join("")}
                  </select>
                  <span class="text-zinc-600">${i18n.t("facilityDetail.upgradeHint")}</span>
                </label>`

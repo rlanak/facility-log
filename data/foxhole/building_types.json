@@ -142,7 +142,12 @@
       }
     ],
     "icon": "/assets/foxhole/structures/CoalRefinery.png",
-    "name_pt": "Refinaria de Carvão"
+    "name_pt": "Refinaria de Carvão",
+    "module_names_pt": {
+      "Coke Furnace Upgrade": "Forno de Coque",
+      "Coal Liquefier Upgrade": "Liquefator de Carvão",
+      "Advanced Coal Liquefier Upgrade": "Liquefator de Carvão Avançado"
+    }
   },
   "materials_factory": {
     "name_en": "Materials Factory",
@@ -359,7 +364,13 @@
       }
     ],
     "icon": "/assets/foxhole/structures/MaterialsFactory.png",
-    "name_pt": "Fábrica de Materiais"
+    "name_pt": "Fábrica de Materiais",
+    "module_names_pt": {
+      "Assembly Bay Upgrade": "Baia de Montagem",
+      "Forge Upgrade": "Forja",
+      "Metal Press Upgrade": "Prensa de Metal",
+      "Smelter Upgrade": "Fundição"
+    }
   },
   "metalworks_factory": {
     "name_en": "Metalworks Factory",
@@ -684,7 +695,12 @@
       }
     ],
     "icon": "/assets/foxhole/structures/MetalworksFactory.png",
-    "name_pt": "Metalúrgica"
+    "name_pt": "Metalúrgica",
+    "module_names_pt": {
+      "Recycler Upgrade": "Reciclador",
+      "Blast Furnace Upgrade": "Alto-Forno",
+      "Engineering Station Upgrade": "Estação de Engenharia"
+    }
   },
   "oil_refinery": {
     "name_en": "Oil Refinery",
@@ -782,7 +798,12 @@
       }
     ],
     "icon": "/assets/foxhole/structures/OilRefinery.png",
-    "name_pt": "Refinaria de Petróleo"
+    "name_pt": "Refinaria de Petróleo",
+    "module_names_pt": {
+      "Reformer Upgrade": "Reformador",
+      "Cracking Unit Upgrade": "Unidade de Craqueamento",
+      "Petrochemical Plant Upgrade": "Planta Petroquímica"
+    }
   },
   "ammunition_factory": {
     "name_en": "Ammunition Factory",
@@ -1501,7 +1522,12 @@
       }
     ],
     "icon": "/assets/foxhole/structures/AmmunitionFactory.png",
-    "name_pt": "Fábrica de Munição"
+    "name_pt": "Fábrica de Munição",
+    "module_names_pt": {
+      "Rocket Battery Workshop Upgrade": "Oficina de Baterias de Foguetes",
+      "Large Shell Factory Upgrade": "Fábrica de Projéteis Grandes",
+      "Tripod Factory Upgrade": "Fábrica de Tripés"
+    }
   },
   "infantry_kit_factory": {
     "name_en": "Infantry Kit Factory",
@@ -2218,7 +2244,13 @@
       }
     ],
     "icon": "/assets/foxhole/structures/InfantryKitFactory.png",
-    "name_pt": "Fábrica de Kits de Infantaria"
+    "name_pt": "Fábrica de Kits de Infantaria",
+    "module_names_pt": {
+      "Base (Uniforms)": "Base (Uniformes)",
+      "Special-Issue Firearms Assembly Upgrade": "Montagem de Armas Especiais",
+      "Small Arms Workshop Upgrade": "Oficina de Armas Leves",
+      "Heavy Munitions Foundry Upgrade": "Fundição de Munições Pesadas"
+    }
   },
   "aircraft_maintenance_factory": {
     "name_en": "Aircraft Maintenance Factory",
@@ -2419,7 +2451,10 @@
       }
     ],
     "icon": "/assets/foxhole/structures/AircraftMaintenanceFactory.png",
-    "name_pt": "Fábrica de Manutenção de Aeronaves"
+    "name_pt": "Fábrica de Manutenção de Aeronaves",
+    "module_names_pt": {
+      "Aircraft Maintenance Hangar": "Hangar de Manutenção de Aeronaves"
+    }
   },
   "concrete_mixer": {
     "name_en": "Concrete Mixer",

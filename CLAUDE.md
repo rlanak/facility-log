@@ -114,7 +114,9 @@ tests/         unittest da stdlib, nada pra instalar — ver "Testes"
 Station (`storage: true`, sem filas). Cada recurso tem `name: {en, pt}`, `codename` (nome interno do
 jogo, o que o save guarda — ex: Construction Materials = `FacilityMaterials1`), `category` e, nas
 estações, `accepts` (o que cada uma guarda, da tabela "Storage" da wiki; o "Lançar estoque" de uma
-estação só mostra esses itens).
+estação só mostra esses itens). Upgrade: `module` da receita é o identificador em inglês (o que o prédio
+guarda); o nome em português fica em `module_names_pt` do tipo de prédio e a tela escolhe pelo idioma do
+catálogo (`facilityDetail.upgradeLabel`).
 
 Fontes: wiki (`foxhole.wiki.gg`, via MediaWiki API — `action=parse`, nunca scraping de página
 renderizada, nunca adivinhar nome de arquivo de ícone) e o catálogo extraído do jogo pelo projeto FIR

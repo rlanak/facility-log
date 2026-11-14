@@ -22,6 +22,15 @@ class Catalog(unittest.TestCase):
                 self.assertTrue(any("resource" in io for io in recipe["outputs"]), f"{type_key}/{recipe['key']}")
                 self.assertGreater(recipe["time_seconds"], 0, f"{type_key}/{recipe['key']}")
 
+    def test_every_upgrade_has_a_portuguese_name(self):
+        # They showed in English with both languages set to Portuguese.
+        for type_key, building_type in self.types.items():
+            names = building_type.get("module_names_pt", {})
+            for recipe in building_type["recipes"]:
+                module = recipe.get("module") or "Base"
+                if module != "Base":
+                    self.assertTrue(names.get(module), f"{type_key}/{module}")
+
     def test_recipe_keys_are_unique_in_a_building(self):
         for type_key, building_type in self.types.items():
             keys = [recipe["key"] for recipe in building_type["recipes"]]
