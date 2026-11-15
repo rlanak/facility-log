@@ -76,6 +76,7 @@ _ADDED_COLUMNS = [
     ("facilities", "owner_id", "INTEGER REFERENCES users(id)"),
     ("facilities", "private", "BOOLEAN DEFAULT 0"),
     ("private_orders", "done_before", "INTEGER DEFAULT 0"),
+    ("upload_images", "uploaded_by_id", "INTEGER REFERENCES users(id)"),
 ]
 
 
@@ -185,6 +186,13 @@ def apply_migrations() -> None:
                 "UPDATE buildings SET production_slots = ? WHERE id = ?", (slots_json, building_id)
             )
         _rename_recipes(conn)
+        from app import auth
+
+        if auth.config.enabled:
+            # Capture settings became each person's own on the web
+            # (14/11/2026): the API key everyone shared is not anyone's to
+            # keep using. Local mode still uses this table.
+            conn.exec_driver_sql("DELETE FROM app_settings WHERE key = 'api_key'")
         conn.commit()
     if encrypted_now:
         # The plain values would still sit in free pages of the file: rewrite it once.

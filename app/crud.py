@@ -239,6 +239,9 @@ def update_building(db: Session, building: models.Building, data: schemas.Buildi
 
 
 def delete_building(db: Session, building: models.Building) -> None:
+    from app import permissions
+
+    permissions.forget_building(db, building.id)
     db.delete(building)
     db.commit()
 
@@ -466,8 +469,10 @@ def add_stock_entries(
     return created
 
 
-def create_upload_image(db: Session, building_id: int, file_path: str) -> models.UploadImage:
-    image = models.UploadImage(building_id=building_id, file_path=file_path)
+def create_upload_image(
+    db: Session, building_id: int, file_path: str, uploaded_by_id: int | None = None
+) -> models.UploadImage:
+    image = models.UploadImage(building_id=building_id, file_path=file_path, uploaded_by_id=uploaded_by_id)
     db.add(image)
     db.commit()
     db.refresh(image)

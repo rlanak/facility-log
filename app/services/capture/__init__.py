@@ -1,5 +1,8 @@
 """Which engine reads stockpile quantities from a screenshot on the server —
-chosen in Configurações, stored in the app_settings table:
+chosen in Configurações. Local mode keeps one choice for the app
+(app_settings). On the web it is each person's own (user_settings,
+14/11/2026): it was shared, so one member's paid API key read everyone's
+screenshots and any member could change what the others used.
 
 - "rapidocr":  free local OCR (PaddleOCR models on onnxruntime, CPU), no setup.
 - "local_vlm": a vision model through Ollama on the machine running the app.
@@ -64,21 +67,43 @@ def ollama_url_locked() -> bool:
     return auth.config.enabled
 
 
-def get_settings(db: Session) -> dict:
-    stored = {s.key: s.value for s in db.query(models.AppSetting).filter(models.AppSetting.key.in_(DEFAULTS))}
+def _personal() -> bool:
+    from app import auth
+
+    return auth.config.enabled
+
+
+def get_settings(db: Session, user_id: int | None = None) -> dict:
+    """`user_id`: whose settings, on the web (nobody = the defaults)."""
+    if _personal():
+        rows = (
+            db.query(models.UserSetting).filter(
+                models.UserSetting.user_id == user_id, models.UserSetting.key.in_(DEFAULTS)
+            )
+            if user_id is not None
+            else []
+        )
+    else:
+        rows = db.query(models.AppSetting).filter(models.AppSetting.key.in_(DEFAULTS))
+    stored = {s.key: s.value for s in rows}
     settings = {key: stored.get(key, default) for key, default in DEFAULTS.items()}
     if ollama_url_locked():
         settings["ollama_url"] = os.environ.get("FACILITY_LOG_OLLAMA_URL", "").strip() or DEFAULTS["ollama_url"]
     return settings
 
 
-def save_settings(db: Session, values: dict) -> None:
+def save_settings(db: Session, values: dict, user_id: int | None = None) -> None:
+    personal = _personal()
+    if personal and user_id is None:
+        return
     for key, value in values.items():
         if key not in DEFAULTS:
             continue
-        row = db.get(models.AppSetting, key)
+        row = db.get(models.UserSetting, (user_id, key)) if personal else db.get(models.AppSetting, key)
         if row:
             row.value = value
+        elif personal:
+            db.add(models.UserSetting(user_id=user_id, key=key, value=value))
         else:
             db.add(models.AppSetting(key=key, value=value))
     db.commit()
@@ -110,9 +135,10 @@ def provider_status(settings: dict, check_ollama: bool = True) -> dict:
     return {"providers": status, "ollama_vision_models": vision_models or [], "server_local_ai": allowed}
 
 
-def resolve_reader(db: Session) -> tuple[str, str, callable]:
-    """(chosen provider, provider actually used, reader(image_path, box))."""
-    settings = get_settings(db)
+def resolve_reader(db: Session, user_id: int | None = None) -> tuple[str, str, callable]:
+    """(chosen provider, provider actually used, reader(image_path, box)) —
+    on the web, for the person who asked."""
+    settings = get_settings(db, user_id)
     chosen = effective_provider_choice(settings)
     status = provider_status(settings, check_ollama=chosen == "local_vlm")["providers"]
 

@@ -62,6 +62,15 @@ views.itemPanel = (() => {
             <div><button class="bg-emerald-700 hover:bg-emerald-600 px-4 py-2 rounded text-sm font-semibold">${i18n.t("common.save")}</button></div>
           </form>`;
         const form = body.querySelector("form");
+        // Web mode: the nickname is global (admins only); the origin is the
+        // facility's (its owner).
+        if (!ui.isAdmin()) {
+          const nick = form.querySelector('[name="nickname"]');
+          nick.disabled = true;
+          nick.nextElementSibling.textContent = i18n.t("item.nicknameAdmin");
+        }
+        if (!ui.canManage()) form.querySelectorAll('[name="origin"]').forEach((radio) => (radio.disabled = true));
+        if (!ui.isAdmin() && !ui.canManage()) form.querySelector("button").parentElement.remove();
         form.addEventListener("submit", async (e) => {
           e.preventDefault();
           const origin = form.querySelector('[name="origin"]:checked').value;

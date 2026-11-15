@@ -54,6 +54,8 @@ views.targets = (() => {
 
     const searchEl = document.getElementById("target-search");
     const resultsEl = document.getElementById("target-results");
+    // Metas are the owner's (web mode): everyone else reads the table.
+    if (!ui.canManage()) searchEl.parentElement.classList.add("hidden");
     const pendingEl = document.getElementById("target-pending");
     const listEl = document.getElementById("targets-list");
 
@@ -233,7 +235,11 @@ views.targets = (() => {
             </tbody>
           </table>
         </div>
-        <p class="text-xs text-zinc-600 mt-2">${i18n.t("targets.editHint")}</p>`;
+        ${ui.canManage() ? `<p class="text-xs text-zinc-600 mt-2">${i18n.t("targets.editHint")}</p>` : ""}`;
+      if (!ui.canManage()) {
+        listEl.querySelectorAll(".target-input").forEach((inputEl) => (inputEl.disabled = true));
+        listEl.querySelectorAll(".remove-target").forEach((btn) => btn.remove());
+      }
 
       listEl.querySelectorAll(".target-input").forEach((inputEl) => {
         const initial = inputEl.value;

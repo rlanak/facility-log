@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from app import schemas
+from app import auth, schemas
 from app.database import get_db
 from app.services import capture, netguard
 from app.services.errors_i18n import err
@@ -9,8 +9,8 @@ from app.services.errors_i18n import err
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 
-def _to_out(db: Session) -> schemas.CaptureSettingsOut:
-    settings = capture.get_settings(db)
+def _to_out(db: Session, user_id: int | None) -> schemas.CaptureSettingsOut:
+    settings = capture.get_settings(db, user_id)
     status = capture.provider_status(settings)
     key = settings["api_key"]
     return schemas.CaptureSettingsOut(
@@ -31,8 +31,8 @@ def _to_out(db: Session) -> schemas.CaptureSettingsOut:
 
 
 @router.get("/capture", response_model=schemas.CaptureSettingsOut)
-def get_capture_settings(db: Session = Depends(get_db)):
-    return _to_out(db)
+def get_capture_settings(request: Request, db: Session = Depends(get_db)):
+    return _to_out(db, auth.current_user_id(request))
 
 
 def _valid_url(url: str | None) -> bool:
@@ -40,11 +40,14 @@ def _valid_url(url: str | None) -> bool:
 
 
 @router.put("/capture", response_model=schemas.CaptureSettingsOut)
-def update_capture_settings(data: schemas.CaptureSettingsIn, lang: str = "pt-BR", db: Session = Depends(get_db)):
+def update_capture_settings(
+    request: Request, data: schemas.CaptureSettingsIn, lang: str = "pt-BR", db: Session = Depends(get_db)
+):
+    user_id = auth.current_user_id(request)
     values = data.model_dump(exclude_unset=True, exclude={"api_key", "clear_api_key"})
     if not _valid_url(values.get("api_base_url")) or not _valid_url(values.get("ollama_url")):
         raise HTTPException(status_code=422, detail=err("invalid_url", lang))
-    current = capture.get_settings(db)
+    current = capture.get_settings(db, user_id)
     # Security (14/11/2026): the server calls these addresses, and on the web
     # any member can save them. Only public addresses there (netguard), and
     # the server's Ollama address isn't a setting at all.
@@ -59,10 +62,11 @@ def update_capture_settings(data: schemas.CaptureSettingsIn, lang: str = "pt-BR"
         values.get("capture_provider") == "local_vlm" and not capture.server_local_ai_allowed()
     ):
         values.pop("capture_provider")
-    # Security (08/11/2026): settings are shared by everyone with the role, and
-    # the saved key is sent to api_base_url. Pointing it somewhere else (or
-    # switching the API kind) without typing the key again would hand the
-    # owner's key to that address — so that drops the saved key instead.
+    # Security (08/11/2026): the saved key is sent to api_base_url. Pointing
+    # it somewhere else (or switching the API kind) without typing the key
+    # again would hand the key to that address — so that drops the saved key
+    # instead. (Settings were shared by everyone then; they are each
+    # person's own on the web now, and the rule still costs nothing.)
     moved = any(
         k in values and (values[k] or "") != (current.get(k) or "") for k in ("api_base_url", "api_kind")
     )
@@ -71,5 +75,5 @@ def update_capture_settings(data: schemas.CaptureSettingsIn, lang: str = "pt-BR"
         values["api_key"] = ""
     elif data.api_key:
         values["api_key"] = data.api_key.strip()
-    capture.save_settings(db, {k: (v or "") for k, v in values.items()})
-    return _to_out(db)
+    capture.save_settings(db, {k: (v or "") for k, v in values.items()}, user_id)
+    return _to_out(db, user_id)

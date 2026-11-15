@@ -1,9 +1,9 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from app import crud, schemas
+from app import auth, crud, permissions, schemas
 from app.database import get_db
 from app.services import foxhole_data, private_orders, production
 from app.services.errors_i18n import err
@@ -37,10 +37,18 @@ def get_building(building_id: int, lang: str = "pt-BR", db: Session = Depends(ge
 
 
 @router.put("/api/buildings/{building_id}", response_model=schemas.BuildingOut)
-def update_building(building_id: int, data: schemas.BuildingUpdate, lang: str = "pt-BR", db: Session = Depends(get_db)):
+def update_building(
+    request: Request, building_id: int, data: schemas.BuildingUpdate, lang: str = "pt-BR", db: Session = Depends(get_db)
+):
     building = crud.get_building(db, building_id)
     if not building:
         raise HTTPException(status_code=404, detail=err("building_not_found", lang))
+    # Someone allowed on the building sets its production, and the installed
+    # upgrade goes with that. Name, place and order are the owner's.
+    if set(data.model_dump(exclude_unset=True)) - {"upgrade"}:
+        facility = crud.get_facility(db, building.facility_id)
+        if not permissions.access_for(db, facility, auth.current_user(request)).manage:
+            raise HTTPException(status_code=403, detail=err("owner_only", lang, owner=facility.owner_name or "?"))
     return crud.update_building(db, building, data)
 
 

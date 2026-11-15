@@ -75,6 +75,9 @@ class FacilityOut(FacilityBase):
     owner_id: int | None = None
     owner_name: str | None = None
     private: bool = False
+    # What whoever asked may change here: {"manage", "admin", "buildings":
+    # "all" | [ids]} — app/permissions.py. The server enforces it either way.
+    access: dict | None = None
 
 
 class BuildingBase(BaseModel):
@@ -328,6 +331,7 @@ class UserOut(BaseModel):
 class MeOut(BaseModel):
     auth_enabled: bool
     user: UserOut | None
+    is_admin: bool = False  # always True in local mode (no accounts)
 
 
 class IconExemplarIn(BaseModel):

@@ -173,7 +173,8 @@ views.facilityDetail = (() => {
   async function openTransfer(app, facility, myId, activeTab) {
     let users;
     try {
-      users = (await api.listUsers()).filter((u) => u.id !== myId && u.id !== facility.owner_id);
+      // An admin handing over a facility that isn't theirs may pick themself.
+      users = (await api.listUsers()).filter((u) => u.id !== facility.owner_id && (u.id !== myId || !ui.canManage()));
     } catch (err) {
       ui.toast(err.message, true);
       return;
@@ -213,6 +214,121 @@ views.facilityDetail = (() => {
     });
   }
 
+  // Who else may edit, and where (web mode, the owner only). One person at
+  // a time: read only, every building, or the chosen ones.
+  async function openPermissions(facility) {
+    let users, buildings, perms;
+    try {
+      [users, buildings, perms] = await Promise.all([
+        api.listUsers(),
+        api.listBuildings(facility.id),
+        api.listPermissions(facility.id),
+      ]);
+    } catch (err) {
+      ui.toast(err.message, true);
+      return;
+    }
+    users = users.filter((u) => u.id !== facility.owner_id);
+    const label = (b) => {
+      const name = i18n.buildingName(b, b.building_type_key ? getFoxholeType(b.building_type_key) : null);
+      return b.location ? `${name} (${b.location})` : name;
+    };
+    ui.openModal(
+      i18n.t("perm.title", { name: facility.name }),
+      (body) => {
+        body.innerHTML = `
+          <p class="text-sm text-zinc-400 mb-4">${i18n.t("perm.intro")}</p>
+          <h3 class="text-xs uppercase tracking-wide text-zinc-500 mb-1">${i18n.t("perm.current")}</h3>
+          <div class="perm-list grid gap-1 mb-4"></div>
+          <select class="perm-user w-full min-w-0 bg-zinc-950 border border-zinc-700 rounded px-2 py-1.5 text-sm mb-3">
+            <option value="">${i18n.t("perm.pickUser")}</option>
+            ${users.map((u) => `<option value="${u.id}">${ui.escapeHtml(u.name)}</option>`).join("")}
+          </select>
+          <div class="perm-form hidden grid gap-2"></div>`;
+        const listEl = body.querySelector(".perm-list");
+        const select = body.querySelector(".perm-user");
+        const formEl = body.querySelector(".perm-form");
+        if (!users.length) select.outerHTML = `<p class="text-sm text-zinc-500">${i18n.t("perm.noUsers")}</p>`;
+
+        function drawList() {
+          listEl.innerHTML = perms.length
+            ? ""
+            : `<p class="text-sm text-zinc-500">${i18n.t("perm.nobody")}</p>`;
+          for (const p of perms) {
+            const row = ui.el(
+              "button",
+              { type: "button", class: "flex items-center gap-2 min-w-0 text-left text-sm rounded border border-zinc-800 hover:border-zinc-600 px-2 py-1" },
+              [
+                ui.el("span", { class: "truncate flex-1 min-w-0" }, p.name),
+                ui.el(
+                  "span",
+                  { class: "text-xs text-emerald-400 shrink-0" },
+                  p.all ? i18n.t("perm.allShort") : i18n.t("perm.nBuildings", { n: p.building_ids.length })
+                ),
+              ]
+            );
+            row.addEventListener("click", () => {
+              select.value = String(p.user_id);
+              drawForm();
+            });
+            listEl.appendChild(row);
+          }
+        }
+
+        function drawForm() {
+          const userId = Number(select.value);
+          formEl.classList.toggle("hidden", !userId);
+          if (!userId) return;
+          const current = perms.find((p) => p.user_id === userId) || { all: false, building_ids: [] };
+          const mode = current.all ? "all" : current.building_ids.length ? "some" : "none";
+          const radio = (value, text) =>
+            `<label class="flex items-start gap-2 text-sm cursor-pointer"><input type="radio" name="perm-mode" value="${value}" class="mt-1 accent-emerald-600" ${value === mode ? "checked" : ""} /><span>${text}</span></label>`;
+          formEl.innerHTML = `
+            ${radio("none", i18n.t("perm.none"))}
+            ${radio("all", i18n.t("perm.all"))}
+            ${radio("some", i18n.t("perm.some"))}
+            <div class="perm-buildings grid gap-1 ml-6 max-h-56 overflow-y-auto">
+              ${
+                buildings.length
+                  ? buildings
+                      .map(
+                        (b) =>
+                          `<label class="flex items-center gap-2 text-sm min-w-0 cursor-pointer"><input type="checkbox" value="${b.id}" class="accent-emerald-600" ${current.building_ids.includes(b.id) ? "checked" : ""} /><span class="truncate">${ui.escapeHtml(label(b))}</span></label>`
+                      )
+                      .join("")
+                  : `<p class="text-xs text-zinc-500">${i18n.t("facilityDetail.noBuildings")}</p>`
+              }
+            </div>
+            <div><button type="button" class="perm-save bg-emerald-700 hover:bg-emerald-600 px-4 py-2 rounded text-sm font-semibold">${i18n.t("common.save")}</button></div>`;
+          const boxes = formEl.querySelector(".perm-buildings");
+          const sync = () => boxes.classList.toggle("hidden", formEl.querySelector('[name="perm-mode"]:checked').value !== "some");
+          formEl.querySelectorAll('[name="perm-mode"]').forEach((r) => r.addEventListener("change", sync));
+          sync();
+          formEl.querySelector(".perm-save").addEventListener("click", async () => {
+            const chosen = formEl.querySelector('[name="perm-mode"]:checked').value;
+            const ids = [...boxes.querySelectorAll("input:checked")].map((i) => Number(i.value));
+            try {
+              perms = await api.setPermission(facility.id, {
+                user_id: userId,
+                all: chosen === "all",
+                building_ids: chosen === "some" ? ids : [],
+              });
+              ui.toast(i18n.t("perm.saved", { name: select.options[select.selectedIndex].text }));
+              drawList();
+              drawForm();
+            } catch (err) {
+              ui.toast(err.message, true);
+            }
+          });
+        }
+
+        select.addEventListener("change", drawForm);
+        drawList();
+      },
+      { maxWidth: "max-w-lg" }
+    );
+  }
+
   async function render(app, id, activeTab = "buildings") {
     facilityId = id;
     if (activeTab === "live") activeTab = "dashboard"; // old name of the tab, kept for saved links
@@ -224,11 +340,25 @@ views.facilityDetail = (() => {
       return;
     }
 
-    // Private/shared only means something with login on (web mode); the
-    // owner (or anyone, for a facility without owner yet) can switch it.
+    // Web mode: what this person may change here (app/permissions.py) —
+    // every view reads it through ui.canManage() / ui.canEdit(). Private or
+    // shared, renaming, deleting and who else edits are the owner's.
+    window.appAccess = facility.access || null;
     const me = window.appMe || {};
     const myId = me.user ? me.user.id : null;
-    const isOwner = !me.auth_enabled || !facility.owner_id || facility.owner_id === myId;
+    const isOwner = ui.canManage();
+    const editable = facility.access && facility.access.buildings !== "all" ? facility.access.buildings.length : 0;
+    const notice = !me.auth_enabled || isOwner
+      ? ""
+      : `<p class="text-xs text-amber-400 border border-amber-900 bg-amber-950/30 rounded px-3 py-2 mb-4">${ui.icon("lock", "w-3.5 h-3.5")} ${
+          !facility.owner_id
+            ? i18n.t("facilityDetail.noOwner")
+            : facility.access && facility.access.buildings === "all"
+              ? i18n.t("facilityDetail.readOnlyAll", { owner: ui.escapeHtml(facility.owner_name || "?") })
+              : editable
+                ? i18n.t("facilityDetail.readOnlySome", { n: editable, owner: ui.escapeHtml(facility.owner_name || "?") })
+                : i18n.t("facilityDetail.readOnly", { owner: ui.escapeHtml(facility.owner_name || "?") })
+        }</p>`;
     const sharing = me.auth_enabled
       ? `<button id="toggle-private" ${isOwner ? "" : "disabled"}
             title="${i18n.t(facility.private ? "facilityDetail.privateHint" : "facilityDetail.sharedHint")}"
@@ -242,13 +372,15 @@ views.facilityDetail = (() => {
           <h1 class="text-2xl font-bold uppercase tracking-wide leading-tight">${ui.escapeHtml(facility.name)}</h1>
           ${facility.owner_name ? `<div class="text-xs text-zinc-500">${i18n.t("facilities.owner", { name: ui.escapeHtml(facility.owner_name) })}</div>` : ""}
         </div>
-        <div class="flex gap-2">
+        <div class="flex flex-wrap gap-2">
           ${sharing}
-          ${me.auth_enabled && isOwner ? `<button id="transfer-facility" class="text-xs text-zinc-300 hover:text-zinc-100 border border-zinc-700 hover:border-zinc-500 rounded px-2 py-1">${i18n.t("facilityDetail.transfer")}</button>` : ""}
-          <button id="rename-facility" class="text-xs text-zinc-300 hover:text-zinc-100 border border-zinc-700 hover:border-zinc-500 rounded px-2 py-1">${i18n.t("facilityDetail.rename")}</button>
+          ${me.auth_enabled && isOwner ? `<button id="facility-permissions" class="text-xs text-zinc-300 hover:text-zinc-100 border border-zinc-700 hover:border-zinc-500 rounded px-2 py-1">${i18n.t("facilityDetail.permissions")}</button>` : ""}
+          ${me.auth_enabled && (isOwner || ui.isAdmin()) ? `<button id="transfer-facility" class="text-xs text-zinc-300 hover:text-zinc-100 border border-zinc-700 hover:border-zinc-500 rounded px-2 py-1">${i18n.t("facilityDetail.transfer")}</button>` : ""}
+          <button id="rename-facility" ${isOwner ? "" : "hidden"} class="text-xs text-zinc-300 hover:text-zinc-100 border border-zinc-700 hover:border-zinc-500 rounded px-2 py-1">${i18n.t("facilityDetail.rename")}</button>
           <button id="delete-facility" ${isOwner ? "" : "hidden"} class="text-xs text-red-400 hover:text-red-300 border border-red-900 hover:border-red-600 rounded px-2 py-1">${i18n.t("facilityDetail.deleteFacility")}</button>
         </div>
       </div>
+      ${notice}
       <div class="flex flex-wrap gap-2 mb-6">
         ${tabLink("buildings", i18n.t("facilityDetail.tabBuildings"), activeTab)}
         ${tabLink("targets", i18n.t("facilityDetail.tabTargets"), activeTab)}
@@ -279,6 +411,9 @@ views.facilityDetail = (() => {
         ui.toast(err.message, true);
       }
     });
+
+    const permissionsBtn = document.getElementById("facility-permissions");
+    if (permissionsBtn) permissionsBtn.addEventListener("click", () => openPermissions(facility));
 
     const transferBtn = document.getElementById("transfer-facility");
     if (transferBtn) transferBtn.addEventListener("click", () => openTransfer(app, facility, myId, activeTab));
@@ -342,6 +477,9 @@ views.facilityDetail = (() => {
       <div id="buildings-list" class="space-y-6"></div>
     `;
 
+    // Adding buildings is the owner's (web mode).
+    if (!ui.canManage()) document.getElementById("new-building-form").classList.add("hidden");
+
     // Per-viewer preference: "type" (default), "upgrade" (type + upgrade),
     // "location" or "location_type" (location + type).
     const GROUPINGS = ["type", "upgrade", "location", "location_type"];
@@ -362,7 +500,7 @@ views.facilityDetail = (() => {
       ui.openModal(
         i18n.t("facilityDetail.bulkSave"),
         (body, close) => {
-          views.saveImport.renderBulkUI(body, savePeers, () => {
+          views.saveImport.renderBulkUI(body, savePeers.filter((b) => ui.canEdit(b.id)), () => {
             renderBuildingsList();
             close();
           });
@@ -421,7 +559,9 @@ views.facilityDetail = (() => {
         const name = i18n.buildingName(b, b.building_type_key ? getFoxholeType(b.building_type_key) : null);
         return { id: b.id, name: b.location ? `${name} (${b.location})` : name, save_pin_key: b.save_pin_key };
       });
-      document.getElementById("bulk-save-import").classList.toggle("hidden", !savePeers.some((b) => b.save_pin_key));
+      document
+        .getElementById("bulk-save-import")
+        .classList.toggle("hidden", !savePeers.some((b) => b.save_pin_key && ui.canEdit(b.id)));
       orderDestinations = savePeers.map((p, i) => {
         const type = buildings[i].building_type_key ? getFoxholeType(buildings[i].building_type_key) : null;
         return { id: p.id, label: p.name, storage: Boolean(type && type.storage) };
@@ -537,6 +677,10 @@ views.facilityDetail = (() => {
     function makeCardDraggable(listEl, grid, card, buildingId) {
       card.dataset.buildingId = buildingId;
       const handle = card.querySelector(".drag-handle");
+      if (!ui.canManage()) {
+        handle.classList.add("hidden"); // the order is the owner's
+        return;
+      }
       handle.draggable = true;
       handle.addEventListener("dragstart", (e) => {
         draggingId = String(buildingId);
@@ -879,6 +1023,14 @@ views.facilityDetail = (() => {
           });
         });
       });
+    }
+
+    // Web mode: what this person can't use here is taken out, after every
+    // listener above found its button (the server refuses it anyway).
+    if (!ui.canManage()) card.querySelectorAll(".edit-building, .delete-building").forEach((e) => e.remove());
+    if (!ui.canEdit(building.id)) {
+      card.querySelectorAll(".delete-stock-item, .add-liquid").forEach((e) => e.remove());
+      card.querySelector(".open-stock-modal").parentElement.remove();
     }
 
     return card;

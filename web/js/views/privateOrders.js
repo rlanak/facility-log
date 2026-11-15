@@ -165,12 +165,15 @@ views.privateOrders = (() => {
   // The card's "Filas privadas" block: one line per open order + the add button.
   function cardSection({ building, recipes, orders, defs, buildings, resources, onChange, recipeLabel }) {
     const box = ui.el("div", { class: "private-orders mt-2 grid gap-1.5" });
+    // Web mode: someone not allowed on this building only sees the orders.
+    const editable = ui.canEdit(building.id);
     const list = sortOrders(orders)
-      .map((o) => orderBlock(o, defs, { actions: true }))
+      .map((o) => orderBlock(o, defs, { actions: editable }))
       .join("");
     box.innerHTML = `
       ${list}
-      <button class="po-add inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-emerald-300" title="${i18n.t("private.addHint")}">${ui.icon("lock", "w-3.5 h-3.5")}${i18n.t("private.add")}</button>`;
+      ${editable ? `<button class="po-add inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-emerald-300" title="${i18n.t("private.addHint")}">${ui.icon("lock", "w-3.5 h-3.5")}${i18n.t("private.add")}</button>` : ""}`;
+    if (!editable) return box;
 
     const title = (key) => `${i18n.t(key)} — ${i18n.buildingName(building, null)}`;
     box.querySelector(".po-add").addEventListener("click", () =>

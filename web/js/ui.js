@@ -151,5 +151,19 @@ const ui = (() => {
     return `<svg class="${cls} shrink-0" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5l9.1 5.25v10.5L12 22.5l-9.1-5.25V6.75z" fill="rgb(var(--c-emerald-600))" stroke="rgb(var(--c-emerald-400))" stroke-width="1"/><path d="M6.5 16.5v-5l3.2 2v-2l3.2 2V7.5h2.6l.9 9z" fill="rgb(var(--c-zinc-950))"/></svg>`;
   }
 
-  return { toast, copyText, escapeHtml, el, openModal, icon, logo, parseQuantity };
+  // What the person may change in the facility on screen (web mode; see
+  // app/permissions.py). facilityDetail keeps window.appAccess = the
+  // facility's `access`. This only hides controls: the server refuses the
+  // change either way. Local mode has no accounts — everything is allowed.
+  function access() {
+    return window.appAccess || { manage: true, admin: true, buildings: "all" };
+  }
+  const canManage = () => Boolean(access().manage);
+  function canEdit(buildingId) {
+    const a = access();
+    return Boolean(a.manage) || a.buildings === "all" || (a.buildings || []).includes(Number(buildingId));
+  }
+  const isAdmin = () => !window.appMe || !window.appMe.auth_enabled || Boolean(window.appMe.is_admin);
+
+  return { toast, copyText, escapeHtml, el, openModal, icon, logo, parseQuantity, canManage, canEdit, isAdmin };
 })();

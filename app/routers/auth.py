@@ -35,7 +35,8 @@ def callback(request: Request, code: str = "", state: str = "", error: str = "",
     access = None
     try:
         access = auth.exchange_code(code)["access_token"]
-        if not auth.has_allowed_role(access):
+        allowed, is_admin = auth.login_roles(access)
+        if not allowed:
             return _fail("no_role")
         profile = auth.fetch_user(access)
     except (auth.DiscordError, KeyError):
@@ -58,6 +59,7 @@ def callback(request: Request, code: str = "", state: str = "", error: str = "",
     request.session.clear()
     request.session["user_id"] = user.id
     request.session["login_at"] = int(datetime.now(timezone.utc).timestamp())
+    request.session["admin"] = is_admin
     return RedirectResponse("/")
 
 
@@ -74,6 +76,7 @@ def me(request: Request):
     return schemas.MeOut(
         auth_enabled=auth.config.enabled,
         user=schemas.UserOut(id=user.id, name=user.name, avatar_url=user.avatar_url) if user else None,
+        is_admin=bool(user and user.is_admin) or not auth.config.enabled,
     )
 
 

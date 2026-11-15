@@ -294,7 +294,9 @@ views.saveImport = (() => {
         }
         try {
           for (const r of chosen.filter((r) => r.pickedKey)) {
-            await api.setCodenameAlias({ codename: r.codename, resource_def_key: r.pickedKey });
+            // Remembering the pick for next time is global, so on the web
+            // only an admin's sticks; the import goes on with it either way.
+            await api.setCodenameAlias({ codename: r.codename, resource_def_key: r.pickedKey }).catch(() => {});
           }
           await api.linkSavePin(building.id, current.key, current.location);
           await api.addBuildingStock(

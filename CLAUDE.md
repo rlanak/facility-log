@@ -266,7 +266,7 @@ Decisões do detector (medidas em prints reais — não desfazer sem medir de no
 - Inventário de veículo (mesmo item em vários slots) não é suportado.
 - **Zerar o que não está no print** (caixa no modal, lembrada em `localStorage["printZeroMissing"]`, ligada por padrão): o painel STOCKPILE lista tudo que existe, então item lançado no prédio que o print não mostra ganha uma linha **0** — nunca apaga histórico, nunca mexe em tanque. A caixa mostra antes quais itens vão zerar, e o formulário manda esses zeros como lançamentos (exatamente a lista da caixa; o `?zero_missing=true` do servidor continua existindo). Item **achado no print mas sem número lido** não zera: fica com o valor de antes e a caixa avisa (zerava junto com o resto). Linha com 0 some do card e do relatório (o cálculo ainda a vê).
 
-**Quem lê o número no servidor** é escolhido em Configurações (`app_settings`, global): `rapidocr`
+**Quem lê o número no servidor** é escolhido em Configurações (`app_settings` no modo local; de cada pessoa no modo web — ver "Modo web"): `rapidocr`
 (padrão), `local_vlm` (Ollama na máquina do app) e `api_vlm` (Anthropic ou endpoint compatível com
 OpenAI, chave do usuário). Indisponível → `capture.resolve_reader()` cai pro RapidOCR e o modal avisa.
 Erro vira "não leu", nunca 500. O recorte que vai pro leitor tem no máximo `MAX_READ_SIDE` (1600px) no
@@ -394,16 +394,36 @@ Desligado por padrão; liga com `DISCORD_CLIENT_ID` (env ou `.env`; env real ven
   usuário em `GET /users/@me/guilds/{guild}/member` — **sem bot**, e o app do Discord não precisa estar
   no servidor nem ser verificado.
 - **Nenhum token do Discord é guardado:** usado no login (cargo, nome, avatar) e **revogado na hora**.
-  Cargo conferido só no login; sessão (cookie assinado, `https_only` com redirect https) vale 7 dias a
-  partir do `login_at` (`auth.SESSION_SECONDS`). `access_token`/`refresh_token` em `users` ficam vazios.
+  Cargo conferido só no login; sessão (cookie assinado, `https_only` com redirect https) vale 1 dia a
+  partir do `login_at` (`auth.SESSION_SECONDS`; `FACILITY_LOG_SESSION_DAYS` muda) — o Discord refaz o
+  login sem perguntar nada, então sessão curta custa um redirecionamento. `access_token`/`refresh_token`
+  em `users` ficam vazios.
 - `auth.gate`: todo `/api/*` e `/uploads/*` exige sessão (401); estáticos públicos; `/api/me` sempre
   responde. Janela "O que fica guardado" (`showPrivacy` em `app.js`) — manter em dia.
-- **Facility privada/compartilhada:** compartilhada (padrão) = todos com o cargo veem e editam; privada =
-  só o dono vê; só o dono exclui, troca a visibilidade, configura webhook ou **transfere** (sem volta;
-  `PUT /api/facilities/{id}/owner`, lista de `GET /api/users`). Sem dono = de todos; quem marca como
-  privada vira dono. Bloqueio no `auth.gate` (`_private_facility_blocked`, padrões em `_FACILITY_PATHS`):
-  facility alheia privada responde 404. Rota nova com outro formato de caminho precisa entrar ali.
-- Configurações (motor de captura, chave de API) são globais.
+- **Facility privada/compartilhada:** compartilhada (padrão) = todos com o cargo **veem**; privada = só o
+  dono vê. Bloqueio no `auth.gate` (`_private_facility_blocked`, padrões em `_FACILITY_PATHS`): facility
+  alheia privada responde 404. Rota nova com outro formato de caminho precisa entrar ali.
+- **Quem altera** (`app/permissions.py`; começou como "compartilhada sem restrição" e um membro
+  mal-intencionado estragava os números de todos): o **dono** faz tudo — prédios, Metas, origem dos itens,
+  relatório, Histórico, webhook, visibilidade, transferir e **Permissões**; quem o dono **liberou** (botão
+  Permissões: por pessoa, em todos os prédios ou nos escolhidos; `facility_permissions`, linha sem prédio =
+  todos, inclusive os criados depois) lança estoque, print, save, Produção (e o upgrade instalado) e fila
+  privada naqueles prédios; o resto só lê. **Admin** = quem tinha no login um cargo de
+  `DISCORD_ADMIN_ROLE_IDS` (vários, separados por vírgula; cargo de admin também dá entrada): transfere
+  qualquer facility que enxerga — único jeito de uma **sem dono** (criada antes do login) ganhar um, até lá
+  ela é só leitura pra todos — e é o único que mexe no que é global (`/api/resources`, apelido do item,
+  `codename_aliases`). Admin não vira editor. Tirar a permissão vale na hora (lida do banco a cada pedido).
+- **Onde isso é aplicado:** `auth.write_denied` no `auth.gate`, pra todo POST/PUT/PATCH/DELETE em `/api/`,
+  pela tabela `_WRITE_RULES` (primeira regra que casa). **Escrita que não casa com nada é só de admin** —
+  rota nova nasce fechada e precisa de regra lá. `PUT /api/buildings/{id}` é afinado na própria rota (só
+  `upgrade` pra quem não é dono). A facility devolve `access` (`manage`, `admin`, `buildings`) e as telas
+  escondem os controles com `ui.canManage()` / `ui.canEdit(id)` / `ui.isAdmin()` — só aparência, quem
+  recusa é o servidor. Modo local: tudo liberado.
+- **Configurações de captura são de cada pessoa** no modo web (`user_settings`, chave criptografada): era
+  global, e a chave paga de um lia os prints de todos. O modo local continua com `app_settings`. A chave
+  global antiga é apagada na migração quando o login está ligado.
+- **Limite de prints:** `FACILITY_LOG_UPLOADS_PER_DAY` (padrão 10; 0 desliga) por pessoa em 24h, só no
+  modo web (`upload_images.uploaded_by_id`); ao passar, 429 e o lançamento à mão continua.
 
 **Segurança mínima:**
 - Segredos (URL do webhook, `app_settings`) criptografados no banco (`crypto.py`, Fernet, coluna
@@ -423,7 +443,7 @@ Desligado por padrão; liga com `DISCORD_CLIENT_ID` (env ou `.env`; env real ven
 - **Upload de print** (`routers/images.py`): a imagem é decodificada (Pillow) e só PNG/JPEG/WEBP de verdade fica, salva com a extensão do formato real — nunca a do nome enviado (um `.html` disfarçado virava página do próprio site). Máx. 20 MB e 40 Mpx. `/uploads` só serve `.png/.jpg/.jpeg/.webp` (`ImageOnlyStaticFiles`). `.sav` lido no máximo até `MAX_SAVE_BYTES`. `upload_images.file_path` é o caminho absoluto de quando foi salvo e a pasta já mudou (até de Windows pra Linux): só o nome do arquivo vale (`database.upload_path`). Print só serve enquanto é lido e nada o mostra de novo; mesmo assim só é apagado se `FACILITY_LOG_UPLOAD_DAYS` disser quantos dias guardar (`services/upload_cleanup.py` — desligado por padrão: apagar arquivo de alguém não é decisão do app).
 - **Endereço que o servidor chama** (`services/netguard.py`): no modo web o `api_base_url` só pode ser da internet pública — rede interna, loopback, metadata de nuvem (169.254.169.254) e CGNAT são recusados ao salvar **e na hora da conexão** (nome que muda de IP depois), e redirecionamento nunca é seguido; `FACILITY_LOG_ALLOW_PRIVATE_URLS=1` libera. O endereço do Ollama do servidor não é configuração no modo web: vem de `FACILITY_LOG_OLLAMA_URL`. No modo local nada disso bloqueia (é o PC da pessoa falando com a própria rede).
 - **Print de facility privada**: `/uploads/<arquivo>` passa pelo mesmo bloqueio das rotas (`_private_facility_blocked` acha o prédio pelo nome do arquivo) — link vazado não abre pra quem não é o dono.
-- **Configurações são de todos com o cargo**: mudar `api_base_url` ou `api_kind` sem digitar a chave de novo **apaga a chave salva** (senão qualquer membro mandava a chave do dono pra outro endereço); endereços só `http(s)://`.
+- **Chave de API e endereço**: mudar `api_base_url` ou `api_kind` sem digitar a chave de novo **apaga a chave salva** (regra de quando as configurações eram de todos: qualquer membro mandava a chave do dono pra outro endereço; mantida); endereços só `http(s)://`.
 - **Container sem root**: `docker-entrypoint.sh` entra como root só pra dar `/data` ao usuário `app` (uid/gid 1000) e roda o app com `setpriv`; compose com `no-new-privileges` e só as capabilities `CHOWN`/`SETUID`/`SETGID` (o processo do app fica sem nenhuma). Comando dentro do container que escreve em `/data` (backup) vai com `docker compose exec -u app` — o root de lá não tem permissão nos arquivos.
 - Conferir CVEs: `pip-audit` (local e com o `pip freeze` do container), OSV pro `Cargo.lock` do parser e grype/trivy na imagem publicada.
 

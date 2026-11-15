@@ -13,8 +13,12 @@ own token read their membership/roles in that one guild
 Nothing of the Discord account is kept (03/11/2026, so users don't have to
 trust whoever runs the server with it): the token is used once at login
 (role + name/avatar), then revoked at Discord and thrown away. The role is
-therefore checked at login only; the session lasts SESSION_SECONDS (7 days)
-from that login, so someone who loses the role is out within a week.
+therefore checked at login only; the session lasts SESSION_SECONDS from that
+login (1 day unless FACILITY_LOG_SESSION_DAYS says otherwise — Discord logs
+the person back in without asking anything, so a short session costs one
+redirect), so someone who loses the role is out within a day. Until then
+they only read, unless a facility's owner allowed them to edit — and the
+owner takes that back on the spot (app/permissions.py).
 
 Environment:
     DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET   — from the Discord Developer Portal app
@@ -22,6 +26,9 @@ Environment:
                                                  (must be registered in the portal)
     DISCORD_GUILD_ID                           — the regiment's server
     DISCORD_ALLOWED_ROLE_IDS                   — comma-separated role IDs
+    DISCORD_ADMIN_ROLE_IDS                     — optional, comma-separated: roles that are
+                                                 admins (app/permissions.py); they get in too
+    FACILITY_LOG_SESSION_DAYS                  — optional, how long a login lasts (default 1)
     SESSION_SECRET                             — long random string signing the cookie
 """
 
@@ -40,7 +47,21 @@ from fastapi.responses import JSONResponse
 DISCORD_API = "https://discord.com/api/v10"
 DISCORD_AUTHORIZE_URL = "https://discord.com/oauth2/authorize"
 SCOPES = "identify guilds.members.read"
-SESSION_SECONDS = 7 * 24 * 3600
+
+
+def _session_seconds() -> int:
+    try:
+        days = float(os.environ.get("FACILITY_LOG_SESSION_DAYS", "").strip() or 1)
+    except ValueError:
+        days = 1
+    return int(min(max(days, 1 / 24), 30) * 24 * 3600)  # an hour to a month
+
+
+SESSION_SECONDS = _session_seconds()
+
+
+def _role_ids(name: str) -> set[str]:
+    return {r.strip() for r in os.environ.get(name, "").split(",") if r.strip()}
 
 
 class Config:
@@ -49,9 +70,8 @@ class Config:
         self.client_secret = os.environ.get("DISCORD_CLIENT_SECRET", "").strip()
         self.redirect_uri = os.environ.get("DISCORD_REDIRECT_URI", "").strip()
         self.guild_id = os.environ.get("DISCORD_GUILD_ID", "").strip()
-        self.allowed_role_ids = {
-            r.strip() for r in os.environ.get("DISCORD_ALLOWED_ROLE_IDS", "").split(",") if r.strip()
-        }
+        self.allowed_role_ids = _role_ids("DISCORD_ALLOWED_ROLE_IDS")
+        self.admin_role_ids = _role_ids("DISCORD_ADMIN_ROLE_IDS")
         self.session_secret = os.environ.get("SESSION_SECRET", "").strip()
 
     @property
@@ -150,16 +170,22 @@ def fetch_user(access_token: str) -> dict:
     return _request("GET", f"{DISCORD_API}/users/@me", token=access_token)
 
 
-def has_allowed_role(access_token: str) -> bool:
-    """False when the user isn't in the guild at all (Discord answers 404)
-    or holds none of the allowed roles."""
+def login_roles(access_token: str) -> tuple[bool, bool]:
+    """(may come in, is admin). Both False when the user isn't in the guild
+    at all (Discord answers 404) or holds none of the roles. An admin role
+    lets someone in by itself."""
     try:
         member = _request("GET", f"{DISCORD_API}/users/@me/guilds/{config.guild_id}/member", token=access_token)
     except DiscordError as exc:
         if str(exc).startswith("404"):
-            return False
+            return False, False
         raise
-    return bool(set(member.get("roles", [])) & config.allowed_role_ids)
+    return roles_grant(set(member.get("roles", [])))
+
+
+def roles_grant(roles: set[str]) -> tuple[bool, bool]:
+    admin = bool(roles & config.admin_role_ids)
+    return admin or bool(roles & config.allowed_role_ids), admin
 
 
 def avatar_url(user_json: dict) -> str | None:
@@ -178,6 +204,7 @@ class SessionUser:
     id: int
     name: str
     avatar_url: str | None
+    is_admin: bool = False  # held an admin role at login (app/permissions.py)
 
 
 def _load_user(request) -> SessionUser | None:
@@ -200,7 +227,12 @@ def _load_user(request) -> SessionUser | None:
         if not user:
             request.session.clear()
             return None
-        return SessionUser(id=user.id, name=user.display_name or user.username, avatar_url=user.avatar_url)
+        return SessionUser(
+            id=user.id,
+            name=user.display_name or user.username,
+            avatar_url=user.avatar_url,
+            is_admin=bool(request.session.get("admin")),
+        )
 
 
 # Paths that name one facility's data, directly or through a building, a
@@ -262,6 +294,80 @@ def _private_facility_blocked(path: str, query_params, user_id: int) -> bool:
         return bool(facility and facility.private and facility.owner_id != user_id)
 
 
+# --- Who may write (app/permissions.py) --------------------------------------
+# Every POST/PUT/PATCH/DELETE under /api/ goes through here, first match wins:
+#   member    anyone logged in
+#   owner     the facility's owner
+#   transfer  the owner, or an admin (handing the facility to someone)
+#   building  the owner, or a member allowed on that building
+#   admin     an admin
+# A write that matches nothing is the admins' — a new route is closed until
+# someone decides who it is for.
+_WRITE_RULES = [
+    ("POST", re.compile(r"^/api/facilities$"), "member", None),
+    ("PUT", re.compile(r"^/api/facilities/(\d+)/owner$"), "transfer", "facility"),
+    ("POST", re.compile(r"^/api/facilities/(\d+)/discord-webhook/send$"), "member", None),
+    (None, re.compile(r"^/api/facilities/(\d+)(?:/|$)"), "owner", "facility"),
+    # The route narrows it: anything but the installed upgrade is the owner's.
+    ("PUT", re.compile(r"^/api/buildings/(\d+)$"), "building", "building"),
+    (None, re.compile(r"^/api/buildings/(\d+)$"), "owner", "building"),
+    (None, re.compile(r"^/api/buildings/(\d+)/"), "building", "building"),
+    (None, re.compile(r"^/api/images/(\d+)/"), "building", "image"),
+    (None, re.compile(r"^/api/reports/(\d+)$"), "owner", "report"),
+    ("POST", re.compile(r"^/api/save/pins$"), "member", None),  # reads an uploaded save, stores nothing
+    ("PUT", re.compile(r"^/api/settings/capture$"), "member", None),  # each person's own
+]
+
+
+def write_denied(method: str, path: str, user: SessionUser, lang: str = "pt-BR") -> str | None:
+    """None when `user` may make this change; otherwise the message for the
+    403. Only called in web mode, for a logged-in user."""
+    from app import models, permissions
+    from app.database import SessionLocal
+    from app.services.errors_i18n import err
+
+    if method in ("GET", "HEAD", "OPTIONS") or not path.startswith("/api/"):
+        return None
+    level, kind, obj_id = "admin", None, None
+    for rule_method, pattern, rule_level, rule_kind in _WRITE_RULES:
+        m = pattern.match(path)
+        if m and rule_method in (None, method):
+            level, kind = rule_level, rule_kind
+            obj_id = int(m.group(1)) if rule_kind else None
+            break
+    if level == "member":
+        return None
+    if level == "admin":
+        return None if user.is_admin else err("admin_only", lang)
+    with SessionLocal() as db:
+        building_id = None
+        if kind == "facility":
+            facility = db.get(models.Facility, obj_id)
+        elif kind == "report":
+            report = db.get(models.Report, obj_id)
+            facility = db.get(models.Facility, report.facility_id) if report else None
+        else:
+            if kind == "image":
+                image = db.get(models.UploadImage, obj_id)
+                building_id = image.building_id if image else None
+            else:
+                building_id = obj_id
+            building = db.get(models.Building, building_id) if building_id is not None else None
+            facility = db.get(models.Facility, building.facility_id) if building else None
+        if facility is None:
+            return None  # nothing there: the route answers 404 itself
+        access = permissions.access_for(db, facility, user)
+        if access.manage or (level == "transfer" and user.is_admin):
+            return None
+        if level == "building" and access.can_edit(building_id):
+            return None
+        if facility.owner_id is None:
+            return err("no_owner", lang)
+        if level == "building":
+            return err("no_edit_permission", lang, owner=facility.owner_name or "?")
+        return err("owner_only", lang, owner=facility.owner_name or "?")
+
+
 async def gate(request, call_next):
     """Every /api/* and /uploads/* request needs a logged-in user with the
     role when login is on. Static files (the SPA itself) stay public so the
@@ -285,6 +391,12 @@ async def gate(request, call_next):
         from app.services.errors_i18n import err
 
         return JSONResponse({"detail": err("facility_not_found", request.query_params.get("lang", "pt-BR"))}, status_code=404)
+    if request.state.user is not None:
+        denied = await run_in_threadpool(
+            write_denied, request.method, path, request.state.user, request.query_params.get("lang", "pt-BR")
+        )
+        if denied:
+            return JSONResponse({"detail": denied}, status_code=403)
     return await call_next(request)
 
 
@@ -296,6 +408,10 @@ def is_local_request(request) -> bool:
     host = request.client.host if request.client else ""
     forwarded = any(h in request.headers for h in ("x-forwarded-for", "cf-connecting-ip", "forwarded", "x-real-ip"))
     return host in ("127.0.0.1", "::1", "localhost") and not forwarded
+
+
+def current_user(request) -> SessionUser | None:
+    return getattr(request.state, "user", None)
 
 
 def current_user_id(request) -> int | None:

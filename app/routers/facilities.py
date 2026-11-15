@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app import auth, crud, models, schemas
+from app import auth, crud, models, permissions, schemas
 from app.database import get_db
 from app.services import discord_dashboard, foxhole_data, projection
 from app.services.errors_i18n import err
@@ -12,20 +12,30 @@ from app.services.errors_i18n import err
 router = APIRouter(prefix="/api/facilities", tags=["facilities"])
 
 
+def _out(request: Request, db: Session, facility: models.Facility) -> schemas.FacilityOut:
+    out = schemas.FacilityOut.model_validate(facility)
+    out.access = permissions.access_for(db, facility, auth.current_user(request)).as_dict()
+    return out
+
+
 @router.get("", response_model=list[schemas.FacilityOut])
 def list_facilities(request: Request, db: Session = Depends(get_db)):
-    return crud.get_facilities(db, auth.current_user_id(request), auth.config.enabled)
+    return [_out(request, db, f) for f in crud.get_facilities(db, auth.current_user_id(request), auth.config.enabled)]
 
 
 @router.post("", response_model=schemas.FacilityOut, status_code=201)
 def create_facility(request: Request, data: schemas.FacilityCreate, db: Session = Depends(get_db)):
-    return crud.create_facility(db, data, owner_id=auth.current_user_id(request))
+    return _out(request, db, crud.create_facility(db, data, owner_id=auth.current_user_id(request)))
 
 
 def _is_owner(request: Request, facility: models.Facility) -> bool:
-    """Owner-only actions (delete, private/shared, the Discord webhook) in web
-    mode. A facility without owner (local mode, older data) is anyone's."""
-    return not auth.config.enabled or facility.owner_id is None or facility.owner_id == auth.current_user_id(request)
+    """Owner-only actions in web mode (app/permissions.py). A facility
+    without owner is nobody's there, until an admin hands it to someone
+    (it used to be anyone's: any member could take it by marking it
+    private). Local mode has no accounts: everything is allowed."""
+    if not auth.config.enabled:
+        return True
+    return facility.owner_id is not None and facility.owner_id == auth.current_user_id(request)
 
 
 def _require_owner(request: Request, facility: models.Facility, lang: str) -> None:
@@ -34,11 +44,11 @@ def _require_owner(request: Request, facility: models.Facility, lang: str) -> No
 
 
 @router.get("/{facility_id}", response_model=schemas.FacilityOut)
-def get_facility(facility_id: int, lang: str = "pt-BR", db: Session = Depends(get_db)):
+def get_facility(request: Request, facility_id: int, lang: str = "pt-BR", db: Session = Depends(get_db)):
     facility = crud.get_facility(db, facility_id)
     if not facility:
         raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
-    return facility
+    return _out(request, db, facility)
 
 
 @router.put("/{facility_id}", response_model=schemas.FacilityOut)
@@ -53,9 +63,7 @@ def update_facility(
             data.private = None  # no users locally: nothing to hide from
         else:
             _require_owner(request, facility, lang)
-            if facility.owner_id is None:
-                facility.owner_id = auth.current_user_id(request)  # claiming an ownerless one
-    return crud.update_facility(db, facility, data)
+    return _out(request, db, crud.update_facility(db, facility, data))
 
 
 @router.delete("/{facility_id}", status_code=204)
@@ -151,22 +159,59 @@ class OwnerIn(BaseModel):
 
 @router.put("/{facility_id}/owner", response_model=schemas.FacilityOut)
 def transfer_owner(request: Request, facility_id: int, data: OwnerIn, lang: str = "pt-BR", db: Session = Depends(get_db)):
-    """Hand the facility to someone else (web mode). Only the owner can, and
-    it's one way: the old owner loses delete / private / webhook and only
+    """Hand the facility to someone else (web mode). The owner can, and it's
+    one way: the old owner loses everything only the owner does and only
     gets it back if someone hands it back. A private facility goes with it
-    (the old owner stops seeing it)."""
+    (the old owner stops seeing it). An admin can too — that is how a
+    facility with no owner, or whose owner left, gets someone in charge."""
     facility = crud.get_facility(db, facility_id)
     if not facility:
         raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
     if not auth.config.enabled:
         raise HTTPException(status_code=400, detail=err("owner_web_only", lang))
-    _require_owner(request, facility, lang)
+    user = auth.current_user(request)
+    if not (user and user.is_admin):
+        _require_owner(request, facility, lang)
     if not db.get(models.User, data.user_id):
         raise HTTPException(status_code=404, detail=err("user_not_found", lang))
     facility.owner_id = data.user_id
     db.commit()
+    # The owner needs no permission rows of their own.
+    permissions.set_permission(db, facility, data.user_id, False, [])
     db.refresh(facility)
-    return facility
+    return _out(request, db, facility)
+
+
+class PermissionIn(BaseModel):
+    user_id: int
+    all: bool = False  # every building, the ones added later too
+    building_ids: list[int] = []
+
+
+@router.get("/{facility_id}/permissions")
+def list_permissions(request: Request, facility_id: int, lang: str = "pt-BR", db: Session = Depends(get_db)):
+    """Who the owner allowed to edit, and where (app/permissions.py). Only
+    the owner sees the list; everyone gets their own part in the facility's
+    `access`."""
+    facility = crud.get_facility(db, facility_id)
+    if not facility:
+        raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
+    _require_owner(request, facility, lang)
+    return permissions.list_permissions(db, facility)
+
+
+@router.put("/{facility_id}/permissions")
+def set_permission(request: Request, facility_id: int, data: PermissionIn, lang: str = "pt-BR", db: Session = Depends(get_db)):
+    facility = crud.get_facility(db, facility_id)
+    if not facility:
+        raise HTTPException(status_code=404, detail=err("facility_not_found", lang))
+    _require_owner(request, facility, lang)
+    if not db.get(models.User, data.user_id):
+        raise HTTPException(status_code=404, detail=err("user_not_found", lang))
+    if data.user_id == facility.owner_id:
+        data.all, data.building_ids = False, []
+    permissions.set_permission(db, facility, data.user_id, data.all, data.building_ids)
+    return permissions.list_permissions(db, facility)
 
 
 class WebhookIn(BaseModel):

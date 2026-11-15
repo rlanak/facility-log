@@ -92,6 +92,7 @@ def _check_queues(db: Session, building: models.Building, lang: str, exclude_id:
 
 @router.post("/api/buildings/{building_id}/private-orders/read-print")
 def read_order_print(
+    request: Request,
     building_id: int,
     data: schemas.PrivateOrderPrintIn,
     recipes: str | None = None,
@@ -110,7 +111,7 @@ def read_order_print(
         raise HTTPException(status_code=404, detail=err("image_not_found", lang))
     if not icon_match_service.is_available():
         return {"available": False}
-    _chosen, _effective, reader = capture.resolve_reader(db)
+    _chosen, _effective, reader = capture.resolve_reader(db, auth.current_user_id(request))
     with Image.open(path) as img:
         width, height = img.size
     items = icon_match_service.detect_items(

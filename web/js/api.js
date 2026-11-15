@@ -53,6 +53,9 @@ const api = (() => {
     getDashboard: (id) => request("GET", `/api/facilities/${id}/dashboard`),
     listUsers: () => request("GET", "/api/users"),
     transferFacility: (id, userId) => request("PUT", `/api/facilities/${id}/owner`, { user_id: userId }),
+    // Who the owner allowed to edit (web mode) — app/permissions.py.
+    listPermissions: (id) => request("GET", `/api/facilities/${id}/permissions`),
+    setPermission: (id, data) => request("PUT", `/api/facilities/${id}/permissions`, data),
     getDiscordWebhook: (id) => request("GET", `/api/facilities/${id}/discord-webhook`),
     setDiscordWebhook: (id, url, thread) => request("PUT", `/api/facilities/${id}/discord-webhook`, { url, thread }),
     sendDiscordWebhook: (id) => request("POST", `/api/facilities/${id}/discord-webhook/send`),

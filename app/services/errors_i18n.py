@@ -7,6 +7,10 @@ _STRINGS = {
     "pt-BR": {
         "facility_not_found": "Facility não encontrada.",
         "owner_only": "Só o dono da facility ({owner}) pode fazer isso.",
+        "no_owner": "Esta facility ainda não tem dono, então ninguém pode alterá-la — a administração precisa definir um (botão Transferir).",
+        "no_edit_permission": "Você não tem permissão pra alterar este prédio — peça ao dono da facility ({owner}).",
+        "admin_only": "Só a administração pode alterar isso.",
+        "upload_limit": "Você já enviou {n} prints nas últimas 24 horas (limite do servidor). Lance os valores à mão ou tente mais tarde.",
         "owner_web_only": "Dono de facility só existe no modo web (login pelo Discord).",
         "user_not_found": "Usuário não encontrado (a pessoa precisa ter entrado no app pelo menos uma vez).",
         "invalid_thread": "Tópico inválido: cole o link do tópico (botão direito no tópico → Copiar link) ou o ID dele.",
@@ -38,6 +42,10 @@ _STRINGS = {
     "en-US": {
         "facility_not_found": "Facility not found.",
         "owner_only": "Only the facility's owner ({owner}) can do that.",
+        "no_owner": "This facility has no owner yet, so nobody can change it — an admin has to set one (Transfer button).",
+        "no_edit_permission": "You aren't allowed to change this building — ask the facility's owner ({owner}).",
+        "admin_only": "Only an admin can change that.",
+        "upload_limit": "You already sent {n} screenshots in the last 24 hours (the server's limit). Type the values in or try later.",
         "owner_web_only": "Facility owners only exist in web mode (Discord login).",
         "user_not_found": "User not found (they need to have logged in to the app at least once).",
         "invalid_thread": "Invalid thread: paste the thread link (right-click the thread → Copy Link) or its ID.",

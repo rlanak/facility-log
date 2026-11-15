@@ -66,10 +66,25 @@ class Facility(Base):
     targets: Mapped[list["FacilityTarget"]] = relationship(back_populates="facility", cascade="all, delete-orphan")
     item_origins: Mapped[list["FacilityItemOrigin"]] = relationship(cascade="all, delete-orphan")
     webhook: Mapped["FacilityWebhook | None"] = relationship(cascade="all, delete-orphan")
+    permissions: Mapped[list["FacilityPermission"]] = relationship(cascade="all, delete-orphan")
 
     @property
     def owner_name(self) -> str | None:
         return (self.owner.display_name or self.owner.username) if self.owner else None
+
+
+class FacilityPermission(Base):
+    """Web mode: a member the owner allowed to edit — one row per building,
+    or one row with no building for "every building, the ones added later
+    too". See app/permissions.py."""
+
+    __tablename__ = "facility_permissions"
+    __table_args__ = (UniqueConstraint("facility_id", "user_id", "building_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    facility_id: Mapped[int] = mapped_column(ForeignKey("facilities.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    building_id: Mapped[int | None] = mapped_column(ForeignKey("buildings.id"), default=None)
 
 
 class FacilityItemOrigin(Base):
@@ -275,6 +290,17 @@ class AppSetting(Base):
     value: Mapped[str] = mapped_column(EncryptedText, default="")  # holds the API key: encrypted at rest
 
 
+class UserSetting(Base):
+    """Web mode: one person's own settings (capture engine, their API key) —
+    the same keys app_settings holds for local mode. See services/capture."""
+
+    __tablename__ = "user_settings"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    key: Mapped[str] = mapped_column(String(80), primary_key=True)
+    value: Mapped[str] = mapped_column(EncryptedText, default="")  # holds the API key: encrypted at rest
+
+
 class CodenameAlias(Base):
     """User-picked catalog resource for a game item codename the catalog
     doesn't map yet (resources.json "codename"), so a save import only asks
@@ -293,6 +319,8 @@ class UploadImage(Base):
     building_id: Mapped[int] = mapped_column(ForeignKey("buildings.id"))
     file_path: Mapped[str] = mapped_column(String(500))
     uploaded_at: Mapped[datetime] = mapped_column(default=utcnow)
+    # Web mode: who sent it — the daily limit per person counts these.
+    uploaded_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), default=None)
 
     building: Mapped["Building"] = relationship(back_populates="images")
 

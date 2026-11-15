@@ -144,10 +144,21 @@ Fill in:
 | `DISCORD_REDIRECT_URI` | the same address added under Redirects |
 | `DISCORD_GUILD_ID` | your Discord server's ID |
 | `DISCORD_ALLOWED_ROLE_IDS` | the role ID (several separated by commas) |
+| `DISCORD_ADMIN_ROLE_IDS` | optional: role IDs of the admins (several separated by commas) — see "Who can change what" |
 | `SESSION_SECRET` | a long random string — generate with `openssl rand -base64 48` |
 | `FACILITY_LOG_SECRET_KEY` | another long random string (protects saved webhooks and keys). **Keep a copy**: without it, saved secrets are lost |
 
 Protect the file: `chmod 600 .env`.
+
+**Who can change what.** Everyone with the role sees every shared facility, but only its **owner**
+(whoever created it) changes it: buildings, targets, reports, the Discord panel. With the **Permissions**
+button the owner allows other people to record stock, screenshots, production and private queues — on
+every building or only on chosen ones — and takes that back at any time. Everyone else only reads.
+An **admin** (`DISCORD_ADMIN_ROLE_IDS`) can hand any facility to a new owner — a facility created
+before logins existed has no owner and stays read-only until an admin does that — and is the only one
+who edits the shared resource list. Capture settings and API keys belong to each person. Other optional
+limits: `FACILITY_LOG_SESSION_DAYS` (how long a login lasts, default 1) and
+`FACILITY_LOG_UPLOADS_PER_DAY` (screenshots per person per day, default 10).
 
 ### 3. Start
 

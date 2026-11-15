@@ -326,6 +326,9 @@ views.settings = (() => {
 
     // Ollama (local GPU)
     const ollamaUrl = el("input", { class: inputClass, value: s.ollama_url });
+    // On the web the server's Ollama address is set on the server
+    // (FACILITY_LOG_OLLAMA_URL), not here.
+    if (window.appMe && window.appMe.auth_enabled) ollamaUrl.disabled = true;
     const ollamaModel = el(
       "select",
       { class: inputClass },
